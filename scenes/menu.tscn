@@ -1,48 +1,114 @@
 [gd_scene format=3 uid="uid://b4dmqggxst63"]
 
 [ext_resource type="Script" uid="uid://wjnlxk3gxd2n" path="res://scripts/animated_button.gd" id="1_btn"]
+[ext_resource type="Script" uid="uid://by2t35sq2pprw" path="res://scripts/menu_camera.gd" id="2_cam"]
+[ext_resource type="Shader" uid="uid://dxor3cx2oous3" path="res://shaders/toon_sphere.gdshader" id="3_toon"]
+[ext_resource type="Shader" uid="uid://c1rkgnykfakm8" path="res://shaders/sphere_outline.gdshader" id="4_outline"]
+
+[sub_resource type="Environment" id="Env_menu"]
+background_mode = 1
+background_color = Color(0.07, 0.08, 0.11, 1)
+ambient_light_source = 2
+ambient_light_color = Color(1, 1, 1, 1)
+ambient_light_energy = 0.3
+
+[sub_resource type="ShaderMaterial" id="Mat_sphere"]
+render_priority = 0
+shader = ExtResource("3_toon")
+shader_parameter/base_color = Color(1, 0.55, 0.28, 1)
+shader_parameter/shadow_color = Color(0.48, 0.17, 0.3, 1)
+shader_parameter/highlight_color = Color(1, 0.83, 0.55, 1)
+shader_parameter/spec_color = Color(1, 0.96, 0.88, 1)
+shader_parameter/rim_color = Color(1, 0.62, 0.42, 1)
+shader_parameter/light_dir = Vector3(-0.5, 0.7, 0.5)
+shader_parameter/shadow_threshold = 0.15
+shader_parameter/highlight_threshold = 0.8
+shader_parameter/band_softness = 0.03
+shader_parameter/spec_size = 0.06
+shader_parameter/spec_strength = 0.9
+shader_parameter/rim_threshold = 0.62
+shader_parameter/rim_strength = 0.45
+
+[sub_resource type="SphereMesh" id="SphereMesh_ball"]
+material = SubResource("Mat_sphere")
+radius = 1.5
+height = 3.0
+
+[sub_resource type="ShaderMaterial" id="Mat_outline"]
+render_priority = 0
+shader = ExtResource("4_outline")
+shader_parameter/width = 0.035
+shader_parameter/outline_color = Color(0.2, 0.07, 0.06, 1)
 
 [sub_resource type="SystemFont" id="SystemFont_yahei"]
 font_names = PackedStringArray("Microsoft YaHei UI", "Microsoft YaHei")
+subpixel_positioning = 0
 
 [sub_resource type="Theme" id="Theme_main"]
 default_font = SubResource("SystemFont_yahei")
 default_font_size = 20
 
-[node name="Menu" type="Control" unique_id=756593625]
+[node name="Menu" type="Node3D" unique_id=756593625]
+script = ExtResource("2_cam")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=553773638]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1735395323]
+transform = Transform3D(0.8660254, 0.35355338, -0.35355338, 0, 0.70710677, 0.70710677, 0.5, -0.6123724, 0.6123724, 0, 0, 0)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=156558889]
+environment = SubResource("Env_menu")
+
+[node name="SpherePivot" type="Node3D" parent="." unique_id=1317236432]
+
+[node name="Sphere" type="MeshInstance3D" parent="SpherePivot" unique_id=2113718827]
+mesh = SubResource("SphereMesh_ball")
+
+[node name="SphereOutline" type="MeshInstance3D" parent="SpherePivot" unique_id=1336039887]
+mesh = SubResource("SphereMesh_ball")
+surface_material_override/0 = SubResource("Mat_outline")
+
+[node name="UI" type="Control" parent="." unique_id=645905373]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 theme = SubResource("Theme_main")
 
-[node name="CenterContainer" type="CenterContainer" parent="." unique_id=240445098]
-layout_mode = 0
+[node name="CenterContainer" type="CenterContainer" parent="UI" unique_id=240445098]
+layout_mode = 1
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_right = -832.0
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="VBox" type="VBoxContainer" parent="CenterContainer" unique_id=333585256]
+[node name="VBox" type="VBoxContainer" parent="UI/CenterContainer" unique_id=333585256]
 layout_mode = 2
 theme_override_constants/separation = 20
 
-[node name="Title" type="Label" parent="CenterContainer/VBox" unique_id=361512892]
+[node name="Title" type="Label" parent="UI/CenterContainer/VBox" unique_id=361512892]
 layout_mode = 2
 text = "主菜单"
 horizontal_alignment = 1
 
-[node name="StartButton" type="Button" parent="CenterContainer/VBox" unique_id=2147478049]
+[node name="StartButton" type="Button" parent="UI/CenterContainer/VBox" unique_id=2147478049]
 custom_minimum_size = Vector2(260, 60)
 layout_mode = 2
 text = "开始游戏"
 script = ExtResource("1_btn")
 
-[node name="SettingsButton" type="Button" parent="CenterContainer/VBox" unique_id=88728317]
+[node name="SettingsButton" type="Button" parent="UI/CenterContainer/VBox" unique_id=88728317]
 custom_minimum_size = Vector2(260, 60)
 layout_mode = 2
 text = "设置"
 script = ExtResource("1_btn")
 
-[node name="QuitButton" type="Button" parent="CenterContainer/VBox" unique_id=1053602016]
+[node name="QuitButton" type="Button" parent="UI/CenterContainer/VBox" unique_id=1053602016]
 custom_minimum_size = Vector2(260, 60)
 layout_mode = 2
 text = "退出"
