@@ -1,0 +1,49 @@
+[gd_scene format=3 uid="uid://b4dmqggxst63"]
+
+[ext_resource type="Script" uid="uid://wjnlxk3gxd2n" path="res://scripts/animated_button.gd" id="1_btn"]
+
+[sub_resource type="SystemFont" id="SystemFont_yahei"]
+font_names = PackedStringArray("Microsoft YaHei UI", "Microsoft YaHei")
+
+[sub_resource type="Theme" id="Theme_main"]
+default_font = SubResource("SystemFont_yahei")
+default_font_size = 20
+
+[node name="Menu" type="Control" unique_id=756593625]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme = SubResource("Theme_main")
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=240445098]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer" unique_id=333585256]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Title" type="Label" parent="CenterContainer/VBox" unique_id=361512892]
+layout_mode = 2
+text = "主菜单"
+horizontal_alignment = 1
+
+[node name="StartButton" type="Button" parent="CenterContainer/VBox" unique_id=2147478049]
+custom_minimum_size = Vector2(260, 60)
+layout_mode = 2
+text = "开始游戏"
+script = ExtResource("1_btn")
+
+[node name="SettingsButton" type="Button" parent="CenterContainer/VBox" unique_id=88728317]
+custom_minimum_size = Vector2(260, 60)
+layout_mode = 2
+text = "设置"
+script = ExtResource("1_btn")
+
+[node name="QuitButton" type="Button" parent="CenterContainer/VBox" unique_id=1053602016]
+custom_minimum_size = Vector2(260, 60)
+layout_mode = 2
+text = "退出"
+script = ExtResource("1_btn")
