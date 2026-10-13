@@ -45,6 +45,14 @@ func tick(world, _dt: float) -> void:
 		deck.pending_draw -= 1
 
 
+## 手牌满则放抽牌堆顶（DNA 融合子代入手通道，规格 §4）；空位直接入手。
+func receive_card(card_id: StringName) -> void:
+	if deck.hand.size() < deck.hand_max:
+		deck.hand.append(card_id)
+	else:
+		deck.pool.push_front(card_id)
+
+
 func _draw_one() -> bool:
 	if deck.pool.is_empty():
 		if _card_pool.is_empty():

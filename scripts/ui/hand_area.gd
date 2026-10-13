@@ -4,6 +4,7 @@ extends HBoxContainer
 
 signal card_selected(card: Dictionary)
 signal selection_cleared()
+signal card_right_clicked(card: Dictionary) # 右键卡片：查看 DNA 序列（DNA 系统）
 
 const UiStyle = preload("res://scripts/ui/ui_style.gd")
 const UiCardFace = preload("res://scripts/ui/card_face.gd")
@@ -84,6 +85,13 @@ func _on_card_pressed(index: int) -> void:
 	card_selected.emit(_cards[index])
 
 
+## 右键卡片 = 查看 DNA 序列（不进入放置/选中状态）。
+func _on_card_gui_input(event: InputEvent, index: int) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if index >= 0 and index < _cards.size():
+			card_right_clicked.emit(_cards[index])
+
+
 func _rebuild() -> void:
 	for child in get_children():
 		remove_child(child)
@@ -104,8 +112,9 @@ func _rebuild() -> void:
 				UiCardFace.fill_parent(face)
 			var desc := str(_cards[index].get("desc", ""))
 			if not desc.is_empty():
-				button.tooltip_text = desc
+				button.tooltip_text = desc # 悬停 = 费用 + 效果描述
 			button.pressed.connect(_on_card_pressed.bind(index))
+			button.gui_input.connect(_on_card_gui_input.bind(index))
 		else:
 			var placeholder := Label.new()
 			placeholder.text = EMPTY_TEXT

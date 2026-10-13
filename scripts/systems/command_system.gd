@@ -7,7 +7,10 @@ extends System
 ##   {"type": "play_card",     "card_index": int, "cell": [x, y] 或 Vector2i}
 ##   {"type": "place_factory", "blueprint_id": String, "cell": [x, y] 或 Vector2i}
 ##   {"type": "place_tile",    "tile_type": String, "cell": [x, y] 或 Vector2i}
+##   {"type": "fuse",          "a": int, "b": int, "seed": int（可选）}  # DNA 融合
 ## 失败一律发 world.command_rejected(reason)：不改世界、不扣费（已扣则回滚）。
+
+const GenomeScript = preload("res://scripts/dna/genome.gd")
 
 var _grid_system = null
 var _card_system = null
@@ -38,6 +41,8 @@ func _apply(world, cmd) -> void:
 			_place_factory(world, str(d.get("blueprint_id", "")), _cell_of(d))
 		"place_tile":
 			_place_tile(world, str(d.get("tile_type", "")), _cell_of(d))
+		"fuse":
+			_fuse(world, int(d.get("a", 0)), int(d.get("b", 0)), int(d.get("seed", -1)))
 		_:
 			_reject(world, "未知指令类型 '%s'" % str(d.get("type", "")))
 
@@ -101,7 +106,9 @@ func _place_factory(world, blueprint_id: String, cell) -> bool:
 		_reject(world, "放置 %s 资源不足" % blueprint_id)
 		return false
 	var id: int = world.create_entity()
-	for spec in bp["components"]:
+	var display_name := GenomeScript.phenotype_name(bp["genome"], world.config.genes) # 表型命名（策划案 15.6）
+	var specs: Array = GenomeScript.express(bp["genome"], world.config.genes, blueprint_id, display_name)
+	for spec in specs:
 		var sd: Dictionary = spec
 		var comp = GameConfig.make_component(str(sd.get("type", "")), sd)
 		if comp == null:
@@ -114,6 +121,35 @@ func _place_factory(world, blueprint_id: String, cell) -> bool:
 		world.add_component(id, comp)
 	world.grid.occupy(cell, id)
 	return true
+
+
+## DNA 融合（规格 2026-10-13-dna-fusion-design §4）：双亲减数分裂 → 子代卡入手。
+## 无消耗无冷却，代价是双亲实体销毁、格子由 GridSystem 清扫释放。
+func _fuse(world, a: int, b: int, seed: int) -> void:
+	if a == b:
+		_reject(world, "融合需要两个不同的工厂（当前都是实体 %d）" % a)
+		return
+	var parents: Array = []
+	for eid in [a, b]:
+		if not world.is_alive(eid) or not world.has_component(eid, &"Factory"):
+			_reject(world, "实体 %d 不是在场工厂，无法融合" % eid)
+			return
+		parents.append(world.get_component(eid, &"Factory"))
+	if _card_system == null:
+		_reject(world, "CardSystem 未注册")
+		return
+	var rng := RandomNumberGenerator.new()
+	if seed >= 0:
+		rng.seed = seed
+		world.state.fusion_seed = seed
+	else:
+		rng.seed = world.state.fusion_seed if world.state.fusion_seed != 0 else randi()
+	var child_genome: Array = GenomeScript.breed(parents[0].genome, parents[1].genome, world.config.genes, rng)
+	var child_name := GenomeScript.phenotype_name(child_genome, world.config.genes)
+	var child_card: StringName = GenomeScript.register_child(world.config, child_genome, child_name)
+	world.destroy_entity(a)
+	world.destroy_entity(b)
+	_card_system.receive_card(child_card)
 
 
 ## 放置地块（§7）：地块不是实体，写入 GridMapData.cells[cell].tile_type（§4）。

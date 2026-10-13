@@ -10,6 +10,7 @@ extends Node
 
 ## preload 而非 class_name：headless/首启类缓存未含新脚本时也能解析
 const BootstrapScript = preload("res://scripts/bootstrap.gd")
+const GenomeScript = preload("res://scripts/dna/genome.gd")
 
 ## 配置 id → UI 资源条 key（策划案 §4：零件/特殊材料/电力/水/矿）
 const UI_RESOURCE_KEYS := {
@@ -38,6 +39,9 @@ var _last_wave: int = -1
 var _enemy_cap: int = 0
 var _wave_total: int = 0
 var _over := false
+var _fusion_on := false
+var _fusion_sel: Array = [] # 融合已选格（Vector2i，最多 2）
+var _last_fusion_cells: Array = [] # 上次注入的工厂格高亮集合
 
 
 func _ready() -> void:
@@ -68,6 +72,9 @@ func _ready() -> void:
 	ui.card_selected.connect(_on_card_selected)
 	ui.card_played.connect(_on_card_played)
 	ui.placement_cancelled.connect(_on_placement_cancelled)
+	ui.fusion_toggled.connect(_on_fusion_toggled)
+	ui.fusion_confirmed.connect(_on_fusion_confirmed)
+	ui.factory_cell_clicked.connect(_on_factory_cell_clicked)
 	_init_ui()
 	_push_receipt("·", "关卡「%s」开始：撑过 %d 波" % [level.get("name", level_id), _wave_total])
 
@@ -98,6 +105,7 @@ func _sync_ui() -> void:
 	_sync_res()
 	_sync_hand()
 	_sync_hud()
+	_sync_fusion_preview()
 
 
 func _sync_res() -> void:
@@ -150,6 +158,62 @@ func _on_placement_cancelled() -> void:
 	ui.set_placement_preview([])
 
 
+# ---------------------------------------------------------------- 融合（DNA 系统）
+
+func _on_fusion_toggled(on: bool) -> void:
+	_fusion_on = on
+	_fusion_sel.clear()
+	_last_fusion_cells = []
+	if not on:
+		ui.set_placement_preview([])
+	_sync_fusion_preview(true)
+
+
+func _on_factory_cell_clicked(cell: Vector2i) -> void:
+	var c = world.grid.get_cell(cell)
+	var eid: int = c.occupant if c != null else 0
+	if eid == 0 or not world.has_component(eid, &"Factory"):
+		_push_receipt("!", "格子 %s 上没有可融合的工厂" % str(cell))
+		return
+	var idx := _fusion_sel.find(cell)
+	if idx >= 0:
+		_fusion_sel.remove_at(idx)
+	else:
+		if _fusion_sel.size() >= 2:
+			_fusion_sel.pop_front()
+		_fusion_sel.append(cell)
+	ui.set_fusion_selection(_fusion_sel.size())
+	_sync_fusion_preview(true)
+
+
+func _on_fusion_confirmed(seed: int) -> void:
+	if _fusion_sel.size() != 2:
+		_push_receipt("!", "先点选 2 个已放置的工厂再确定（已选 %d）" % _fusion_sel.size())
+		return
+	var ids: Array = []
+	for cell in _fusion_sel:
+		var c = world.grid.get_cell(cell)
+		ids.append(c.occupant if c != null else 0)
+	world.push_command({ "type": "fuse", "a": ids[0], "b": ids[1], "seed": seed })
+	_fusion_sel.clear()
+	ui.set_fusion_selection(0)
+	_push_receipt("🧬", "减数分裂启动（种子 %d）……子代卡将入手" % seed)
+
+
+## 融合模式下把工厂所在格注入放置预览层高亮；集合变化才重注入，避免每帧重绘。
+func _sync_fusion_preview(force: bool = false) -> void:
+	if not _fusion_on or world == null:
+		return
+	var cells: Array = []
+	for cell in world.grid.cells:
+		var c = world.grid.cells[cell]
+		if c.occupant != 0 and world.has_component(c.occupant, &"Factory"):
+			cells.append(cell)
+	if force or cells != _last_fusion_cells:
+		_last_fusion_cells = cells
+		ui.set_placement_preview(cells)
+
+
 # ---------------------------------------------------------------- 世界信号 → 回执
 
 func _connect_world() -> void:
@@ -182,21 +246,63 @@ func _ui_card_of(cid) -> Dictionary:
 		return {}
 	var eff: Dictionary = cfg["effect"]
 	var kind := "factory" if str(eff.get("type", "")) == "place_factory" else "tile"
-	var target := str(eff.get("blueprint_id", eff.get("tile_type", "")))
-	var desc := "放置：%s" % target
 	var cost: Dictionary = cfg["cost"]
-	if not cost.is_empty():
-		var parts := []
-		for rid in cost:
-			parts.append("%s×%d" % [rid, int(cost[rid])])
-		desc += "\n费用: " + ", ".join(parts)
+	var cost_parts := []
+	for rid in cost:
+		cost_parts.append("%s×%d" % [rid, int(cost[rid])])
+	var desc := "费用: " + (", ".join(cost_parts) if not cost_parts.is_empty() else "无")
+	var dna := ""
+	var dna_ui := {}
+	var display_name := str(cfg.get("name", cid))
+	if kind == "factory":
+		# 基因组挂在蓝图上（cards.json 条目没有 genome），按 effect.blueprint_id 查
+		var bp: Dictionary = config.get_blueprint(StringName(str(eff.get("blueprint_id", ""))))
+		if bp.has("genome"):
+			# 表型命名（策划案 15.6）：卡面显示名 = 基因组解码出的能力组合名
+			display_name = GenomeScript.phenotype_name(bp["genome"], config.genes)
+			desc += "\n" + GenomeScript.effect_text(bp["genome"], config.genes, config)
+			dna = GenomeScript.sequence_text(bp["genome"], config.genes)
+			dna_ui = _build_dna_ui(display_name, bp["genome"], dna)
+	else:
+		# 地块卡也有 DNA：地块基因 = 地形规则（减速倍率等，levels.json tile_types）
+		var ttype := StringName(str(eff.get("tile_type", "")))
+		var level: Dictionary = config.get_level(level_id)
+		var tmult := float((level.get("tile_types", {}) as Dictionary).get(ttype, {}).get("speed_mult", 1.0))
+		desc += "\n放置地块: %s（敌人速度×%.1f）" % [ttype, tmult]
+		dna = "1. tile_type: %s（敌人速度×%.1f）" % [ttype, tmult]
+		dna_ui = { "title": display_name, "bases": ["·"], "locus_names": ["地块"],
+			"rules": ["地块基因：%s — 放置后改变地形规则（敌人速度×%.1f）" % [ttype, tmult]], "debug": dna }
+	var icon := str(UI_ICONS.get(String(cid), "🧬" if String(cid).begins_with("card_fusion_") else "▢"))
 	return {
 		"id": String(cid),
-		"name": str(cfg.get("name", cid)),
+		"name": display_name,
 		"kind": kind,
-		"icon": str(UI_ICONS.get(String(cid), "▢")),
+		"icon": icon,
 		"desc": desc,
+		"dna": dna, # 调试视图原始序列
+		"dna_ui": dna_ui, # 玩家检视载荷（dna_inspector 预制体契约：title/bases/locus_names/rules/debug）
 	}
+
+
+## 碱基链 + 座名 + 规则 → DNA 检视载荷；规则里的数字全部来自 genes.json，零硬编码。
+func _build_dna_ui(title: String, genome: Array, debug_text: String) -> Dictionary:
+	var loci: Array = config.genes.get("loci", [])
+	var locus_names := []
+	for l in loci:
+		locus_names.append(str((l as Dictionary).get("name", (l as Dictionary).get("id", ""))))
+	var g: Dictionary = config.genes
+	var mut: Dictionary = g.get("mutation", {})
+	var rules := [
+		"配对：A–T、C–G 互补成对，每个基因座成双存在",
+		"配子：融合时每座以 %d%% 概率保留一条链" % int(round(float(g.get("gamete_keep", 0.5)) * 100.0)),
+		"互换：%d%% 概率双亲链整段交换" % int(round(float(g.get("crossover", 0.5)) * 100.0)),
+		"突变：每座 %d%%（冗余座 %d%%）；数值 ±%d%%，功能座换同组基因" % [
+			int(round(float(mut.get("rate", 0.05)) * 100.0)),
+			int(round(float(mut.get("redundant_rate", 0.2)) * 100.0)),
+			int(round(float(mut.get("drift", 0.15)) * 100.0))],
+	]
+	return { "title": title, "bases": GenomeScript.base_letters(genome, config.genes),
+		"locus_names": locus_names, "rules": rules, "debug": debug_text }
 
 
 func _pool_ui_cards() -> Array:

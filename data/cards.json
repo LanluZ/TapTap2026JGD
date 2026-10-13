@@ -1,12 +1,12 @@
 {
   "hand_max": 6,
   "cards": [
-    {"id": "card_generator", "name": "发电机卡", "cost": {}, "effect": {"type": "place_factory", "blueprint_id": "generator"}},
-    {"id": "card_pump", "name": "水泵卡", "cost": {}, "effect": {"type": "place_factory", "blueprint_id": "pump"}},
-    {"id": "card_miner", "name": "矿机卡", "cost": {}, "effect": {"type": "place_factory", "blueprint_id": "miner"}},
-    {"id": "card_assembler", "name": "装配台卡", "cost": {}, "effect": {"type": "place_factory", "blueprint_id": "assembler"}},
-    {"id": "card_gun_turret", "name": "炮塔卡", "cost": {}, "effect": {"type": "place_factory", "blueprint_id": "gun_turret"}},
-    {"id": "card_frost_beacon", "name": "霜冻信标卡", "cost": {}, "effect": {"type": "place_factory", "blueprint_id": "frost_beacon"}},
-    {"id": "card_slow_tile", "name": "减速带卡", "cost": {"parts": 1}, "effect": {"type": "place_tile", "tile_type": "slow"}}
+	{"id": "card_generator", "name": "发电机卡", "cost": {}, "effect": {"type": "place_factory", "blueprint_id": "generator"}},
+	{"id": "card_pump", "name": "水泵卡", "cost": {}, "effect": {"type": "place_factory", "blueprint_id": "pump"}},
+	{"id": "card_miner", "name": "矿机卡", "cost": {}, "effect": {"type": "place_factory", "blueprint_id": "miner"}},
+	{"id": "card_assembler", "name": "装配台卡", "cost": {}, "effect": {"type": "place_factory", "blueprint_id": "assembler"}},
+	{"id": "card_gun_turret", "name": "炮塔卡", "cost": {}, "effect": {"type": "place_factory", "blueprint_id": "gun_turret"}},
+	{"id": "card_frost_beacon", "name": "霜冻信标卡", "cost": {}, "effect": {"type": "place_factory", "blueprint_id": "frost_beacon"}},
+	{"id": "card_slow_tile", "name": "减速带卡", "cost": {"parts": 1}, "effect": {"type": "place_tile", "tile_type": "slow"}}
   ]
 }

@@ -1,6 +1,6 @@
 class_name GameConfig
 extends RefCounted
-## 配置层（架构文档 §9）：加载并校验 data/*.json。
+## 配置层（架构文档 §9）：加载并校验 data/*.json（8 个，含 genes.json）。
 ## 原则：缺字段 / 类型错误 / 悬空 id 引用一律记录报错并让加载失败（返回 null），
 ## 不静默默认。所有玩法数值只存在于 JSON，代码零硬编码。
 ##
@@ -52,7 +52,11 @@ const FIELD_KIND: Dictionary = {
 	"hp": "pos_num", "max_hp": "pos_num",
 }
 
+## 基因组表达（DNA 系统）：蓝图 genome → 组件规格，再走 make_component 实例化。
+const GenomeScript = preload("res://scripts/dna/genome.gd")
+
 ## —— 归一化后的配置表（全部 id 引用可交叉校验）——
+var genes: Dictionary = {} # genes.json 归一化：{loci, gamete_keep, crossover, mutation}
 var resources: Dictionary = {} # id -> {id, name}
 var enemies: Dictionary = {} # id -> {name, hp, speed, elite, loot_id, loot_amount}
 var recipes: Dictionary = {} # id -> {inputs, outputs}（StringName -> int）
@@ -96,6 +100,7 @@ func _load_dir(dir: String) -> void:
 		["enemies.json", "enemies", _parse_enemies],
 		["recipes.json", "recipes", _parse_recipes],
 		["buffs.json", "_root", _parse_buffs], # 先于 factories：蓝图 Aura 交叉引用效果 id
+		["genes.json", "_root", _parse_genes], # 先于 factories：蓝图 genome 校验依据
 		["factories.json", "_root", _parse_factories],
 		["cards.json", "_root", _parse_cards],
 		["levels.json", "levels", _parse_levels],
@@ -221,7 +226,8 @@ func _parse_factories(data, src: String) -> void:
 			_err("%s: 射弹 id 重复 '%s'" % [ctx, id])
 			continue
 		projectiles[StringName(id)] = {"id": StringName(id), "speed": maxf(speed, 0.0)}
-	# 蓝图
+	# 蓝图（DNA 系统：组件由基因组表达，蓝图不再手写 components）
+	_validate_gene_refs(src)
 	var arr := _req_list(root.get("blueprints", null), src + ".blueprints")
 	var i := 0
 	for e in arr:
@@ -231,43 +237,17 @@ func _parse_factories(data, src: String) -> void:
 		var id := _req_str(d, "id", ctx)
 		var name := _req_str(d, "name", ctx)
 		var cost := _req_res_map(d, "cost", ctx, true)
-		var comps := _req_list(d.get("components", null), ctx + ".components")
 		if id.is_empty():
 			continue
-		if comps.is_empty():
-			_err("%s: components 不能为空" % ctx)
-		var has_factory := 0
-		var has_grid := 0
-		var has_production := false
-		var has_buffer := false
-		var ci := 0
-		for spec in comps:
-			var cctx := "%s.components[%d]" % [ctx, ci]
-			ci += 1
-			_validate_component(cctx, id, spec)
-			var tname := str((spec as Dictionary).get("type", "?")) if spec is Dictionary else "?"
-			if tname == "Factory":
-				has_factory += 1
-			if tname == "GridPosition":
-				has_grid += 1
-			if tname == "Production":
-				has_production = true
-			if tname == "ResourceBuffer":
-				has_buffer = true
-		if has_factory == 0:
-			_err("%s: 蓝图必须包含 Factory 组件" % ctx)
-		if has_grid == 0:
-			_err("%s: 蓝图必须包含 GridPosition 组件（放置需要坐标）" % ctx)
-		if has_factory > 1:
-			_err("%s: Factory 组件只能有一个" % ctx)
-		if has_grid > 1:
-			_err("%s: GridPosition 组件只能有一个" % ctx)
-		if has_production and not has_buffer:
-			_err("%s: 含 Production 的蓝图必须同时包含 ResourceBuffer（产出进缓冲）" % ctx)
+		var genome = _validate_genome(ctx, d.get("genome", null))
+		if genome == null:
+			continue # 校验错误已记录
+		for spec in GenomeScript.express(genome, genes, id, name):
+			_validate_component(ctx, id, spec)
 		if blueprints.has(StringName(id)):
 			_err("%s: 蓝图 id 重复 '%s'" % [ctx, id])
 			continue
-		blueprints[StringName(id)] = {"id": StringName(id), "name": name, "cost": cost, "components": comps}
+		blueprints[StringName(id)] = {"id": StringName(id), "name": name, "cost": cost, "genome": genome}
 
 
 func _validate_component(ctx: String, blueprint_id: String, spec) -> void:
@@ -320,6 +300,160 @@ func _validate_component(ctx: String, blueprint_id: String, spec) -> void:
 			_err("%s: Factory.blueprint_id '%s' 与蓝图 id '%s' 不一致" % [ctx, bid, blueprint_id])
 
 
+# ================================================================ 基因座（DNA 系统）
+
+func _parse_genes(data, src: String) -> void:
+	var root := _req_obj(data, src)
+	var arr := _req_list(root.get("loci", null), src + ".loci")
+	if arr.is_empty():
+		return
+	var out_loci := []
+	for i in arr.size():
+		var ctx := "%s.loci[%d]" % [src, i]
+		var d := _req_obj(arr[i], ctx)
+		var id := _req_str(d, "id", ctx)
+		var kind := _req_str(d, "kind", ctx)
+		if id.is_empty() or kind.is_empty():
+			continue
+		var alleles := {}
+		var params := {}
+		if kind == "stats":
+			if not d.has("allele_id"):
+				_err("%s: stats 座缺 allele_id" % ctx)
+			if not (d.get("params", null) is Dictionary) or (d["params"] as Dictionary).is_empty():
+				_err("%s: stats 座必须定义非空 params" % ctx)
+		if d.get("params", null) is Dictionary:
+			params = _parse_param_specs(ctx + ".params", d["params"])
+		var alleles_raw = d.get("alleles", null)
+		if alleles_raw is Dictionary:
+			for a in alleles_raw:
+				if not (alleles_raw[a] is Dictionary):
+					_err("%s.alleles.%s: 应为对象（payload，可为空 {}）" % [ctx, str(a)])
+					continue
+				alleles[a] = alleles_raw[a]
+		elif kind != "stats":
+			_err("%s: 座必须定义 alleles 对象" % ctx)
+		var locus := { "id": id, "kind": kind, "alleles": alleles, "params": params }
+		if d.has("allele_id"):
+			locus["allele_id"] = str(d["allele_id"])
+		out_loci.append(locus)
+	if out_loci.size() != arr.size():
+		return # 有座解析失败，错误已记录，不落表
+	var mut_raw = root.get("mutation", null)
+	var mut: Dictionary = mut_raw if mut_raw is Dictionary else {}
+	genes = {
+		"loci": out_loci,
+		"gamete_keep": clampf(_num_or(root.get("gamete_keep", null), 0.5), 0.0, 1.0),
+		"crossover": clampf(_num_or(root.get("crossover", null), 0.5), 0.0, 1.0),
+		"mutation": {
+			"rate": _num_or(mut.get("rate", null), 0.05),
+			"redundant_rate": _num_or(mut.get("redundant_rate", null), 0.2),
+			"drift": _num_or(mut.get("drift", null), 0.15),
+		},
+	}
+
+
+## params 定义表：{key: {default, min, max}}；default 必须落在 [min, max]。
+func _parse_param_specs(ctx: String, raw: Dictionary) -> Dictionary:
+	var out := {}
+	for k in raw:
+		var pctx := "%s.%s" % [ctx, str(k)]
+		var pd := _req_obj(raw[k], pctx)
+		var dv := _req_num(pd, "default", pctx)
+		var mn := _req_num(pd, "min", pctx)
+		var mx := _req_num(pd, "max", pctx)
+		if dv < mn or dv > mx:
+			_err("%s: default 应落在 [min, max] 内" % pctx)
+		out[str(k)] = { "default": dv, "min": mn, "max": mx }
+	return out
+
+
+## 蓝图基因组校验：座数一致、等位基因已定义、参数键/范围合法。返回归一化基因组或 null。
+func _validate_genome(ctx: String, v):
+	var loci: Array = genes.get("loci", [])
+	if loci.is_empty():
+		_err("%s: genes.json 未成功加载，无法校验基因组" % ctx)
+		return null
+	if not (v is Array):
+		_err("%s: genome 应为基因组数组（空座用 JSON null），得到 %s" % [ctx, type_string(typeof(v))])
+		return null
+	if (v as Array).size() != loci.size():
+		_err("%s: 基因组座数应为 %d，得到 %d" % [ctx, loci.size(), (v as Array).size()])
+		return null
+	var out: Array = []
+	for idx in (v as Array).size():
+		var entry = (v as Array)[idx]
+		var lctx := "%s.genome[%d]" % [ctx, idx]
+		if entry == null:
+			out.append(null)
+			continue
+		if not (entry is Dictionary):
+			_err("%s: 空座写 null，有基因写 {allele, params}" % lctx)
+			return null
+		var locus: Dictionary = loci[idx]
+		var allele := _req_str(entry, "allele", lctx)
+		if allele.is_empty():
+			return null
+		if str(locus.get("kind", "")) == "stats":
+			if allele != str(locus.get("allele_id", "")):
+				_err("%s: 数值座 allele 应为 '%s'，得到 '%s'" % [lctx, str(locus.get("allele_id", "")), allele])
+		elif not (locus.get("alleles", {}) as Dictionary).has(allele):
+			_err("%s: 等位基因 '%s' 未在座 '%s' 定义（可选: %s）" % [lctx, allele, str(locus.get("id", idx)), str((locus.get("alleles", {}) as Dictionary).keys())])
+		var params := {}
+		if entry.has("params"):
+			if not (entry["params"] is Dictionary):
+				_err("%s.params: 应为对象" % lctx)
+				return null
+			var declared: Dictionary = locus.get("params", {})
+			for k in entry["params"]:
+				if not declared.has(str(k)):
+					_err("%s.params: 座 '%s' 未定义参数 '%s'" % [lctx, str(locus.get("id", idx)), str(k)])
+					continue
+				var pv = entry["params"][k]
+				if not (pv is int or pv is float):
+					_err("%s.params.%s: 应为数值" % [lctx, str(k)])
+					continue
+				var spec: Dictionary = declared[str(k)]
+				if float(pv) < float(spec["min"]) or float(pv) > float(spec["max"]):
+					_err("%s.params.%s: %s 超出范围 [%s, %s]" % [lctx, str(k), str(pv), str(spec["min"]), str(spec["max"])])
+					continue
+				params[str(k)] = float(pv)
+		out.append({ "allele": allele, "params": params })
+	return out
+
+
+## 等位基因 payload 交叉引用：射弹/配方/效果 id 必须已定义（在 projectiles 解析后调用）。
+func _validate_gene_refs(src: String) -> void:
+	if genes.is_empty():
+		_err("%s: genes.json 未成功加载，蓝图基因组无法校验" % src)
+		return
+	var loci: Array = genes["loci"]
+	for i in loci.size():
+		var locus: Dictionary = loci[i]
+		var alleles: Dictionary = locus.get("alleles", {})
+		for allele in alleles:
+			var ctx := "%s genes.loci[%d](%s).alleles.%s" % [src, i, str(locus.get("id", i)), str(allele)]
+			var payload: Dictionary = alleles[allele]
+			match str(locus.get("kind", "")):
+				"attack":
+					var pid := str(payload.get("projectile", ""))
+					if pid.is_empty() or not projectiles.has(StringName(pid)):
+						_err("%s: projectile '%s' 未在 factories.json projectiles 定义" % [ctx, pid])
+				"production":
+					if not recipes.has(StringName(str(allele))):
+						_err("%s: 等位基因 '%s' 未在 recipes.json 定义" % [ctx, str(allele)])
+				"aura":
+					var eid := str(payload.get("effect_id", ""))
+					if not effects.has(StringName(eid)):
+						_err("%s: effect_id '%s' 未在 buffs.json 定义" % [ctx, eid])
+					if int(payload.get("target_mask", 0)) <= 0:
+						_err("%s: target_mask 应 > 0" % ctx)
+
+
+func _num_or(v, fallback: float) -> float:
+	return float(v) if (v is int or v is float) else fallback
+
+
 # ================================================================ BUFF/DEBUFF
 
 func _parse_buffs(data, src: String) -> void:
@@ -331,6 +465,7 @@ func _parse_buffs(data, src: String) -> void:
 		i += 1
 		var d := _req_obj(e, ctx)
 		var id := _req_str(d, "id", ctx)
+		var name := _req_str(d, "name", ctx) if d.has("name") else ""
 		var stat_id := _req_str(d, "stat_id", ctx)
 		var value = d.get("value", null)
 		var duration := _req_num(d, "duration", ctx)
@@ -347,7 +482,8 @@ func _parse_buffs(data, src: String) -> void:
 			_err("%s: 效果 id 重复 '%s'" % [ctx, id])
 			continue
 		effects[StringName(id)] = {
-			"id": StringName(id), "stat_id": StringName(stat_id),
+			"id": StringName(id), "name": name if not name.is_empty() else id,
+			"stat_id": StringName(stat_id),
 			"value": float(value), "duration": duration,
 		}
 

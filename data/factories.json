@@ -1,67 +1,40 @@
 {
   "projectiles": [
-    {"id": "ore_shot", "speed": 420}
+    {"id": "ore_shot", "speed": 420},
+    {"id": "ore_heavy", "speed": 260}
   ],
   "blueprints": [
     {
       "id": "generator", "name": "发电机", "cost": {},
-      "components": [
-        {"type": "Factory", "blueprint_id": "generator"},
-        {"type": "GridPosition"},
-        {"type": "Production", "recipe_id": "generate_power", "interval": 1.5},
-        {"type": "ResourceBuffer", "flush_interval": 1.0}
-      ]
+      "genome": [null, null, {"allele": "generate_power", "params": {"interval": 1.5}}, null, {"allele": "m"}, null, null]
     },
     {
       "id": "pump", "name": "水泵", "cost": {},
-      "components": [
-        {"type": "Factory", "blueprint_id": "pump"},
-        {"type": "GridPosition"},
-        {"type": "Production", "recipe_id": "pump_water", "interval": 1.0},
-        {"type": "ResourceBuffer", "flush_interval": 1.0}
-      ]
+      "genome": [null, null, {"allele": "pump_water", "params": {"interval": 1.0}}, null, {"allele": "m"}, null, null]
     },
     {
       "id": "miner", "name": "矿机", "cost": {},
-      "components": [
-        {"type": "Factory", "blueprint_id": "miner"},
-        {"type": "GridPosition"},
-        {"type": "Production", "recipe_id": "mine_ore", "interval": 1.5},
-        {"type": "ResourceBuffer", "flush_interval": 1.0}
-      ]
+      "genome": [null, null, {"allele": "mine_ore", "params": {"interval": 1.5}}, null, {"allele": "m"}, null, null]
     },
     {
       "id": "assembler", "name": "装配台", "cost": {"parts": 20},
-      "components": [
-        {"type": "Factory", "blueprint_id": "assembler"},
-        {"type": "GridPosition"},
-        {"type": "Production", "recipe_id": "synth_special", "interval": 3.0},
-        {"type": "ResourceBuffer", "flush_interval": 1.0}
-      ]
+      "genome": [null, null, {"allele": "synth_special", "params": {"interval": 3.0}}, null, {"allele": "m"}, null, null]
     },
     {
       "id": "gun_turret", "name": "炮塔", "cost": {"parts": 10},
-      "components": [
-        {"type": "Factory", "blueprint_id": "gun_turret"},
-        {"type": "GridPosition"},
-        {"type": "Attack", "range": 160, "damage": 6, "cooldown": 0.8, "target_mask": 1, "projectile": "ore_shot"}
+      "genome": [
+        {"allele": "shot_light"},
+        {"allele": "stats", "params": {"damage": 6, "range": 160, "cooldown": 0.8}},
+        null, null, null, null, null
       ]
     },
     {
       "id": "frost_beacon", "name": "霜冻信标", "cost": {"parts": 5},
-      "components": [
-        {"type": "Factory", "blueprint_id": "frost_beacon"},
-        {"type": "GridPosition"},
-        {"type": "Aura", "radius": 140, "effect_id": "slow_field", "target_mask": 1}
-      ]
+      "genome": [null, null, null, {"allele": "slow_field", "params": {"radius": 140}}, null, null, null]
     },
     {
       "id": "command_post", "name": "指挥所", "cost": {"special_material": 2},
-      "components": [
-        {"type": "Factory", "blueprint_id": "command_post"},
-        {"type": "GridPosition"},
-        {"type": "Aura", "radius": 120, "effect_id": "damage_up", "target_mask": 2}
-      ]
+      "genome": [null, null, null, {"allele": "damage_up", "params": {"radius": 120}}, null, null, null]
     }
   ]
 }

@@ -13,6 +13,7 @@ var status: String = STATUS_PLAYING # playing | won | lost
 var resources: Dictionary = {} # resource_id(StringName) -> int
 var waves_survived: int = 0 # WaveSystem 写入，供 UI 读取
 var enemies_on_path: int = 0 # WaveSystem 每帧写入
+var fusion_seed: int = 0 # 融合种子（DNA 系统）：0 = 每次随机；非 0 = 可复现
 
 
 func is_playing() -> bool:

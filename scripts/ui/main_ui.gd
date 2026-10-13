@@ -15,6 +15,9 @@ extends Control
 signal card_selected(card: Dictionary)
 signal card_played(card: Dictionary, cell: Vector2i)
 signal placement_cancelled()
+signal fusion_toggled(enabled: bool) # 融合模式开关（DNA 系统）
+signal fusion_confirmed(seed: int) # 融合确定（种子，0 = 随机）
+signal factory_cell_clicked(cell: Vector2i) # 融合模式下点选工厂所在格
 
 const HudScript = preload("res://scripts/ui/hud.gd")
 const HandScript = preload("res://scripts/ui/hand_area.gd")
@@ -22,6 +25,7 @@ const OverlayScript = preload("res://scripts/ui/placement_preview.gd")
 const ActiveCardsScript = preload("res://scripts/ui/active_cards.gd")
 const LibraryScript = preload("res://scripts/ui/card_library.gd")
 const ReceiptsScript = preload("res://scripts/ui/receipt_list.gd")
+const DnaInspectorScene = preload("res://scenes/ui/dna_inspector.tscn")
 
 ## true 时在 _ready 里灌入演示假数据（便于 UI 单独自展示）；
 ## 调用方只要在 ready 前/后调用过任意 setter，演示数据即让位。
@@ -39,6 +43,14 @@ var _nodes_ready := false
 var _signals_ready := false
 var _structure_warned := false
 var _external_data := false
+var _fusion_panel: PanelContainer
+var _fusion_toggle: CheckButton
+var _fusion_seed_edit: LineEdit
+var _fusion_status: Label
+var _fusion_enabled := false
+var _dna_popup: PanelContainer
+var _dna_inspector: Control
+var _current_card_id := "" # 右键同一张卡再次点击 = 收起
 
 
 func _ready() -> void:
@@ -68,6 +80,76 @@ func _resolve_nodes() -> void:
 			push_error("[关卡UI] 场景缺少必需节点或脚本（HUD / HandPanel/VBox/HandArea / PlacementOverlay），检查 main.tscn")
 		return
 	_nodes_ready = true
+	_build_fusion_panel()
+	_build_dna_popup()
+
+
+## DNA 检视弹窗（程序化构建）：内嵌 dna_inspector 预制体；关闭按钮/Esc/再右键收起。
+func _build_dna_popup() -> void:
+	if _dna_popup != null:
+		return
+	_dna_popup = PanelContainer.new()
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	_dna_inspector = DnaInspectorScene.instantiate()
+	vbox.add_child(_dna_inspector)
+	var close := Button.new()
+	close.text = "关闭"
+	close.pressed.connect(hide_dna)
+	vbox.add_child(close)
+	_dna_popup.add_child(vbox)
+	add_child.call_deferred(_dna_popup)
+	_dna_popup.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_dna_popup.offset_top = 96.0
+	_dna_popup.visible = false
+
+
+## 显示 DNA 检视（data 由调用方注入：{title, bases, locus_names, rules, debug}）
+func show_dna(data: Dictionary) -> void:
+	_prepare()
+	if _dna_popup == null or _dna_inspector == null:
+		return
+	_dna_inspector.set_view(data)
+	_dna_popup.visible = true
+
+
+func hide_dna() -> void:
+	_prepare()
+	if _dna_popup != null:
+		_dna_popup.visible = false
+
+
+## 融合面板（DNA 系统）：程序化构建，不改 main.tscn。顶部居中：开关 / 种子 / 确定 / 已选计数。
+func _build_fusion_panel() -> void:
+	if _fusion_panel != null:
+		return
+	_fusion_panel = PanelContainer.new()
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	_fusion_toggle = CheckButton.new()
+	_fusion_toggle.text = "融合"
+	_fusion_toggle.toggled.connect(_on_fusion_toggled)
+	row.add_child(_fusion_toggle)
+	var seed_label := Label.new()
+	seed_label.text = "种子"
+	row.add_child(seed_label)
+	_fusion_seed_edit = LineEdit.new()
+	_fusion_seed_edit.text = "0"
+	_fusion_seed_edit.custom_minimum_size = Vector2(64, 0)
+	_fusion_seed_edit.tooltip_text = "0 = 每次随机；非 0 = 同种子同双亲必出同子代"
+	row.add_child(_fusion_seed_edit)
+	var confirm := Button.new()
+	confirm.text = "确定"
+	confirm.pressed.connect(_on_fusion_confirm_pressed)
+	row.add_child(confirm)
+	_fusion_status = Label.new()
+	_fusion_status.text = "已选 0 / 2"
+	row.add_child(_fusion_status)
+	_fusion_panel.add_child(row)
+	# Main._ready 期间 add_child 会被 ready_lock 拒绝（busy setting up children），延迟挂载
+	add_child.call_deferred(_fusion_panel)
+	_fusion_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_fusion_panel.offset_top = 56.0
 
 
 func _connect_signals() -> void:
@@ -75,6 +157,7 @@ func _connect_signals() -> void:
 		return
 	_hand.card_selected.connect(_on_card_selected)
 	_hand.selection_cleared.connect(_on_selection_cleared)
+	_hand.card_right_clicked.connect(_on_card_right_clicked)
 	_overlay.cell_clicked.connect(_on_cell_clicked)
 	_overlay.cancelled.connect(_on_overlay_cancelled)
 	_signals_ready = true
@@ -187,6 +270,17 @@ func cancel_placement() -> void:
 		_overlay.deactivate()
 
 
+## 融合选择状态注入：已选工厂数（显示用）
+func set_fusion_selection(count: int) -> void:
+	_prepare()
+	if _fusion_status != null:
+		_fusion_status.text = "已选 %d / 2" % count
+
+
+func is_fusion_mode() -> bool:
+	return _fusion_enabled
+
+
 func get_selected_card() -> Dictionary:
 	_prepare()
 	return _hand.get_selected_card() if _hand != null else {}
@@ -238,10 +332,48 @@ func load_mock_data() -> void:
 
 # ---------------------------------------------------------------- 内部接线
 
+func _on_fusion_toggled(on: bool) -> void:
+	_fusion_enabled = on
+	if _hand != null:
+		_hand.clear_selection(true) # 融合模式下不打牌
+	if _overlay != null:
+		if on:
+			_overlay.activate("fusion")
+		else:
+			_overlay.deactivate()
+	set_fusion_selection(0)
+	fusion_toggled.emit(on)
+
+
+func _on_fusion_confirm_pressed() -> void:
+	fusion_confirmed.emit(_fusion_seed_edit.text.strip_edges().to_int())
+
+
 func _on_card_selected(card: Dictionary) -> void:
+	hide_dna()
+	if _fusion_enabled:
+		_fusion_toggle.button_pressed = false # 选卡退出融合模式
 	if _overlay != null:
 		_overlay.activate(str(card.get("kind", "")))
 	card_selected.emit(card)
+
+
+## 右键卡片 → DNA 检视；再右键同一张或 Esc/关闭按钮收起。
+func _on_card_right_clicked(card: Dictionary) -> void:
+	var data: Dictionary = card.get("dna_ui", {})
+	if _dna_popup != null and _dna_popup.visible and _current_card_id == str(card.get("id", "")):
+		hide_dna()
+		return
+	_current_card_id = str(card.get("id", ""))
+	if data.is_empty():
+		data = { "title": str(card.get("name", "")), "bases": [], "locus_names": [],
+			"rules": ["该卡没有 DNA"], "debug": str(card.get("dna", "")) }
+	show_dna(data)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		hide_dna()
 
 
 func _on_selection_cleared() -> void:
@@ -251,6 +383,9 @@ func _on_selection_cleared() -> void:
 
 
 func _on_overlay_cancelled() -> void:
+	if _fusion_enabled:
+		_fusion_toggle.button_pressed = false # Esc/右键退出融合模式
+		return
 	if _hand != null and _hand.get_selected_index() >= 0:
 		_hand.clear_selection(true)   # 走 selection_cleared -> placement_cancelled
 		return
@@ -260,6 +395,9 @@ func _on_overlay_cancelled() -> void:
 
 
 func _on_cell_clicked(cell: Vector2i) -> void:
+	if _fusion_enabled:
+		factory_cell_clicked.emit(cell)
+		return
 	var card := get_selected_card()
 	if card.is_empty():
 		# 没有选中卡却收到格子点击：只收尾，不编造 card_played

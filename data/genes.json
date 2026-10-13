@@ -1,0 +1,54 @@
+{
+  "gamete_keep": 0.5,
+  "crossover": 0.5,
+  "mutation": { "rate": 0.05, "redundant_rate": 0.2, "drift": 0.15 },
+  "loci": [
+    {
+      "id": "attack_type", "name": "攻击类型", "kind": "attack",
+      "alleles": {
+        "shot_light": { "label": "轻炮", "projectile": "ore_shot" },
+        "shot_heavy": { "label": "重炮", "projectile": "ore_heavy" }
+      }
+    },
+    {
+      "id": "attack_stats", "name": "攻击数值", "kind": "stats", "allele_id": "stats",
+      "params": {
+        "damage":   { "default": 6,   "min": 3,   "max": 12 },
+        "range":    { "default": 160, "min": 100, "max": 240 },
+        "cooldown": { "default": 0.8, "min": 0.4, "max": 1.5 }
+      }
+    },
+    {
+      "id": "production", "name": "生产", "kind": "production",
+      "alleles": {
+        "generate_power": { "label": "发电" },
+        "pump_water": { "label": "抽水" },
+        "mine_ore": { "label": "采矿" },
+        "synth_special": { "label": "合成" }
+      },
+      "params": {
+        "interval": { "default": 1.5, "min": 0.8, "max": 3.0 }
+      }
+    },
+    {
+      "id": "aura", "name": "光环", "kind": "aura",
+      "alleles": {
+        "slow_field": { "label": "缓速", "effect_id": "slow_field", "target_mask": 1 },
+        "damage_up":  { "label": "强击", "effect_id": "damage_up",  "target_mask": 2 }
+      },
+      "params": {
+        "radius": { "default": 130, "min": 80, "max": 180 }
+      }
+    },
+    {
+      "id": "buffer", "name": "后勤", "kind": "buffer",
+      "alleles": {
+        "s": { "flush_interval": 2.0 },
+        "m": { "flush_interval": 1.0 },
+        "l": { "flush_interval": 0.5 }
+      }
+    },
+    { "id": "redundant_a", "name": "冗余一", "kind": "redundant", "alleles": { "x1": {}, "x2": {}, "x3": {}, "x4": {}, "x5": {} } },
+    { "id": "redundant_b", "name": "冗余二", "kind": "redundant", "alleles": { "x1": {}, "x2": {}, "x3": {}, "x4": {}, "x5": {} } }
+  ]
+}
