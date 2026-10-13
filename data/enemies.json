@@ -1,0 +1,7 @@
+{
+  "enemies": [
+    {"id": "slime", "name": "史莱姆", "hp": 30, "speed": 90, "elite": false, "loot_id": "parts", "loot_amount": 1},
+    {"id": "bat", "name": "洞穴蝙蝠", "hp": 18, "speed": 130, "elite": false, "loot_id": "parts", "loot_amount": 1},
+    {"id": "slime_king", "name": "史莱姆王", "hp": 150, "speed": 70, "elite": true, "loot_id": "special_material", "loot_amount": 1}
+  ]
+}

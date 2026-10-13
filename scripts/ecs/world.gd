@@ -1,0 +1,166 @@
+class_name World
+extends RefCounted
+## ECS 世界内核（架构文档 §3）：实体生命周期、组件存储、系统调度、信号通信。
+## 本文件不含任何游戏规则；config/state/path/grid 是游戏层在 bootstrap 时
+## 注入的挂载点，内核只持有 RefCounted 引用、不解释其类型。
+
+signal entity_created(entity_id: int)
+signal entity_destroyed(entity_id: int)
+signal entity_died(entity_id: int)
+signal wave_completed(wave_index: int)
+signal game_won
+signal game_lost
+signal resource_gained(resource_id: StringName, amount: int)
+signal command_rejected(reason: String)
+
+## —— 游戏层挂载点（由关卡 bootstrap 注入）——
+var config: RefCounted = null # GameConfig
+var state: RefCounted = null # GameState
+var path: RefCounted = null # RingPath
+var grid: RefCounted = null # GridMapData
+
+## 指令队列（§1：玩家操作统一进 CommandQueue，下一逻辑帧开始时执行）。
+## UI 层 push_command 写入；CommandSystem（#1）在 tick 开始时取走。
+var commands: Array = []
+
+## 系统列表：按添加顺序固定执行（§5 的 11 系统顺序由 bootstrap 保证）。
+var systems: Array = []
+
+var _next_id: int = 1
+var _alive: Dictionary = {} # entity_id -> true
+var _pending_destroy: Array = [] # 延迟到帧末 cleanup（CleanupSystem #11）
+var _stores: Dictionary = {} # 组件类型(StringName) -> Dictionary[entity_id -> Component]
+var _entity_masks: Dictionary = {} # entity_id -> int 组件位掩码
+
+
+# ---------------------------------------------------------------- 实体生命周期
+
+func create_entity() -> int:
+	var id: int = _next_id
+	_next_id += 1
+	_alive[id] = true
+	_entity_masks[id] = 0
+	entity_created.emit(id)
+	return id
+
+
+## 标记销毁：立即从 is_alive 消失，组件与存储在帧末 cleanup 统一移除（§3）。
+func destroy_entity(id: int) -> void:
+	if not _alive.has(id) or _pending_destroy.has(id):
+		return
+	_pending_destroy.append(id)
+
+
+func is_alive(id: int) -> bool:
+	return _alive.has(id) and not _pending_destroy.has(id)
+
+
+func is_pending_destroy(id: int) -> bool:
+	return _pending_destroy.has(id)
+
+
+func entity_count() -> int:
+	return _alive.size()
+
+
+## 帧末清理：移除待销毁实体的全部组件（由 CleanupSystem 在 #11 调用）。
+func flush_destroyed() -> void:
+	if _pending_destroy.is_empty():
+		return
+	var list: Array = _pending_destroy
+	_pending_destroy = []
+	for id in list:
+		for t in _stores:
+			(_stores[t] as Dictionary).erase(id)
+		_alive.erase(id)
+		_entity_masks.erase(id)
+		entity_destroyed.emit(id)
+
+
+# ---------------------------------------------------------------- 组件存储
+
+## 存储结构（§3）：按组件类型一张 Dictionary[entity_id, Component]，
+## 外层 _stores 即类型索引。约束：同实体同类型只保留一个组件实例
+## （多来源效果由 Effect 组件内部条目承载，见 effect.gd 注释）。
+## 纪律：不要在迭代 query(T) 的同时增删类型 T 的组件。
+func add_component(id: int, comp: Component) -> Component:
+	if comp == null:
+		push_error("World.add_component: comp 为空")
+		return null
+	var t: StringName = Component.type_of(comp)
+	if not _stores.has(t):
+		_stores[t] = {}
+	(_stores[t] as Dictionary)[id] = comp
+	_entity_masks[id] = int(_entity_masks.get(id, 0)) | Entity.bit_for(t)
+	return comp
+
+
+func remove_component(id: int, t: StringName) -> void:
+	if _stores.has(t):
+		(_stores[t] as Dictionary).erase(id)
+	if _entity_masks.has(id):
+		_entity_masks[id] = int(_entity_masks[id]) & ~Entity.bit_for(t)
+
+
+func has_component(id: int, t: StringName) -> bool:
+	return _stores.has(t) and (_stores[t] as Dictionary).has(id)
+
+
+func get_component(id: int, t: StringName) -> Component:
+	if not _stores.has(t):
+		return null
+	return (_stores[t] as Dictionary).get(id, null)
+
+
+## 类型索引查询：返回活的 {entity_id -> Component}（共享引用，只读语义）。
+func query(t: StringName) -> Dictionary:
+	if not _stores.has(t):
+		_stores[t] = {}
+	return _stores[t]
+
+
+## 实体组件位掩码（§2 entity.gd 位标记）。
+func mask_of(id: int) -> int:
+	return int(_entity_masks.get(id, 0))
+
+
+func entity_ids() -> Array:
+	return _alive.keys()
+
+
+# ---------------------------------------------------------------- 指令队列
+
+func push_command(cmd: Dictionary) -> void:
+	commands.append(cmd)
+
+
+func drain_commands() -> Array:
+	var out: Array = commands
+	commands = []
+	return out
+
+
+# ---------------------------------------------------------------- 系统调度
+
+func add_system(s) -> void:
+	systems.append(s)
+
+
+## 全部系统注册完成后调用一次（保证 setup 内 get_system 能找到同伴）。
+func setup() -> void:
+	for s in systems:
+		s.setup(self)
+
+
+func get_system(type_name: String):
+	for s in systems:
+		var sp: Script = s.get_script()
+		if sp != null and String(sp.get_global_name()) == type_name:
+			return s
+	return null
+
+
+## 按 §5 固定顺序执行系统；销毁延迟到 #11 CleanupSystem。
+func tick(dt: float) -> void:
+	for s in systems:
+		s.tick(self, dt)

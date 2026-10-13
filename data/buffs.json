@@ -1,0 +1,6 @@
+{
+  "effects": [
+    {"id": "slow_field", "stat_id": "move_speed_mult", "value": 0.5, "duration": 2.0},
+    {"id": "damage_up", "stat_id": "attack_damage_mult", "value": 1.5, "duration": 3.0}
+  ]
+}

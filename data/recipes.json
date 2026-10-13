@@ -1,0 +1,8 @@
+{
+  "recipes": [
+    {"id": "generate_power", "inputs": {}, "outputs": {"power": 2}},
+    {"id": "pump_water", "inputs": {"power": 1}, "outputs": {"water": 1}},
+    {"id": "mine_ore", "inputs": {"power": 1}, "outputs": {"ore": 2}},
+    {"id": "synth_special", "inputs": {"ore": 3, "power": 2}, "outputs": {"special_material": 1}}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "resources": [
+    {"id": "parts", "name": "零件"},
+    {"id": "power", "name": "电力"},
+    {"id": "water", "name": "水"},
+    {"id": "ore", "name": "矿"},
+    {"id": "special_material", "name": "特殊材料"}
+  ]
+}

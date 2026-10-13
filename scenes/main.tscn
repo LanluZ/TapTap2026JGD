@@ -1,32 +1,22 @@
 [gd_scene format=3 uid="uid://dsbtq4slywayc"]
 
+[ext_resource type="Script" path="res://scripts/views/entity_layer.gd" id="2_85g3d"]
+[ext_resource type="Script" uid="uid://0rmkftgrr02f" path="res://scripts/game.gd" id="8_tipki"]
+[ext_resource type="Script" uid="uid://doetnh7kwm2ck" path="res://scripts/ui/active_cards.gd" id="s_active"]
+[ext_resource type="Script" uid="uid://ktohmln8ahcd" path="res://scripts/ui/hand_area.gd" id="s_hand"]
+[ext_resource type="Script" uid="uid://dbsmt7efbgp8y" path="res://scripts/ui/hud.gd" id="s_hud"]
+[ext_resource type="Script" uid="uid://b3u0rlnhtgu7f" path="res://scripts/ui/card_library.gd" id="s_library"]
+[ext_resource type="Script" uid="uid://dayf32eecrp5e" path="res://scripts/ui/main_ui.gd" id="s_main"]
+[ext_resource type="Script" uid="uid://big5ui3o8t8uj" path="res://scripts/ui/placement_preview.gd" id="s_overlay"]
+[ext_resource type="Script" uid="uid://bpnqsr80k7kae" path="res://scripts/ui/receipt_list.gd" id="s_receipts"]
+
 [sub_resource type="SystemFont" id="SystemFont_main"]
 font_names = PackedStringArray("Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC")
+subpixel_positioning = 0
 
 [sub_resource type="Theme" id="Theme_main"]
 default_font = SubResource("SystemFont_main")
 default_font_size = 16
-
-[sub_resource type="StyleBoxFlat" id="SB_topbar"]
-content_margin_left = 10.0
-content_margin_top = 6.0
-content_margin_right = 10.0
-content_margin_bottom = 6.0
-bg_color = Color(0.14, 0.14, 0.16, 1)
-border_width_bottom = 1
-border_color = Color(0.35, 0.35, 0.4, 1)
-
-[sub_resource type="StyleBoxFlat" id="SB_row"]
-content_margin_left = 8.0
-content_margin_top = 5.0
-content_margin_right = 6.0
-content_margin_bottom = 5.0
-bg_color = Color(0.2, 0.2, 0.23, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.4, 0.4, 0.46, 1)
 
 [sub_resource type="StyleBoxFlat" id="SB_panel"]
 content_margin_left = 8.0
@@ -40,19 +30,42 @@ border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.36, 0.36, 0.4, 1)
 
-[sub_resource type="StyleBoxFlat" id="SB_card"]
-content_margin_left = 4.0
+[sub_resource type="StyleBoxFlat" id="SB_topbar"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.14, 0.14, 0.16, 1)
+border_width_bottom = 1
+border_color = Color(0.35, 0.35, 0.4, 1)
+
+[sub_resource type="StyleBoxFlat" id="SB_reslot"]
+content_margin_left = 5.0
 content_margin_top = 4.0
-content_margin_right = 4.0
+content_margin_right = 5.0
 content_margin_bottom = 4.0
-bg_color = Color(0.24, 0.24, 0.27, 1)
+bg_color = Color(0.12, 0.12, 0.14, 1)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.45, 0.45, 0.5, 1)
+border_color = Color(0.3, 0.3, 0.35, 1)
 
-[node name="Main" type="Control" unique_id=235787338]
+[sub_resource type="StyleBoxFlat" id="SB_bar_bg"]
+bg_color = Color(0.09, 0.09, 0.1, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.28, 0.28, 0.33, 1)
+
+[sub_resource type="StyleBoxFlat" id="SB_bar_wave_fill"]
+bg_color = Color(0.36, 0.6, 0.85, 1)
+
+[sub_resource type="StyleBoxFlat" id="SB_bar_enemy_fill"]
+bg_color = Color(0.8, 0.35, 0.25, 1)
+
+[node name="Main" type="Control" unique_id=1819869611]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -60,8 +73,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 theme = SubResource("Theme_main")
+script = ExtResource("s_main")
 
-[node name="WorldBG" type="ColorRect" parent="." unique_id=316183898]
+[node name="WorldBG" type="ColorRect" parent="." unique_id=1250088595]
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -70,397 +84,344 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.1, 0.11, 0.1, 1)
 
-[node name="TopBar" type="PanelContainer" parent="." unique_id=2018410370]
-layout_mode = 0
+[node name="EntityLayer" type="Node2D" parent="." unique_id=1353602226]
+script = ExtResource("2_85g3d")
+
+[node name="PlacementOverlay" type="Control" parent="." unique_id=1925315534]
+anchors_preset = 0
 anchor_right = 1.0
-offset_bottom = 46.0
+anchor_bottom = 1.0
 grow_horizontal = 2
-theme_override_styles/panel = SubResource("SB_topbar")
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("s_overlay")
 
-[node name="Row" type="HBoxContainer" parent="TopBar" unique_id=1544773363]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="OracleBtn" type="Button" parent="TopBar/Row" unique_id=1918102951]
-layout_mode = 2
-text = "神谕"
-
-[node name="OracleVer" type="Label" parent="TopBar/Row" unique_id=705765259]
-layout_mode = 2
-text = "1x.1"
-
-[node name="OracleBar" type="ProgressBar" parent="TopBar/Row" unique_id=150178307]
-custom_minimum_size = Vector2(140, 14)
-layout_mode = 2
-size_flags_vertical = 4
-value = 30.0
-show_percentage = false
-
-[node name="StarBtn" type="Button" parent="TopBar/Row" unique_id=1708700572]
-custom_minimum_size = Vector2(30, 26)
-layout_mode = 2
-text = "✦"
-
-[node name="StarVal" type="Label" parent="TopBar/Row" unique_id=2003419347]
-layout_mode = 2
-text = "10/20"
-
-[node name="AaBtn" type="Button" parent="TopBar/Row" unique_id=2065580649]
-custom_minimum_size = Vector2(36, 26)
-layout_mode = 2
-text = "Aa"
-
-[node name="AaVal" type="Label" parent="TopBar/Row" unique_id=1950271075]
-layout_mode = 2
-text = "10/20"
-
-[node name="Spacer" type="Control" parent="TopBar/Row" unique_id=998214487]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="ChartBtn" type="Button" parent="TopBar/Row" unique_id=1302596452]
-custom_minimum_size = Vector2(30, 26)
-layout_mode = 2
-text = "📈"
-
-[node name="DateLbl" type="Label" parent="TopBar/Row" unique_id=1088327451]
-layout_mode = 2
-text = "1234年12月34日"
-
-[node name="PauseBtn" type="Button" parent="TopBar/Row" unique_id=1938119634]
-custom_minimum_size = Vector2(36, 26)
-layout_mode = 2
-text = "||"
-
-[node name="FastBtn" type="Button" parent="TopBar/Row" unique_id=129632945]
-custom_minimum_size = Vector2(36, 26)
-layout_mode = 2
-text = ">>"
-
-[node name="MenuBtn" type="Button" parent="TopBar/Row" unique_id=226571233]
-custom_minimum_size = Vector2(36, 26)
-layout_mode = 2
-text = "≡"
-
-[node name="ReceiptList" type="VBoxContainer" parent="." unique_id=577144555]
+[node name="RightRail" type="VBoxContainer" parent="." unique_id=596700473]
 layout_mode = 0
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -330.0
-offset_top = 54.0
-offset_right = -10.0
-offset_bottom = 180.0
+anchor_bottom = 1.0
+offset_left = -308.0
+offset_top = 68.0
+offset_right = -8.0
+offset_bottom = -184.0
 grow_horizontal = 0
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="ActiveCards" type="PanelContainer" parent="RightRail" unique_id=33130885]
+custom_minimum_size = Vector2(0, 145)
+layout_mode = 2
+theme_override_styles/panel = SubResource("SB_panel")
+script = ExtResource("s_active")
+
+[node name="VBox" type="VBoxContainer" parent="RightRail/ActiveCards" unique_id=1591978052]
+layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="Receipt1" type="PanelContainer" parent="ReceiptList" unique_id=1009956845]
+[node name="Head" type="HBoxContainer" parent="RightRail/ActiveCards/VBox" unique_id=70796261]
 layout_mode = 2
-theme_override_styles/panel = SubResource("SB_row")
 
-[node name="Row" type="HBoxContainer" parent="ReceiptList/Receipt1" unique_id=1962443899]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="Icon" type="Label" parent="ReceiptList/Receipt1/Row" unique_id=1324758066]
-layout_mode = 2
-text = "(!)"
-
-[node name="Text" type="Label" parent="ReceiptList/Receipt1/Row" unique_id=18620304]
+[node name="Title" type="Label" parent="RightRail/ActiveCards/VBox/Head" unique_id=2005112330]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "回执消息概括"
+theme_override_font_sizes/font_size = 13
+text = "生效中卡牌"
 
-[node name="Toggle" type="Button" parent="ReceiptList/Receipt1/Row" unique_id=480045113]
-custom_minimum_size = Vector2(28, 24)
+[node name="Count" type="Label" parent="RightRail/ActiveCards/VBox/Head" unique_id=1824719007]
 layout_mode = 2
-text = "⌄"
+theme_override_colors/font_color = Color(0.62, 0.63, 0.68, 1)
+theme_override_font_sizes/font_size = 12
+text = "0 / 3"
 
-[node name="Receipt2" type="PanelContainer" parent="ReceiptList" unique_id=890500592]
+[node name="Slots" type="HBoxContainer" parent="RightRail/ActiveCards/VBox" unique_id=557202973]
+custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
-theme_override_styles/panel = SubResource("SB_row")
+theme_override_constants/separation = 8
 
-[node name="Row" type="HBoxContainer" parent="ReceiptList/Receipt2" unique_id=1071049229]
+[node name="CardLibrary" type="PanelContainer" parent="RightRail" unique_id=2040035618]
+custom_minimum_size = Vector2(0, 130)
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_styles/panel = SubResource("SB_panel")
+script = ExtResource("s_library")
 
-[node name="Icon" type="Label" parent="ReceiptList/Receipt2/Row" unique_id=505333532]
-layout_mode = 2
-text = "(!)"
-
-[node name="Text" type="Label" parent="ReceiptList/Receipt2/Row" unique_id=235453253]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "回执消息概括"
-
-[node name="Toggle" type="Button" parent="ReceiptList/Receipt2/Row" unique_id=1261653600]
-custom_minimum_size = Vector2(28, 24)
-layout_mode = 2
-text = "⌄"
-
-[node name="Receipt3" type="PanelContainer" parent="ReceiptList" unique_id=2106320870]
-layout_mode = 2
-theme_override_styles/panel = SubResource("SB_row")
-
-[node name="Row" type="HBoxContainer" parent="ReceiptList/Receipt3" unique_id=1424526817]
+[node name="VBox" type="VBoxContainer" parent="RightRail/CardLibrary" unique_id=825254939]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="Icon" type="Label" parent="ReceiptList/Receipt3/Row" unique_id=1438153462]
+[node name="Head" type="HBoxContainer" parent="RightRail/CardLibrary/VBox" unique_id=208263679]
 layout_mode = 2
-text = "(!)"
+theme_override_constants/separation = 6
 
-[node name="Text" type="Label" parent="ReceiptList/Receipt3/Row" unique_id=1949513211]
+[node name="Title" type="Label" parent="RightRail/CardLibrary/VBox/Head" unique_id=671594756]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "卡牌库"
+
+[node name="Spacer" type="Control" parent="RightRail/CardLibrary/VBox/Head" unique_id=1085984226]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "回执消息概括"
 
-[node name="Toggle" type="Button" parent="ReceiptList/Receipt3/Row" unique_id=954711408]
-custom_minimum_size = Vector2(28, 24)
+[node name="Count" type="Label" parent="RightRail/CardLibrary/VBox/Head" unique_id=2130166239]
 layout_mode = 2
-text = "⌄"
+theme_override_colors/font_color = Color(0.62, 0.63, 0.68, 1)
+theme_override_font_sizes/font_size = 12
+text = "0"
 
-[node name="BottomPanel" type="PanelContainer" parent="." unique_id=1636802390]
+[node name="Toggle" type="Button" parent="RightRail/CardLibrary/VBox/Head" unique_id=674026546]
+custom_minimum_size = Vector2(56, 26)
+layout_mode = 2
+text = "收起"
+
+[node name="Body" type="ScrollContainer" parent="RightRail/CardLibrary/VBox" unique_id=312686981]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="List" type="VBoxContainer" parent="RightRail/CardLibrary/VBox/Body" unique_id=103302910]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="Receipts" type="PanelContainer" parent="RightRail" unique_id=1155051003]
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+theme_override_styles/panel = SubResource("SB_panel")
+script = ExtResource("s_receipts")
+
+[node name="VBox" type="VBoxContainer" parent="RightRail/Receipts" unique_id=2113165387]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="RightRail/Receipts/VBox" unique_id=437972011]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "战报 / 回执"
+
+[node name="Body" type="ScrollContainer" parent="RightRail/Receipts/VBox" unique_id=1379786491]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="List" type="VBoxContainer" parent="RightRail/Receipts/VBox/Body" unique_id=1152374508]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="HandPanel" type="PanelContainer" parent="." unique_id=480205146]
 layout_mode = 0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 8.0
-offset_top = -208.0
-offset_right = -160.0
+offset_top = -176.0
+offset_right = -316.0
 offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_styles/panel = SubResource("SB_panel")
 
-[node name="VBox" type="VBoxContainer" parent="BottomPanel" unique_id=1462844902]
+[node name="VBox" type="VBoxContainer" parent="HandPanel" unique_id=1702951403]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 4
 
-[node name="Filters" type="HBoxContainer" parent="BottomPanel/VBox" unique_id=1906835613]
+[node name="Head" type="HBoxContainer" parent="HandPanel/VBox" unique_id=222776420]
 layout_mode = 2
-theme_override_constants/separation = 6
 
-[node name="Chip1" type="Button" parent="BottomPanel/VBox/Filters" unique_id=1757351051]
+[node name="Title" type="Label" parent="HandPanel/VBox/Head" unique_id=1824074989]
 layout_mode = 2
-size_flags_horizontal = 3
-text = "词条名"
+theme_override_font_sizes/font_size = 13
+text = "手牌"
 
-[node name="Chip2" type="Button" parent="BottomPanel/VBox/Filters" unique_id=1290115197]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "词条名"
-
-[node name="Chip3" type="Button" parent="BottomPanel/VBox/Filters" unique_id=244326628]
+[node name="Spacer" type="Control" parent="HandPanel/VBox/Head" unique_id=630612369]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "词条名"
 
-[node name="Chip4" type="Button" parent="BottomPanel/VBox/Filters" unique_id=1437939345]
+[node name="Count" type="Label" parent="HandPanel/VBox/Head" unique_id=634720336]
 layout_mode = 2
-size_flags_horizontal = 3
-text = "词条名"
+theme_override_colors/font_color = Color(0.62, 0.63, 0.68, 1)
+theme_override_font_sizes/font_size = 12
+text = "0 / 7"
 
-[node name="Chip5" type="Button" parent="BottomPanel/VBox/Filters" unique_id=1146402048]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "词条名"
-
-[node name="Chip6" type="Button" parent="BottomPanel/VBox/Filters" unique_id=777711781]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "词条名"
-
-[node name="Chip7" type="Button" parent="BottomPanel/VBox/Filters" unique_id=1491128718]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "词条名"
-
-[node name="Chip8" type="Button" parent="BottomPanel/VBox/Filters" unique_id=1746528375]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "词条名"
-
-[node name="Chip9" type="Button" parent="BottomPanel/VBox/Filters" unique_id=1277281340]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "词条名"
-
-[node name="CardRow" type="HBoxContainer" parent="BottomPanel/VBox" unique_id=457546880]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="Card1" type="PanelContainer" parent="BottomPanel/VBox/CardRow" unique_id=923004064]
-custom_minimum_size = Vector2(140, 130)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("SB_card")
-
-[node name="Label" type="Label" parent="BottomPanel/VBox/CardRow/Card1" unique_id=434011028]
-layout_mode = 2
-text = "卡牌"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="Card2" type="PanelContainer" parent="BottomPanel/VBox/CardRow" unique_id=2074903772]
-custom_minimum_size = Vector2(140, 130)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("SB_card")
-
-[node name="Label" type="Label" parent="BottomPanel/VBox/CardRow/Card2" unique_id=1974486136]
-layout_mode = 2
-text = "卡牌"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="Card3" type="PanelContainer" parent="BottomPanel/VBox/CardRow" unique_id=1662741057]
-custom_minimum_size = Vector2(140, 130)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("SB_card")
-
-[node name="Label" type="Label" parent="BottomPanel/VBox/CardRow/Card3" unique_id=2143494431]
-layout_mode = 2
-text = "卡牌"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="Card4" type="PanelContainer" parent="BottomPanel/VBox/CardRow" unique_id=358643801]
-custom_minimum_size = Vector2(140, 130)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("SB_card")
-
-[node name="Label" type="Label" parent="BottomPanel/VBox/CardRow/Card4" unique_id=1046673508]
-layout_mode = 2
-text = "卡牌"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="Card5" type="PanelContainer" parent="BottomPanel/VBox/CardRow" unique_id=482687906]
-custom_minimum_size = Vector2(140, 130)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("SB_card")
-
-[node name="Label" type="Label" parent="BottomPanel/VBox/CardRow/Card5" unique_id=1688901287]
-layout_mode = 2
-text = "卡牌"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="Card6" type="PanelContainer" parent="BottomPanel/VBox/CardRow" unique_id=1188322525]
-custom_minimum_size = Vector2(140, 130)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("SB_card")
-
-[node name="Label" type="Label" parent="BottomPanel/VBox/CardRow/Card6" unique_id=2104416795]
-layout_mode = 2
-text = "卡牌"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="CardLibrary" type="PanelContainer" parent="." unique_id=808981548]
-layout_mode = 0
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -150.0
-offset_top = -208.0
-offset_right = -8.0
-offset_bottom = -8.0
-grow_horizontal = 0
-grow_vertical = 0
-theme_override_styles/panel = SubResource("SB_panel")
-
-[node name="VBox" type="VBoxContainer" parent="CardLibrary" unique_id=233478322]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="ObeliskBtn" type="Button" parent="CardLibrary/VBox" unique_id=1668391589]
-layout_mode = 2
-text = "铭志神谕卡"
-
-[node name="LibBody" type="PanelContainer" parent="CardLibrary/VBox" unique_id=1174625060]
+[node name="HandArea" type="HBoxContainer" parent="HandPanel/VBox" unique_id=587087518]
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
-theme_override_styles/panel = SubResource("SB_card")
+theme_override_constants/separation = 8
+script = ExtResource("s_hand")
 
-[node name="LibLabel" type="Label" parent="CardLibrary/VBox/LibBody" unique_id=70349642]
-layout_mode = 2
-text = "卡牌库
-(向左展开)"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="ActiveCards" type="PanelContainer" parent="." unique_id=881217212]
-layout_mode = 0
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -210.0
-offset_top = -105.0
-offset_right = 210.0
-offset_bottom = 105.0
+[node name="HUD" type="Control" parent="." unique_id=1030463695]
+anchors_preset = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_styles/panel = SubResource("SB_panel")
+mouse_filter = 2
+script = ExtResource("s_hud")
 
-[node name="VBox" type="VBoxContainer" parent="ActiveCards" unique_id=112252446]
+[node name="TopBar" type="PanelContainer" parent="HUD" unique_id=373320130]
+layout_mode = 0
+anchor_right = 1.0
+offset_bottom = 60.0
+grow_horizontal = 2
+theme_override_styles/panel = SubResource("SB_topbar")
+
+[node name="Row" type="HBoxContainer" parent="HUD/TopBar" unique_id=632603573]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 12
 
-[node name="Head" type="HBoxContainer" parent="ActiveCards/VBox" unique_id=970900130]
-layout_mode = 2
-
-[node name="Title" type="Label" parent="ActiveCards/VBox/Head" unique_id=882942043]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "生效中卡牌"
-
-[node name="Bandwidth" type="Label" parent="ActiveCards/VBox/Head" unique_id=3352691]
-layout_mode = 2
-text = "带宽 10/20"
-
-[node name="Slots" type="HBoxContainer" parent="ActiveCards/VBox" unique_id=871798489]
+[node name="ResourceBar" type="HBoxContainer" parent="HUD/TopBar/Row" unique_id=1713501058]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Slot1" type="PanelContainer" parent="ActiveCards/VBox/Slots" unique_id=16131624]
-custom_minimum_size = Vector2(110, 130)
+[node name="Parts" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=376885627]
+custom_minimum_size = Vector2(56, 44)
+layout_mode = 2
+theme_override_styles/panel = SubResource("SB_reslot")
+
+[node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Parts" unique_id=126923427]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Name" type="Label" parent="HUD/TopBar/Row/ResourceBar/Parts/VBox" unique_id=1335612038]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.63, 0.68, 1)
+theme_override_font_sizes/font_size = 11
+text = "零件"
+horizontal_alignment = 1
+
+[node name="Value" type="Label" parent="HUD/TopBar/Row/ResourceBar/Parts/VBox" unique_id=869842676]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "—"
+horizontal_alignment = 1
+
+[node name="Special" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=1247088617]
+custom_minimum_size = Vector2(64, 44)
+layout_mode = 2
+theme_override_styles/panel = SubResource("SB_reslot")
+
+[node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Special" unique_id=1946827504]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Name" type="Label" parent="HUD/TopBar/Row/ResourceBar/Special/VBox" unique_id=346747809]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.63, 0.68, 1)
+theme_override_font_sizes/font_size = 11
+text = "特殊材料"
+horizontal_alignment = 1
+
+[node name="Value" type="Label" parent="HUD/TopBar/Row/ResourceBar/Special/VBox" unique_id=1178214174]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "—"
+horizontal_alignment = 1
+
+[node name="Power" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=1982585276]
+custom_minimum_size = Vector2(56, 44)
+layout_mode = 2
+theme_override_styles/panel = SubResource("SB_reslot")
+
+[node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Power" unique_id=1789582526]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Name" type="Label" parent="HUD/TopBar/Row/ResourceBar/Power/VBox" unique_id=1334025627]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.63, 0.68, 1)
+theme_override_font_sizes/font_size = 11
+text = "电力"
+horizontal_alignment = 1
+
+[node name="Value" type="Label" parent="HUD/TopBar/Row/ResourceBar/Power/VBox" unique_id=877479472]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "—"
+horizontal_alignment = 1
+
+[node name="Water" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=1497490131]
+custom_minimum_size = Vector2(56, 44)
+layout_mode = 2
+theme_override_styles/panel = SubResource("SB_reslot")
+
+[node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Water" unique_id=904273284]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Name" type="Label" parent="HUD/TopBar/Row/ResourceBar/Water/VBox" unique_id=830427543]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.63, 0.68, 1)
+theme_override_font_sizes/font_size = 11
+text = "水"
+horizontal_alignment = 1
+
+[node name="Value" type="Label" parent="HUD/TopBar/Row/ResourceBar/Water/VBox" unique_id=2146561513]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "—"
+horizontal_alignment = 1
+
+[node name="Ore" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=1942927078]
+custom_minimum_size = Vector2(56, 44)
+layout_mode = 2
+theme_override_styles/panel = SubResource("SB_reslot")
+
+[node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Ore" unique_id=1302262909]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Name" type="Label" parent="HUD/TopBar/Row/ResourceBar/Ore/VBox" unique_id=1020639622]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.63, 0.68, 1)
+theme_override_font_sizes/font_size = 11
+text = "矿"
+horizontal_alignment = 1
+
+[node name="Value" type="Label" parent="HUD/TopBar/Row/ResourceBar/Ore/VBox" unique_id=575862696]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "—"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="HUD/TopBar/Row" unique_id=615944948]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("SB_card")
 
-[node name="Label" type="Label" parent="ActiveCards/VBox/Slots/Slot1" unique_id=1171746142]
+[node name="WaveBox" type="VBoxContainer" parent="HUD/TopBar/Row" unique_id=484905785]
 layout_mode = 2
-text = "卡牌"
+theme_override_constants/separation = 2
+
+[node name="WaveText" type="Label" parent="HUD/TopBar/Row/WaveBox" unique_id=208773633]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "波次 — / —"
 horizontal_alignment = 1
-vertical_alignment = 1
 
-[node name="Slot2" type="PanelContainer" parent="ActiveCards/VBox/Slots" unique_id=1960029802]
-custom_minimum_size = Vector2(110, 130)
+[node name="WaveBar" type="ProgressBar" parent="HUD/TopBar/Row/WaveBox" unique_id=1750053024]
+custom_minimum_size = Vector2(200, 14)
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("SB_card")
+theme_override_styles/background = SubResource("SB_bar_bg")
+theme_override_styles/fill = SubResource("SB_bar_wave_fill")
+show_percentage = false
 
-[node name="Label" type="Label" parent="ActiveCards/VBox/Slots/Slot2" unique_id=2114457651]
+[node name="EnemyBox" type="VBoxContainer" parent="HUD/TopBar/Row" unique_id=1244869909]
 layout_mode = 2
-text = "卡牌"
+theme_override_constants/separation = 2
+
+[node name="EnemyText" type="Label" parent="HUD/TopBar/Row/EnemyBox" unique_id=1231854525]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "路径敌人 — / —"
 horizontal_alignment = 1
-vertical_alignment = 1
 
-[node name="Slot3" type="PanelContainer" parent="ActiveCards/VBox/Slots" unique_id=1573223174]
-custom_minimum_size = Vector2(110, 130)
+[node name="EnemyBar" type="ProgressBar" parent="HUD/TopBar/Row/EnemyBox" unique_id=1715481423]
+custom_minimum_size = Vector2(200, 14)
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("SB_card")
+theme_override_styles/background = SubResource("SB_bar_bg")
+theme_override_styles/fill = SubResource("SB_bar_enemy_fill")
+show_percentage = false
 
-[node name="Label" type="Label" parent="ActiveCards/VBox/Slots/Slot3" unique_id=826875216]
-layout_mode = 2
-text = "卡牌"
-horizontal_alignment = 1
-vertical_alignment = 1
+[node name="Game" type="Node" parent="." unique_id=18194909]
+script = ExtResource("8_tipki")
