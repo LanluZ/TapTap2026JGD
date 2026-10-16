@@ -14,6 +14,8 @@ var resources: Dictionary = {} # resource_id(StringName) -> int
 var waves_survived: int = 0 # WaveSystem 写入，供 UI 读取
 var enemies_on_path: int = 0 # WaveSystem 每帧写入
 var fusion_seed: int = 0 # 融合种子（DNA 系统）：0 = 每次随机；非 0 = 可复现
+var waves_running: bool = true # 波次开关：关卡接线（Game._ready）开局置 false = 默认暂停
+var speed: float = 1.0 # 倍速：UI 速度按钮切换 1/2
 
 
 func is_playing() -> bool:

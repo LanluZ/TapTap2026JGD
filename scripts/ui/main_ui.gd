@@ -1,10 +1,10 @@
 extends Control
-## 关卡 UI 根节点：HUD + 手牌 + 放置预览 + 生效中卡牌/卡牌库/战报。
+## 关卡 UI 根节点：HUD + 手牌 + 放置预览 + 卡牌库/战报。
 ##
 ## 对外契约（逻辑层接线只依赖这里）：
 ##   公开方法：set_resources / set_hand / set_hand_max / set_wave_info /
 ##             set_enemy_count / set_placement_preview / set_grid_geometry /
-##             set_active_cards / set_library_cards / set_library_expanded /
+##             set_library_cards / set_library_expanded /
 ##             set_receipts / cancel_placement / get_selected_card / is_placing /
 ##             get_hand / load_mock_data
 ##   信号：card_selected(card)、card_played(card, cell)、placement_cancelled()
@@ -18,11 +18,12 @@ signal placement_cancelled()
 signal fusion_toggled(enabled: bool) # 融合模式开关（DNA 系统）
 signal fusion_confirmed(seed: int) # 融合确定（种子，0 = 随机）
 signal factory_cell_clicked(cell: Vector2i) # 融合模式下点选工厂所在格
+signal wave_toggled(running: bool) # 右上角「开始/暂停」按钮
+signal speed_toggled(speed: float) # 右上角速度按钮（1/2 倍速切换）
 
 const HudScript = preload("res://scripts/ui/hud.gd")
 const HandScript = preload("res://scripts/ui/hand_area.gd")
 const OverlayScript = preload("res://scripts/ui/placement_preview.gd")
-const ActiveCardsScript = preload("res://scripts/ui/active_cards.gd")
 const LibraryScript = preload("res://scripts/ui/card_library.gd")
 const ReceiptsScript = preload("res://scripts/ui/receipt_list.gd")
 const DnaInspectorScene = preload("res://scenes/ui/dna_inspector.tscn")
@@ -34,7 +35,6 @@ const DnaInspectorScene = preload("res://scenes/ui/dna_inspector.tscn")
 var _hud: HudScript
 var _hand: HandScript
 var _overlay: OverlayScript
-var _active_cards: ActiveCardsScript
 var _library: LibraryScript
 var _receipts: ReceiptsScript
 var _hand_count: Label
@@ -51,6 +51,10 @@ var _fusion_enabled := false
 var _dna_popup: PanelContainer
 var _dna_inspector: Control
 var _current_card_id := "" # 右键同一张卡再次点击 = 收起
+var _start_btn: Button
+var _speed_btn: Button
+var _wave_running := false # 与 GameState.waves_running 初值一致（默认暂停）
+var _speed := 1.0
 
 
 func _ready() -> void:
@@ -70,7 +74,6 @@ func _resolve_nodes() -> void:
 	_hud = get_node_or_null("HUD") as HudScript
 	_hand = get_node_or_null("HandPanel/VBox/HandArea") as HandScript
 	_overlay = get_node_or_null("PlacementOverlay") as OverlayScript
-	_active_cards = get_node_or_null("RightRail/ActiveCards") as ActiveCardsScript
 	_library = get_node_or_null("RightRail/CardLibrary") as LibraryScript
 	_receipts = get_node_or_null("RightRail/Receipts") as ReceiptsScript
 	_hand_count = get_node_or_null("HandPanel/VBox/Head/Count") as Label
@@ -80,6 +83,10 @@ func _resolve_nodes() -> void:
 			push_error("[关卡UI] 场景缺少必需节点或脚本（HUD / HandPanel/VBox/HandArea / PlacementOverlay），检查 main.tscn")
 		return
 	_nodes_ready = true
+	_start_btn = get_node_or_null("HUD/TopBar/Row/StartBtn") as Button
+	_speed_btn = get_node_or_null("HUD/TopBar/Row/SpeedBtn") as Button
+	if _start_btn == null or _speed_btn == null:
+		push_warning("[关卡UI] main.tscn 缺少 HUD/TopBar/Row 下的 StartBtn/SpeedBtn")
 	_build_fusion_panel()
 	_build_dna_popup()
 
@@ -157,7 +164,7 @@ func _build_fusion_panel() -> void:
 	# Main._ready 期间 add_child 会被 ready_lock 拒绝（busy setting up children），延迟挂载
 	add_child.call_deferred(_fusion_panel)
 	_fusion_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	_fusion_panel.offset_top = 56.0
+	_fusion_panel.offset_top = 76.0 # TopBar 内容边距调整后高约 66，留 10px 间隙
 
 
 func _connect_signals() -> void:
@@ -168,6 +175,10 @@ func _connect_signals() -> void:
 	_hand.card_right_clicked.connect(_on_card_right_clicked)
 	_overlay.cell_clicked.connect(_on_cell_clicked)
 	_overlay.cancelled.connect(_on_overlay_cancelled)
+	if _start_btn != null:
+		_start_btn.pressed.connect(_on_start_pressed)
+	if _speed_btn != null:
+		_speed_btn.pressed.connect(_on_speed_pressed)
 	_signals_ready = true
 
 
@@ -181,7 +192,7 @@ func set_resources(resources: Dictionary) -> void:
 		_hud.set_resources(resources)
 
 
-## 手牌注入：元素为卡牌 Dictionary{id,name,kind,icon,desc}
+## 手牌注入：元素为卡牌 Dictionary{id,name,kind,icon,desc,cost}（cost=消耗文案，空则卡面不显示）
 func set_hand(cards: Array) -> void:
 	_prepare()
 	_external_data = true
@@ -231,20 +242,6 @@ func set_grid_geometry(origin: Vector2, cell_size: Vector2i, cells: Array) -> vo
 	_external_data = true
 	if _overlay != null:
 		_overlay.set_grid_geometry(origin, cell_size, cells)
-
-
-## 生效中卡牌
-func set_active_cards(cards: Array) -> void:
-	_prepare()
-	_external_data = true
-	if _active_cards != null:
-		_active_cards.set_cards(cards)
-
-
-func set_active_slot_count(count: int) -> void:
-	_prepare()
-	if _active_cards != null:
-		_active_cards.set_slot_count(count)
 
 
 ## 卡牌库
@@ -323,7 +320,6 @@ func load_mock_data() -> void:
 	])
 	set_wave_info(7, 15)
 	set_enemy_count(13, 20)
-	set_active_cards([{"id": "mock_supply", "name": "补给线", "kind": "factory", "icon": "📦"}])
 	set_library_cards([
 		{"id": "mock_turret", "name": "自动炮塔", "kind": "factory", "icon": "🔫"},
 		{"id": "mock_wind_plant", "name": "风力电厂", "kind": "factory", "icon": "🌬"},
@@ -355,6 +351,19 @@ func _on_fusion_toggled(on: bool) -> void:
 
 func _on_fusion_confirm_pressed() -> void:
 	fusion_confirmed.emit(_fusion_seed_edit.text.strip_edges().to_int())
+
+
+## 开始/暂停切换：按钮文案与波次开关同步，状态由逻辑层接线落地
+func _on_start_pressed() -> void:
+	_wave_running = not _wave_running
+	_start_btn.text = "⏸ 暂停" if _wave_running else "▶ 开始"
+	wave_toggled.emit(_wave_running)
+
+
+func _on_speed_pressed() -> void:
+	_speed = 2.0 if _speed == 1.0 else 1.0
+	_speed_btn.text = "%d倍速" % int(_speed)
+	speed_toggled.emit(_speed)
 
 
 func _on_card_selected(card: Dictionary) -> void:

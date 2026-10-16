@@ -1,14 +1,70 @@
 [gd_scene format=3 uid="uid://dsbtq4slywayc"]
 
-[ext_resource type="Script" path="res://scripts/views/entity_layer.gd" id="2_85g3d"]
+[ext_resource type="Script" uid="uid://cjs307cpgiuji" path="res://scripts/views/entity_layer.gd" id="2_85g3d"]
 [ext_resource type="Script" uid="uid://0rmkftgrr02f" path="res://scripts/game.gd" id="8_tipki"]
-[ext_resource type="Script" uid="uid://doetnh7kwm2ck" path="res://scripts/ui/active_cards.gd" id="s_active"]
 [ext_resource type="Script" uid="uid://ktohmln8ahcd" path="res://scripts/ui/hand_area.gd" id="s_hand"]
 [ext_resource type="Script" uid="uid://dbsmt7efbgp8y" path="res://scripts/ui/hud.gd" id="s_hud"]
 [ext_resource type="Script" uid="uid://b3u0rlnhtgu7f" path="res://scripts/ui/card_library.gd" id="s_library"]
 [ext_resource type="Script" uid="uid://dayf32eecrp5e" path="res://scripts/ui/main_ui.gd" id="s_main"]
 [ext_resource type="Script" uid="uid://big5ui3o8t8uj" path="res://scripts/ui/placement_preview.gd" id="s_overlay"]
 [ext_resource type="Script" uid="uid://bpnqsr80k7kae" path="res://scripts/ui/receipt_list.gd" id="s_receipts"]
+[ext_resource type="Texture2D" uid="uid://cbblamtewav8i" path="res://art/ui/tinted/button_hover.png" id="tx_btn_h"]
+[ext_resource type="Texture2D" uid="uid://b5npigxp4p4q8" path="res://art/ui/tinted/button_normal.png" id="tx_btn_n"]
+[ext_resource type="Texture2D" uid="uid://cu1qqa0gyy8a3" path="res://art/ui/tinted/button_pressed.png" id="tx_btn_p"]
+[ext_resource type="Texture2D" uid="uid://b108vr2elyolf" path="res://art/ui/tinted/panel_p001.png" id="tx_p001"]
+[ext_resource type="Texture2D" uid="uid://dk1nngthav5d2" path="res://art/ui/tinted/panel_p001_double.png" id="tx_p001d"]
+
+[sub_resource type="StyleBoxTexture" id="SBtex_btn_h"]
+content_margin_left = 12.0
+content_margin_top = 4.0
+content_margin_right = 12.0
+content_margin_bottom = 4.0
+texture = ExtResource("tx_btn_h")
+texture_margin_left = 20.0
+texture_margin_top = 20.0
+texture_margin_right = 20.0
+texture_margin_bottom = 20.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StyleBoxTexture" id="SBtex_btn_n"]
+content_margin_left = 12.0
+content_margin_top = 4.0
+content_margin_right = 12.0
+content_margin_bottom = 4.0
+texture = ExtResource("tx_btn_n")
+texture_margin_left = 20.0
+texture_margin_top = 20.0
+texture_margin_right = 20.0
+texture_margin_bottom = 20.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StyleBoxTexture" id="SBtex_btn_p"]
+content_margin_left = 12.0
+content_margin_top = 4.0
+content_margin_right = 12.0
+content_margin_bottom = 4.0
+texture = ExtResource("tx_btn_p")
+texture_margin_left = 20.0
+texture_margin_top = 20.0
+texture_margin_right = 20.0
+texture_margin_bottom = 20.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StyleBoxTexture" id="SBtex_panel"]
+content_margin_left = 20.0
+content_margin_top = 20.0
+content_margin_right = 20.0
+content_margin_bottom = 20.0
+texture = ExtResource("tx_p001d")
+texture_margin_left = 20.0
+texture_margin_top = 20.0
+texture_margin_right = 20.0
+texture_margin_bottom = 20.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
 
 [sub_resource type="SystemFont" id="SystemFont_main"]
 font_names = PackedStringArray("Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC")
@@ -17,39 +73,37 @@ subpixel_positioning = 0
 [sub_resource type="Theme" id="Theme_main"]
 default_font = SubResource("SystemFont_main")
 default_font_size = 16
+Button/styles/hover = SubResource("SBtex_btn_h")
+Button/styles/normal = SubResource("SBtex_btn_n")
+Button/styles/pressed = SubResource("SBtex_btn_p")
+Panel/styles/panel = SubResource("SBtex_panel")
+PanelContainer/styles/panel = SubResource("SBtex_panel")
 
-[sub_resource type="StyleBoxFlat" id="SB_panel"]
-content_margin_left = 8.0
-content_margin_top = 8.0
-content_margin_right = 8.0
-content_margin_bottom = 8.0
-bg_color = Color(0.17, 0.17, 0.19, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.36, 0.36, 0.4, 1)
+[sub_resource type="StyleBoxTexture" id="SBtex_topbar"]
+content_margin_left = 12.0
+content_margin_top = 10.0
+content_margin_right = 12.0
+content_margin_bottom = 10.0
+texture = ExtResource("tx_p001")
+texture_margin_left = 20.0
+texture_margin_top = 20.0
+texture_margin_right = 20.0
+texture_margin_bottom = 20.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
 
-[sub_resource type="StyleBoxFlat" id="SB_topbar"]
-content_margin_left = 10.0
-content_margin_top = 6.0
-content_margin_right = 10.0
-content_margin_bottom = 6.0
-bg_color = Color(0.14, 0.14, 0.16, 1)
-border_width_bottom = 1
-border_color = Color(0.35, 0.35, 0.4, 1)
-
-[sub_resource type="StyleBoxFlat" id="SB_reslot"]
+[sub_resource type="StyleBoxTexture" id="SBtex_reslot"]
 content_margin_left = 5.0
 content_margin_top = 4.0
 content_margin_right = 5.0
 content_margin_bottom = 4.0
-bg_color = Color(0.12, 0.12, 0.14, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.3, 0.3, 0.35, 1)
+texture = ExtResource("tx_p001")
+texture_margin_left = 20.0
+texture_margin_top = 20.0
+texture_margin_right = 20.0
+texture_margin_bottom = 20.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
 
 [sub_resource type="StyleBoxFlat" id="SB_bar_bg"]
 bg_color = Color(0.09, 0.09, 0.1, 1)
@@ -104,45 +158,15 @@ anchor_bottom = 1.0
 offset_left = -308.0
 offset_top = 68.0
 offset_right = -8.0
-offset_bottom = -184.0
+offset_bottom = -8.0
 grow_horizontal = 0
 mouse_filter = 2
-theme_override_constants/separation = 8
-
-[node name="ActiveCards" type="PanelContainer" parent="RightRail" unique_id=33130885]
-custom_minimum_size = Vector2(0, 145)
-layout_mode = 2
-theme_override_styles/panel = SubResource("SB_panel")
-script = ExtResource("s_active")
-
-[node name="VBox" type="VBoxContainer" parent="RightRail/ActiveCards" unique_id=1591978052]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="Head" type="HBoxContainer" parent="RightRail/ActiveCards/VBox" unique_id=70796261]
-layout_mode = 2
-
-[node name="Title" type="Label" parent="RightRail/ActiveCards/VBox/Head" unique_id=2005112330]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 13
-text = "生效中卡牌"
-
-[node name="Count" type="Label" parent="RightRail/ActiveCards/VBox/Head" unique_id=1824719007]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.62, 0.63, 0.68, 1)
-theme_override_font_sizes/font_size = 12
-text = "0 / 3"
-
-[node name="Slots" type="HBoxContainer" parent="RightRail/ActiveCards/VBox" unique_id=557202973]
-custom_minimum_size = Vector2(0, 100)
-layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="CardLibrary" type="PanelContainer" parent="RightRail" unique_id=2040035618]
 custom_minimum_size = Vector2(0, 130)
 layout_mode = 2
-theme_override_styles/panel = SubResource("SB_panel")
+theme_override_styles/panel = SubResource("SBtex_panel")
 script = ExtResource("s_library")
 
 [node name="VBox" type="VBoxContainer" parent="RightRail/CardLibrary" unique_id=825254939]
@@ -187,7 +211,8 @@ theme_override_constants/separation = 4
 [node name="Receipts" type="PanelContainer" parent="RightRail" unique_id=1155051003]
 custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
-theme_override_styles/panel = SubResource("SB_panel")
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("SBtex_panel")
 script = ExtResource("s_receipts")
 
 [node name="VBox" type="VBoxContainer" parent="RightRail/Receipts" unique_id=2113165387]
@@ -197,7 +222,7 @@ theme_override_constants/separation = 4
 [node name="Title" type="Label" parent="RightRail/Receipts/VBox" unique_id=437972011]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "战报 / 回执"
+text = "日志"
 
 [node name="Body" type="ScrollContainer" parent="RightRail/Receipts/VBox" unique_id=1379786491]
 custom_minimum_size = Vector2(0, 60)
@@ -221,7 +246,7 @@ offset_right = -316.0
 offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_styles/panel = SubResource("SB_panel")
+theme_override_styles/panel = SubResource("SBtex_panel")
 
 [node name="VBox" type="VBoxContainer" parent="HandPanel" unique_id=1702951403]
 layout_mode = 2
@@ -265,7 +290,7 @@ layout_mode = 0
 anchor_right = 1.0
 offset_bottom = 60.0
 grow_horizontal = 2
-theme_override_styles/panel = SubResource("SB_topbar")
+theme_override_styles/panel = SubResource("SBtex_topbar")
 
 [node name="Row" type="HBoxContainer" parent="HUD/TopBar" unique_id=632603573]
 layout_mode = 2
@@ -278,7 +303,7 @@ theme_override_constants/separation = 8
 [node name="Parts" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=376885627]
 custom_minimum_size = Vector2(56, 44)
 layout_mode = 2
-theme_override_styles/panel = SubResource("SB_reslot")
+theme_override_styles/panel = SubResource("SBtex_reslot")
 
 [node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Parts" unique_id=126923427]
 layout_mode = 2
@@ -300,7 +325,7 @@ horizontal_alignment = 1
 [node name="Special" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=1247088617]
 custom_minimum_size = Vector2(64, 44)
 layout_mode = 2
-theme_override_styles/panel = SubResource("SB_reslot")
+theme_override_styles/panel = SubResource("SBtex_reslot")
 
 [node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Special" unique_id=1946827504]
 layout_mode = 2
@@ -310,7 +335,7 @@ theme_override_constants/separation = 2
 layout_mode = 2
 theme_override_colors/font_color = Color(0.62, 0.63, 0.68, 1)
 theme_override_font_sizes/font_size = 11
-text = "特殊材料"
+text = "材料"
 horizontal_alignment = 1
 
 [node name="Value" type="Label" parent="HUD/TopBar/Row/ResourceBar/Special/VBox" unique_id=1178214174]
@@ -322,7 +347,7 @@ horizontal_alignment = 1
 [node name="Power" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=1982585276]
 custom_minimum_size = Vector2(56, 44)
 layout_mode = 2
-theme_override_styles/panel = SubResource("SB_reslot")
+theme_override_styles/panel = SubResource("SBtex_reslot")
 
 [node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Power" unique_id=1789582526]
 layout_mode = 2
@@ -344,7 +369,7 @@ horizontal_alignment = 1
 [node name="Water" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=1497490131]
 custom_minimum_size = Vector2(56, 44)
 layout_mode = 2
-theme_override_styles/panel = SubResource("SB_reslot")
+theme_override_styles/panel = SubResource("SBtex_reslot")
 
 [node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Water" unique_id=904273284]
 layout_mode = 2
@@ -366,7 +391,7 @@ horizontal_alignment = 1
 [node name="Ore" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=1942927078]
 custom_minimum_size = Vector2(56, 44)
 layout_mode = 2
-theme_override_styles/panel = SubResource("SB_reslot")
+theme_override_styles/panel = SubResource("SBtex_reslot")
 
 [node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Ore" unique_id=1302262909]
 layout_mode = 2
@@ -422,6 +447,18 @@ layout_mode = 2
 theme_override_styles/background = SubResource("SB_bar_bg")
 theme_override_styles/fill = SubResource("SB_bar_enemy_fill")
 show_percentage = false
+
+[node name="StartBtn" type="Button" parent="HUD/TopBar/Row" unique_id=1561123005]
+custom_minimum_size = Vector2(88, 0)
+layout_mode = 2
+tooltip_text = "按下开始/暂停波次（默认暂停）"
+text = "▶ 开始"
+
+[node name="SpeedBtn" type="Button" parent="HUD/TopBar/Row" unique_id=1398858300]
+custom_minimum_size = Vector2(76, 0)
+layout_mode = 2
+tooltip_text = "点击切换 1倍速 / 2倍速"
+text = "1倍速"
 
 [node name="Game" type="Node" parent="." unique_id=18194909]
 script = ExtResource("8_tipki")

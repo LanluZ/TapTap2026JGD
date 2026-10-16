@@ -20,15 +20,10 @@ const UI_RESOURCE_KEYS := {
 	&"water": "water",
 	&"ore": "ore",
 }
-const UI_ICONS := {
-	"card_generator": "⚡", "card_pump": "💧", "card_miner": "⛏",
-	"card_assembler": "🔧", "card_gun_turret": "🔫", "card_frost_beacon": "❄",
-	"card_slow_tile": "🛣",
-}
-
 var world: World
 var config: GameConfig
 var ui: Control
+var _entity_layer: Node2D
 
 var _grid_sys: GridSystem
 var _card_sys: CardSystem
@@ -60,8 +55,10 @@ func _ready() -> void:
 		_push_receipt("!", "关卡世界构建失败: " + String(level_id))
 		set_physics_process(false)
 		return
+	world.state.waves_running = false # 开局默认暂停，等 UI「开始」按钮（与 main_ui 初值同步）
 	var layer := get_node_or_null("../EntityLayer")
 	if layer != null and layer.has_method("setup"):
+		_entity_layer = layer as Node2D
 		layer.setup(world) # 表现层占位图（scripts/views/）
 	_grid_sys = world.get_system("GridSystem")
 	_card_sys = world.get_system("CardSystem")
@@ -75,6 +72,8 @@ func _ready() -> void:
 	ui.fusion_toggled.connect(_on_fusion_toggled)
 	ui.fusion_confirmed.connect(_on_fusion_confirmed)
 	ui.factory_cell_clicked.connect(_on_factory_cell_clicked)
+	ui.wave_toggled.connect(func(running: bool): world.state.waves_running = running)
+	ui.speed_toggled.connect(func(s: float): world.state.speed = s)
 	_init_ui()
 	_push_receipt("·", "关卡「%s」开始：撑过 %d 波" % [level.get("name", level_id), _wave_total])
 
@@ -83,22 +82,68 @@ func _physics_process(delta: float) -> void:
 	if world == null:
 		return
 	if world.state.is_playing() and not _over:
-		world.tick(delta)
+		# 暂停时 dt=0：模拟（刷怪/移动/生产）全冻结，但指令队列仍每帧消费，放卡不受影响
+		world.tick(delta * world.state.speed if world.state.waves_running else 0.0)
 	_sync_ui()
 
 
 # ---------------------------------------------------------------- 注入方向：逻辑 → UI
 
 func _init_ui() -> void:
-	# PlacementOverlay 满屏且局部坐标 = 屏幕坐标（无相机），逻辑网格原点 (0,0) 直接对齐
-	var cs := int(world.grid.cell_size)
-	ui.set_grid_geometry(Vector2.ZERO, Vector2i(cs, cs), world.grid.cells.keys())
+	# 场地按可用区（避让 TopBar/RightRail/HandPanel）缩放居中：overlay 原点+整数格尺寸，
+	# EntityLayer 用同源变换（scale=显示格/逻辑格，position 对齐原点），逻辑层不受影响。
+	_fit_field_to_viewport()
+	call_deferred("_fit_field_to_viewport") # 首帧锚点布局未定，下一拍重算一次
 	ui.set_hand_max(_card_sys.deck.hand_max)
 	ui.set_wave_info(0, _wave_total)
 	ui.set_library_cards(_pool_ui_cards())
 	_sync_res()
 	_sync_hand()
 	_sync_hud()
+
+
+## 场地显示适配：视口减 UI 占位 → 等比放大格子并居中（窗口尺寸变化时重入）。
+func _fit_field_to_viewport() -> void:
+	if world == null or ui == null:
+		return
+	var cells: Array = world.grid.cells.keys()
+	if cells.is_empty():
+		return
+	var minc: Vector2i = cells[0]
+	var maxc: Vector2i = cells[0]
+	for c in cells:
+		minc = Vector2i(min(minc.x, c.x), min(minc.y, c.y))
+		maxc = Vector2i(max(maxc.x, c.x), max(maxc.y, c.y))
+	var cs: float = world.grid.cell_size
+	var vp := get_viewport().get_visible_rect()
+	# 可用区：TopBar 下方 → HandPanel 上方；左 8 → RightRail 左侧（各留 8px）
+	var top := 8.0
+	var tb := ui.get_node_or_null("HUD/TopBar") as Control
+	if tb != null:
+		top = tb.position.y + tb.size.y + 8.0
+	var bottom := vp.size.y - 8.0
+	var hand := ui.get_node_or_null("HandPanel") as Control
+	if hand != null:
+		bottom = hand.position.y - 8.0
+	var right := vp.size.x - 8.0
+	var rail := ui.get_node_or_null("RightRail") as Control
+	if rail != null:
+		right = rail.position.x - 8.0
+	var avail := Vector2(maxf(right - 8.0, cs), maxf(bottom - top, cs))
+	# 显示格尺寸（整数像素）：缩放比取宽高较小者，避免任一方向溢出
+	var gw := float(maxc.x - minc.x + 1) * cs
+	var gh := float(maxc.y - minc.y + 1) * cs
+	var d := int(floor(minf(avail.x / gw, avail.y / gh) * cs))
+	if d < 1:
+		d = int(cs)
+	var k := float(d) / cs
+	var disp := Vector2(gw, gh) * k
+	var p0 := Vector2(8.0, top) + (avail - disp) * 0.5
+	ui.set_grid_geometry(p0 - Vector2(minc) * d, Vector2i(d, d), cells)
+	if _entity_layer != null:
+		# Node2D 变换：world p → p0 + (p - minc*cs)*k
+		_entity_layer.position = p0 - Vector2(minc) * cs * k
+		_entity_layer.scale = Vector2(k, k)
 
 
 func _sync_ui() -> void:
@@ -197,7 +242,7 @@ func _on_fusion_confirmed(seed: int) -> void:
 	world.push_command({ "type": "fuse", "a": ids[0], "b": ids[1], "seed": seed })
 	_fusion_sel.clear()
 	ui.set_fusion_selection(0)
-	_push_receipt("🧬", "减数分裂启动（种子 %d）……子代卡将入手" % seed)
+	_push_receipt("", "减数分裂启动（种子 %d）……子代卡将入手" % seed)
 
 
 ## 融合模式下把工厂所在格注入放置预览层高亮；集合变化才重注入，避免每帧重绘。
@@ -225,7 +270,8 @@ func _connect_world() -> void:
 		_push_receipt("★", "胜利！撑过 %d 波" % world.state.waves_survived))
 	world.game_lost.connect(func():
 		_over = true
-		_push_receipt("☠", "失败：路径敌人达到上限 %d" % _enemy_cap))
+		_push_receipt("", "失败：路径敌人达到上限 %d" % _enemy_cap))
+	get_viewport().size_changed.connect(_fit_field_to_viewport)
 
 
 func _push_receipt(icon: String, text: String) -> void:
@@ -238,7 +284,7 @@ func _push_receipt(icon: String, text: String) -> void:
 
 # ---------------------------------------------------------------- 卡牌/格子工具
 
-## 卡配置 → UI 卡面字典 {id,name,kind,icon,desc}（main_ui.gd §手牌 schema）
+## 卡配置 → UI 卡面字典 {id,name,kind,icon,desc,cost}（main_ui.gd §手牌 schema）
 func _ui_card_of(cid) -> Dictionary:
 	var cfg: Dictionary = config.get_card(StringName(cid))
 	if cfg.is_empty():
@@ -246,17 +292,20 @@ func _ui_card_of(cid) -> Dictionary:
 		return {}
 	var eff: Dictionary = cfg["effect"]
 	var kind := "factory" if str(eff.get("type", "")) == "place_factory" else "tile"
-	var cost: Dictionary = cfg["cost"]
-	var cost_parts := []
-	for rid in cost:
-		cost_parts.append("%s×%d" % [rid, int(cost[rid])])
-	var desc := "费用: " + (", ".join(cost_parts) if not cost_parts.is_empty() else "无")
+	var bp: Dictionary = {}
+	if kind == "factory":
+		# 基因组挂在蓝图上（cards.json 条目没有 genome），按 effect.blueprint_id 查
+		bp = config.get_blueprint(StringName(str(eff.get("blueprint_id", ""))))
+	# 消耗 = 卡费 + 蓝图费（打出时两笔都扣：_play_card 扣卡费、_place_factory 扣蓝图费；地块无蓝图费）
+	var cost: Dictionary = (cfg.get("cost", {}) as Dictionary).duplicate()
+	for rid in (bp.get("cost", {}) as Dictionary):
+		cost[rid] = int(cost.get(rid, 0)) + int((bp["cost"] as Dictionary)[rid])
+	var cost_text := _format_cost(cost)
+	var desc := "费用: " + cost_text
 	var dna := ""
 	var dna_ui := {}
 	var display_name := str(cfg.get("name", cid))
 	if kind == "factory":
-		# 基因组挂在蓝图上（cards.json 条目没有 genome），按 effect.blueprint_id 查
-		var bp: Dictionary = config.get_blueprint(StringName(str(eff.get("blueprint_id", ""))))
 		if bp.has("genome"):
 			# 表型命名（策划案 15.6）：卡面显示名 = 基因组解码出的能力组合名
 			display_name = GenomeScript.phenotype_name(bp["genome"], config.genes)
@@ -272,37 +321,36 @@ func _ui_card_of(cid) -> Dictionary:
 		dna = "1. tile_type: %s（敌人速度×%.1f）" % [ttype, tmult]
 		dna_ui = { "title": display_name, "bases": ["·"], "locus_names": ["地块"],
 			"rules": ["地块基因：%s — 放置后改变地形规则（敌人速度×%.1f）" % [ttype, tmult]], "debug": dna }
-	var icon := str(UI_ICONS.get(String(cid), "🧬" if String(cid).begins_with("card_fusion_") else "▢"))
+	var icon := ""
 	return {
 		"id": String(cid),
 		"name": display_name,
 		"kind": kind,
 		"icon": icon,
 		"desc": desc,
+		"cost": cost_text, # 消耗文案（卡费+蓝图费合计），卡面底部/卡牌库行内显示
 		"dna": dna, # 调试视图原始序列
 		"dna_ui": dna_ui, # 玩家检视载荷（dna_inspector 预制体契约：title/bases/locus_names/rules/debug）
 	}
 
 
-## 碱基链 + 座名 + 规则 → DNA 检视载荷；规则里的数字全部来自 genes.json，零硬编码。
+## 消耗字典 → "零件×10, 特殊材料×2"（资源用 resources.json 显示名；空 → "无"）
+func _format_cost(cost: Dictionary) -> String:
+	var parts := []
+	for rid in cost:
+		var r: Dictionary = config.get_resource(StringName(rid))
+		parts.append("%s×%d" % [str(r.get("name", rid)), int(cost[rid])])
+	return ", ".join(parts) if not parts.is_empty() else "无"
+
+
+## 碱基链 + 染色体编号 → DNA 检视载荷；座名只给染色体序号（01/02…），
+## 融合规则不进 UI（见 策划案 15.3），工厂卡 rules 留空即隐藏规则区。
 func _build_dna_ui(title: String, genome: Array, debug_text: String) -> Dictionary:
-	var loci: Array = config.genes.get("loci", [])
 	var locus_names := []
-	for l in loci:
-		locus_names.append(str((l as Dictionary).get("name", (l as Dictionary).get("id", ""))))
-	var g: Dictionary = config.genes
-	var mut: Dictionary = g.get("mutation", {})
-	var rules := [
-		"配对：A–T、C–G 互补成对，每个基因座成双存在",
-		"配子：融合时每座以 %d%% 概率保留一条链" % int(round(float(g.get("gamete_keep", 0.5)) * 100.0)),
-		"互换：%d%% 概率双亲链整段交换" % int(round(float(g.get("crossover", 0.5)) * 100.0)),
-		"突变：每座 %d%%（冗余座 %d%%）；数值 ±%d%%，功能座换同组基因" % [
-			int(round(float(mut.get("rate", 0.05)) * 100.0)),
-			int(round(float(mut.get("redundant_rate", 0.2)) * 100.0)),
-			int(round(float(mut.get("drift", 0.15)) * 100.0))],
-	]
+	for i in config.genes.get("loci", []).size():
+		locus_names.append("染色体%02d" % (i + 1))
 	return { "title": title, "bases": GenomeScript.base_letters(genome, config.genes),
-		"locus_names": locus_names, "rules": rules, "debug": debug_text }
+		"locus_names": locus_names, "rules": [], "debug": debug_text }
 
 
 func _pool_ui_cards() -> Array:

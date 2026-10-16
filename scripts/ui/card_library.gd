@@ -83,10 +83,12 @@ func _rebuild() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 
-		var icon := Label.new()
-		icon.text = data["icon"] if not data["icon"].is_empty() else UiCardFace.FALLBACK_ICON
-		icon.add_theme_font_size_override("font_size", 16)
-		icon.custom_minimum_size = Vector2(22, 0)
+		if not data["icon"].is_empty():
+			var icon := Label.new()
+			icon.text = data["icon"]
+			icon.add_theme_font_size_override("font_size", 16)
+			icon.custom_minimum_size = Vector2(22, 0)
+			row.add_child(icon)
 
 		var title := Label.new()
 		title.text = data["name"]
@@ -100,8 +102,13 @@ func _rebuild() -> void:
 		kind.add_theme_font_size_override("font_size", 11)
 		kind.add_theme_color_override("font_color", UiStyle.COLOR_TEXT_DIM)
 
-		row.add_child(icon)
 		row.add_child(title)
+		if not data["cost"].is_empty():
+			var cost := Label.new()
+			cost.text = "消耗: " + data["cost"]
+			cost.add_theme_font_size_override("font_size", 11)
+			cost.add_theme_color_override("font_color", UiStyle.COLOR_ACCENT)
+			row.add_child(cost)
 		row.add_child(kind)
 		_list.add_child(row)
 	if _count_label != null:

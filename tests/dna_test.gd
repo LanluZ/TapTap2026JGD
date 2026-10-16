@@ -157,6 +157,16 @@ func _run() -> int:
 	# 与 T4 同种子(42)但双亲不同(炮塔+矿机 vs 炮塔+霜冻)——只验证基因组结构合法性
 	_ok(g_a.size() == 7, "端到端子代基因组 7 座")
 
+	# 回归：打出融合子代卡不补抽（0 消耗自动抽 1 的例外）
+	var cs3 = w3.get_system("CardSystem")
+	var child3 := _newest_fusion_card(config)
+	cs3.deck.hand.push_front(child3)
+	var hand3: int = cs3.deck.hand.size()
+	w3.push_command({ "type": "play_card", "card_index": 0, "cell": [4, 2] })
+	w3.tick(0.1)
+	_ok(cs3.deck.hand.size() == hand3 - 1 and cs3.deck.pending_draw == 0,
+		"打出融合子代卡不补抽（手牌 %d→%d，pending_draw=%d）" % [hand3, cs3.deck.hand.size(), cs3.deck.pending_draw])
+
 	print("== T8: 非法融合被拒 ==")
 	var rejected := []
 	w3.command_rejected.connect(func(r): rejected.append(r))

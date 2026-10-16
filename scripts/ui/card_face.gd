@@ -4,13 +4,13 @@ extends RefCounted
 ##   id   : String  配置 id（可选）
 ##   name : String  卡面名
 ##   kind : String  "factory" | "tile"（其他值原样显示为标签）
-##   icon : String  卡面图形（可选，emoji/字符）
+##   icon : String  卡面图形（可选，非空才显示；空则卡面只有标签+名称）
 ##   desc : String  描述（可选，当前仅作 tooltip）
+##   cost : String  消耗文案（可选，卡费+蓝图费合计，如 "零件×10"；空则不显示消耗行）
 
-const FIELDS: Array[String] = ["id", "name", "kind", "icon", "desc"]
+const FIELDS: Array[String] = ["id", "name", "kind", "icon", "desc", "cost"]
 const KIND_LABELS := {"factory": "工厂", "tile": "地块"}
 const FALLBACK_NAME := "???"
-const FALLBACK_ICON := "◇"
 
 const UiStyle = preload("res://scripts/ui/ui_style.gd")
 
@@ -49,12 +49,14 @@ static func body(card) -> VBoxContainer:
 	tag.add_theme_color_override("font_color", UiStyle.COLOR_ACCENT)
 	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
-	var icon := Label.new()
-	icon.text = data["icon"] if not data["icon"].is_empty() else FALLBACK_ICON
-	icon.add_theme_font_size_override("font_size", 30)
-	icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	icon.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	if not data["icon"].is_empty():
+		var icon := Label.new()
+		icon.text = data["icon"]
+		icon.add_theme_font_size_override("font_size", 30)
+		icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		icon.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		box.add_child(icon)
 
 	var title := Label.new()
 	title.text = data["name"]
@@ -64,8 +66,16 @@ static func body(card) -> VBoxContainer:
 	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 
 	box.add_child(tag)
-	box.add_child(icon)
 	box.add_child(title)
+	if not data["cost"].is_empty():
+		var cost := Label.new()
+		cost.text = "消耗: " + data["cost"]
+		cost.add_theme_font_size_override("font_size", 11)
+		cost.add_theme_color_override("font_color", UiStyle.COLOR_ACCENT)
+		cost.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cost.clip_text = true
+		cost.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		box.add_child(cost)
 	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	return box
 

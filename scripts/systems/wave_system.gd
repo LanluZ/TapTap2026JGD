@@ -62,7 +62,8 @@ func tick(world, dt: float) -> void:
 		return
 	var state = world.state
 	var playing: bool = state.is_playing()
-	if playing:
+	# waves_running=false（关卡默认暂停）时不推进刷怪：dt=0 挡不住 delay=0 的首刷
+	if playing and state.waves_running:
 		_advance_spawning(world, dt)
 	# 路径敌人数统计 + 失败判定（§6：WaveSystem 内 enemies_on_path 计数）
 	var alive := 0

@@ -9,7 +9,6 @@ const UI_SCRIPTS: Array[String] = [
 	"res://scripts/ui/hud.gd",
 	"res://scripts/ui/hand_area.gd",
 	"res://scripts/ui/placement_preview.gd",
-	"res://scripts/ui/active_cards.gd",
 	"res://scripts/ui/card_library.gd",
 	"res://scripts/ui/receipt_list.gd",
 	"res://scripts/ui/main_ui.gd",
@@ -34,9 +33,6 @@ const REQUIRED_NODES: Array[String] = [
 	"HUD/TopBar/Row/EnemyBox/EnemyText",
 	"HUD/TopBar/Row/EnemyBox/EnemyBar",
 	"RightRail",
-	"RightRail/ActiveCards",
-	"RightRail/ActiveCards/VBox/Head/Count",
-	"RightRail/ActiveCards/VBox/Slots",
 	"RightRail/CardLibrary",
 	"RightRail/CardLibrary/VBox/Head/Toggle",
 	"RightRail/CardLibrary/VBox/Body/List",
@@ -229,14 +225,7 @@ func _run() -> void:
 		ui.cancel_placement()
 		_check(_cancelled and not ui.is_placing(), "cancel_placement 取消放置")
 
-	# 10) 生效中卡牌 / 卡牌库 / 战报
-	ui.set_active_cards([{"name": "甲", "kind": "factory", "icon": "📦"}, {"name": "乙", "kind": "tile", "icon": "🛣"}])
-	var active_slots := ui.get_node("RightRail/ActiveCards/VBox/Slots")
-	var active_count := ui.get_node("RightRail/ActiveCards/VBox/Head/Count") as Label
-	_check(active_slots.get_child_count() == 3, "生效中卡牌槽位=3（实际 %d）" % active_slots.get_child_count())
-	_check(active_count.text == "2 / 3", "生效中卡牌计数（实际 %s）" % active_count.text)
-	ui.set_active_slot_count(5)
-	_check(active_slots.get_child_count() == 5, "set_active_slot_count 生效（实际 %d）" % active_slots.get_child_count())
+	# 10) 卡牌库 / 战报
 
 	ui.set_library_cards([{"name": "L1", "kind": "factory"}, {"name": "L2", "kind": "tile"},
 		{"name": "L3", "kind": "factory"}, {"name": "L4", "kind": "tile"}])
@@ -268,9 +257,6 @@ func _run() -> void:
 	_check(ui.get_hand().size() == 1, "set_hand 跳过非法项（实际 %d）" % ui.get_hand().size())
 	_check(hand.get_child_count() == 6, "跳过非法项后槽位仍为 6（实际 %d）" % hand.get_child_count())
 	_check(hand_count.text == "1 / 6", "跳过非法项后计数 1 / 6（实际 %s）" % hand_count.text)
-	ui.set_active_cards(["not-a-card"])
-	_check(active_slots.get_child_count() == 5, "生效中卡牌过滤非法项后仍为 5 槽（实际 %d）" % active_slots.get_child_count())
-	_check(active_count.text == "0 / 5", "生效中卡牌计数归零（实际 %s）" % active_count.text)
 
 	# 13) DNA 检视预制体：节点解析 / 碱基链 / 座数徽标 / 空态
 	var dna := (load("res://scenes/ui/dna_inspector.tscn") as PackedScene).instantiate()

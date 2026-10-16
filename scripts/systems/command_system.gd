@@ -48,6 +48,7 @@ func _apply(world, cmd) -> void:
 
 
 ## 打出卡牌（§8）：结算放置效果 → 扣卡费 → 手牌移除 → 登记补抽 1 张（CardSystem #10）。
+## 例外：融合子代卡（card_fusion_*）打出不补抽——子代卡面唯一，抽回没有意义。
 func _play_card(world, d: Dictionary) -> void:
 	if _card_system == null:
 		_reject(world, "CardSystem 未注册")
@@ -86,7 +87,8 @@ func _play_card(world, d: Dictionary) -> void:
 		world.state.refund(cost) # 放置失败回滚卡费
 		return
 	deck.hand.remove_at(idx)
-	deck.pending_draw += 1 # 0 消耗规则：打出自动抽 1（§12），CardSystem #10 执行
+	if not String(card_id).begins_with("card_fusion_"):
+		deck.pending_draw += 1 # 0 消耗规则：打出自动抽 1（§12），CardSystem #10 执行
 
 
 ## 放置工厂：蓝图校验 → 占用校验（GridSystem）→ 扣蓝图 cost → 按蓝图组件组合创建实体。
