@@ -320,22 +320,35 @@ func _parse_genes(data, src: String) -> void:
 		if kind == "stats":
 			if not d.has("allele_id"):
 				_err("%s: stats 座缺 allele_id" % ctx)
+			var acode := str(d.get("allele_code", ""))
+			if acode.length() != 1 or not (acode in ["A", "T", "C", "G"]):
+				_err("%s: stats 座缺/非法 allele_code（需 A/T/C/G 单字母）" % ctx)
 			if not (d.get("params", null) is Dictionary) or (d["params"] as Dictionary).is_empty():
 				_err("%s: stats 座必须定义非空 params" % ctx)
 		if d.get("params", null) is Dictionary:
 			params = _parse_param_specs(ctx + ".params", d["params"])
 		var alleles_raw = d.get("alleles", null)
+		var seen_codes := {}
 		if alleles_raw is Dictionary:
 			for a in alleles_raw:
 				if not (alleles_raw[a] is Dictionary):
 					_err("%s.alleles.%s: 应为对象（payload，可为空 {}）" % [ctx, str(a)])
 					continue
 				alleles[a] = alleles_raw[a]
+				var code := str((alleles_raw[a] as Dictionary).get("code", ""))
+				if code.length() != 1 or not (code in ["A", "T", "C", "G"]):
+					_err("%s.alleles.%s: 缺/非法 code（需 A/T/C/G 单字母）" % [ctx, str(a)])
+				elif seen_codes.has(code):
+					_err("%s.alleles.%s: code '%s' 与等位基因 '%s' 重复" % [ctx, str(a), code, str(seen_codes[code])])
+				else:
+					seen_codes[code] = str(a)
 		elif kind != "stats":
 			_err("%s: 座必须定义 alleles 对象" % ctx)
 		var locus := { "id": id, "kind": kind, "alleles": alleles, "params": params }
 		if d.has("allele_id"):
 			locus["allele_id"] = str(d["allele_id"])
+		if d.has("allele_code"):
+			locus["allele_code"] = str(d["allele_code"])
 		out_loci.append(locus)
 	if out_loci.size() != arr.size():
 		return # 有座解析失败，错误已记录，不落表
@@ -388,17 +401,32 @@ func _validate_genome(ctx: String, v):
 			out.append(null)
 			continue
 		if not (entry is Dictionary):
-			_err("%s: 空座写 null，有基因写 {allele, params}" % lctx)
+			_err("%s: 空座写 null，有基因写 {allele 或 bases, params}" % lctx)
 			return null
 		var locus: Dictionary = loci[idx]
-		var allele := _req_str(entry, "allele", lctx)
-		if allele.is_empty():
+		# 输入三档：只有 allele（作者可读格式）/ 只有 bases / 两者（须一致）；输出统一 bases。
+		var allele := str(entry.get("allele", ""))
+		var bases := str(entry.get("bases", ""))
+		if allele.is_empty() and bases.is_empty():
+			_err("%s: 空座写 null，有基因写 {allele 或 bases, params}" % lctx)
 			return null
-		if str(locus.get("kind", "")) == "stats":
-			if allele != str(locus.get("allele_id", "")):
-				_err("%s: 数值座 allele 应为 '%s'，得到 '%s'" % [lctx, str(locus.get("allele_id", "")), allele])
-		elif not (locus.get("alleles", {}) as Dictionary).has(allele):
-			_err("%s: 等位基因 '%s' 未在座 '%s' 定义（可选: %s）" % [lctx, allele, str(locus.get("id", idx)), str((locus.get("alleles", {}) as Dictionary).keys())])
+		if not allele.is_empty():
+			var from_allele := GenomeScript.bases_of_allele(locus, allele)
+			if from_allele.is_empty():
+				_err("%s: 等位基因 '%s' 未在座 '%s' 定义（可选 code: %s）" % [lctx, allele, str(locus.get("id", idx)), str(_codes_of(locus))])
+				return null
+			if not bases.is_empty() and bases != from_allele:
+				_err("%s: bases '%s' 与 allele '%s' 不一致（应为 '%s'）" % [lctx, bases, allele, from_allele])
+				return null
+			bases = from_allele
+		var decoded := GenomeScript.allele_of_bases(locus, bases)
+		if decoded.is_empty():
+			_err("%s: bases '%s' 未在座 '%s' 声明（可选 code: %s）" % [lctx, bases, str(locus.get("id", idx)), str(_codes_of(locus))])
+			return null
+		if not allele.is_empty() and allele != decoded:
+			_err("%s: bases '%s' 与 allele '%s' 不一致（应为 '%s'）" % [lctx, bases, allele, decoded])
+			return null
+		allele = decoded
 		var params := {}
 		if entry.has("params"):
 			if not (entry["params"] is Dictionary):
@@ -418,7 +446,16 @@ func _validate_genome(ctx: String, v):
 					_err("%s.params.%s: %s 超出范围 [%s, %s]" % [lctx, str(k), str(pv), str(spec["min"]), str(spec["max"])])
 					continue
 				params[str(k)] = float(pv)
-		out.append({ "allele": allele, "params": params })
+		out.append({ "bases": GenomeScript.bases_of_allele(locus, allele), "params": params })
+	return out
+
+
+## 座的全部 code 列表（校验报错提示用）。
+func _codes_of(locus: Dictionary) -> Array:
+	var alleles: Dictionary = locus.get("alleles", {})
+	var out := []
+	for a in alleles:
+		out.append(str((alleles[a] as Dictionary).get("code", "")))
 	return out
 
 

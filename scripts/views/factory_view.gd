@@ -1,5 +1,7 @@
 class_name FactoryView
 extends Node2D
+
+const GenomeScript = preload("res://scripts/dna/genome.gd")
 ## 工厂表现视图（DNA 外形，美术需求表 §2）：按实体基因组拼装部件子图层。
 ## 部件 = 表达出的组件：攻击座→旋转炮管、生产座→烟囱、光环座→信标+半径圈、
 ## 缓冲座→料箱、冗余座→天线（不表达组件但可见，让同源子代长得不一样）。
@@ -71,7 +73,9 @@ static func parts_for(genome: Array, genes: Dictionary) -> Array:
 		if g == null or i >= loci.size():
 			continue
 		var kind := str((loci[i] as Dictionary).get("kind", ""))
-		var allele := str((g as Dictionary).get("allele", ""))
+		var allele := GenomeScript.allele_at(g, i, genes)
+		if allele.is_empty():
+			continue
 		match kind:
 			"attack":
 				out.append({ "kind": "barrel", "allele": allele })

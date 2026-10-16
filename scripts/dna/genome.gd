@@ -2,11 +2,46 @@ class_name Genome
 extends RefCounted
 ## DNA 基因组（规格 docs/superpowers/specs/2026-10-13-dna-fusion-design.md）。
 ## 基因组 = Array，长度 = genes.json loci 数（7），每座为 null（无基因）
-## 或 {"allele": String, "params": Dictionary}。
+## 或 {"bases": String, "params": Dictionary}。碱基（A/T/C/G）是基因型唯一数据源：
+## 座 code→等位基因表在 genes.json，解码统一走 allele_at（改 bases 即改基因型）。
+## 作者层（factories.json）可写 {"allele", "params"}，GameConfig._validate_genome
+## 校验后归一化为 bases；运行时一律 bases。
 ## 本类是纯数据+纯函数：表达（基因型→组件规格）、减数分裂（breed）、命名，
 ## 无世界/Node 依赖，可 headless 单测。
 
 static var _next_child: int = 0 # 动态子代蓝图 id 计数器
+
+
+# ================================================================ 碱基解码
+
+## entry 基因型 → 等位基因名（bases 查座 code 表）；null/空/未声明 code → ""。
+static func allele_at(entry, idx: int, genes: Dictionary) -> String:
+	if entry == null:
+		return ""
+	var loci: Array = genes.get("loci", [])
+	if idx >= loci.size():
+		return ""
+	return allele_of_bases(loci[idx], str((entry as Dictionary).get("bases", "")))
+
+
+## 座 + 碱基 → 等位基因名；stats 座走 allele_id/allele_code；解码失败返回 ""。
+static func allele_of_bases(locus: Dictionary, bases: String) -> String:
+	if bases.is_empty():
+		return ""
+	if str(locus.get("kind", "")) == "stats":
+		return str(locus.get("allele_id", "")) if bases == str(locus.get("allele_code", "")) else ""
+	var alleles: Dictionary = locus.get("alleles", {})
+	for a in alleles:
+		if str((alleles[a] as Dictionary).get("code", "")) == bases:
+			return str(a)
+	return ""
+
+
+## 座 + 等位基因名 → 碱基（allele_of_bases 的反向；未定义返回 ""）。
+static func bases_of_allele(locus: Dictionary, allele: String) -> String:
+	if str(locus.get("kind", "")) == "stats":
+		return str(locus.get("allele_code", "")) if allele == str(locus.get("allele_id", "")) else ""
+	return str(((locus.get("alleles", {}) as Dictionary).get(allele, {}) as Dictionary).get("code", ""))
 
 
 # ================================================================ 表达
@@ -21,9 +56,9 @@ static func express(genome: Array, genes: Dictionary, blueprint_id: String, disp
 	}, { "type": "GridPosition" }]
 	var stats := _params_of(_at(genome, 1), loci, 1)
 	# 座0 攻击类型 + 座1 数值
-	var attack = _at(genome, 0)
-	if attack != null:
-		var payload: Dictionary = _allele_payload(loci, 0, str(attack["allele"]))
+	var attack_allele := allele_at(_at(genome, 0), 0, genes)
+	if not attack_allele.is_empty():
+		var payload: Dictionary = _allele_payload(loci, 0, attack_allele)
 		specs.append({
 			"type": "Attack",
 			"range": float(stats.get("range", _default_param(loci, 1, "range"))),
@@ -33,23 +68,25 @@ static func express(genome: Array, genes: Dictionary, blueprint_id: String, disp
 		})
 	# 座2 生产（Production 必配 ResourceBuffer，架构 §4 约束）
 	var prod = _at(genome, 2)
+	var prod_allele := allele_at(prod, 2, genes)
 	var buffer_flush := 1.0 # buffer 座缺省时的兜底汇入周期
-	var buffer = _at(genome, 4)
-	if buffer != null:
-		buffer_flush = float(_allele_payload(loci, 4, str(buffer["allele"])).get("flush_interval", 1.0))
-	if prod != null:
+	var buffer_allele := allele_at(_at(genome, 4), 4, genes)
+	if not buffer_allele.is_empty():
+		buffer_flush = float(_allele_payload(loci, 4, buffer_allele).get("flush_interval", 1.0))
+	if not prod_allele.is_empty():
 		var iparams := _params_of(prod, loci, 2)
 		specs.append({
-			"type": "Production", "recipe_id": str(prod["allele"]),
+			"type": "Production", "recipe_id": prod_allele,
 			"interval": float(iparams.get("interval", _default_param(loci, 2, "interval"))),
 		})
 		specs.append({ "type": "ResourceBuffer", "flush_interval": buffer_flush })
-	elif buffer != null:
+	elif not buffer_allele.is_empty():
 		specs.append({ "type": "ResourceBuffer", "flush_interval": buffer_flush })
 	# 座3 光环
 	var aura = _at(genome, 3)
-	if aura != null:
-		var apayload := _allele_payload(loci, 3, str(aura["allele"]))
+	var aura_allele := allele_at(aura, 3, genes)
+	if not aura_allele.is_empty():
+		var apayload := _allele_payload(loci, 3, aura_allele)
 		var aparams := _params_of(aura, loci, 3)
 		specs.append({
 			"type": "Aura",
@@ -68,7 +105,7 @@ static func summary(genome: Array, genes: Dictionary) -> String:
 		var g = _at(genome, i)
 		if g == null or i >= loci.size():
 			continue
-		parts.append("%s:%s" % [str((loci[i] as Dictionary).get("id", i)), str(g["allele"])])
+		parts.append("%s:%s" % [str((loci[i] as Dictionary).get("id", i)), allele_at(g, i, genes)])
 	if parts.is_empty():
 		return "空基因组"
 	return " · ".join(parts)
@@ -104,7 +141,7 @@ static func _gamete(genome: Array, genes: Dictionary, rng: RandomNumberGenerator
 	return out
 
 
-## 突变：数值座按 ±drift 浮动并钳回 [min,max]；其余座换成同组随机等位基因。
+## 突变：数值座按 ±drift 浮动并钳回 [min,max]；其余座换成同组随机等位基因（写回其碱基）。
 static func _mutate(entry, idx: int, genes: Dictionary, rng: RandomNumberGenerator):
 	if entry == null:
 		return null # 空座无基因可突变
@@ -131,7 +168,7 @@ static func _mutate(entry, idx: int, genes: Dictionary, rng: RandomNumberGenerat
 		var alleles: Dictionary = locus.get("alleles", {})
 		if not alleles.is_empty():
 			var keys := alleles.keys()
-			out["allele"] = str(keys[rng.randi_range(0, keys.size() - 1)])
+			out["bases"] = bases_of_allele(locus, str(keys[rng.randi_range(0, keys.size() - 1)]))
 	return out
 
 
@@ -148,7 +185,7 @@ static func phenotype_name(genome: Array, genes: Dictionary) -> String:
 		var g = _at(genome, idx)
 		if g == null or idx >= loci.size():
 			continue
-		var label := str(_allele_payload(loci, idx, str((g as Dictionary).get("allele", ""))).get("label", ""))
+		var label := str(_allele_payload(loci, idx, allele_at(g, idx, genes)).get("label", ""))
 		if not label.is_empty():
 			parts.append(label)
 	if parts.is_empty():
@@ -157,18 +194,14 @@ static func phenotype_name(genome: Array, genes: Dictionary) -> String:
 
 
 ## 基因组 → 碱基链（DNA 检视玩家视图用，策划案 15.8）：
-## 每座一个碱基字母（A/T/C/G，等位基因名确定性哈希）；空座为 "—"。
-const BASES := "ATCG"
+## 每座直接吐基因型碱基（genes.json code，改 bases 即改基因型）；空座为 "—"。
 
 static func base_letters(genome: Array, genes: Dictionary) -> Array:
 	var loci: Array = genes.get("loci", [])
 	var out: Array = []
 	for i in loci.size():
-		var g = _at(genome, i)
-		if g == null:
-			out.append("—")
-			continue
-		out.append(BASES[_djb2(str((g as Dictionary).get("allele", ""))) % 4])
+		var b := bases_of_allele(loci[i], allele_at(_at(genome, i), i, genes))
+		out.append(b if not b.is_empty() else "—")
 	return out
 
 
@@ -180,14 +213,6 @@ static func complement(base: String) -> String:
 		"C": return "G"
 		"G": return "C"
 		_: return base
-
-
-## djb2 变体：确定性哈希（同等位基因跨运行同碱基，不依赖 String.hash 的版本稳定性）。
-static func _djb2(s: String) -> int:
-	var h := 5381
-	for i in s.length():
-		h = (h * 33 + s.unicode_at(i)) & 0x7FFFFFFF
-	return h
 
 
 # ================================================================ 动态子代注册
@@ -221,7 +246,7 @@ static func sequence_text(genome: Array, genes: Dictionary) -> String:
 		if g == null:
 			lines.append("%d. %s: —" % [i + 1, lid])
 			continue
-		var s := "%d. %s: %s" % [i + 1, lid, str((g as Dictionary).get("allele", ""))]
+		var s := "%d. %s: %s" % [i + 1, lid, allele_at(g, i, genes)]
 		var params: Dictionary = (g as Dictionary).get("params", {})
 		if not params.is_empty():
 			var kv: Array = []

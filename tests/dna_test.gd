@@ -226,9 +226,45 @@ func _run() -> int:
 		and GenomeScript.complement("T") == "A" and GenomeScript.complement("G") == "C"
 		and GenomeScript.complement("—") == "—", "互补配对 A↔T、C↔G")
 	var dui: Dictionary = d1["dna_ui"]
-	_ok(dui.get("bases", []).size() == 7 and (dui.get("rules", []) as Array).size() == 4
-		and str(dui.get("title", "")) == "轻炮", "dna_ui 载荷：碱基7位 + 4条规则 + 表型标题")
+	_ok(dui.get("bases", []).size() == 7 and (dui.get("rules", []) as Array).is_empty()
+		and str(dui.get("title", "")) == "轻炮", "dna_ui 载荷：碱基7位 + 融合规则不进UI + 表型标题")
+	var names: Array = dui.get("locus_names", [])
+	_ok(names.size() == 7 and str(names[0]) == "染色体01" and str(names[6]) == "染色体07",
+		"座名 = 染色体编号 01…07（不再用 genes.json 座名）")
 	game.free()
+
+	print("== T13: 字母=数据（bases 即基因型）==")
+	var g_edit: Array = turret_genome.duplicate(true)
+	_ok(GenomeScript.allele_at(g_edit[0], 0, config.genes) == "shot_light", "基因型碱基 A 解码为 shot_light")
+	g_edit[0] = { "bases": "T" }
+	_ok(GenomeScript.allele_at(g_edit[0], 0, config.genes) == "shot_heavy", "碱基 A→T 解码为 shot_heavy")
+	var proj := ""
+	for s in GenomeScript.express(g_edit, config.genes, "gun_turret", "重炮"):
+		if s.get("type", "") == "Attack":
+			proj = str(s["projectile"])
+	_ok(proj == "ore_heavy", "改碱基即改武器：射弹 ore_shot → ore_heavy")
+	var bl2: Array = GenomeScript.base_letters(g_edit, config.genes)
+	_ok(bl2[0] == "T", "碱基链跟随基因型（座0 = T）")
+	_ok(GenomeScript.bases_of_allele(config.genes["loci"][0], "shot_light") == "A"
+		and GenomeScript.bases_of_allele(config.genes["loci"][0], "shot_heavy") == "T",
+		"反向查表：等位基因 → 碱基")
+
+	print("== T14: 归一化与非法输入校验 ==")
+	var n7: Array = [null, null, null, null, null, null, null]
+	var only_allele = config._validate_genome("t14", [{ "allele": "shot_light" }] + n7.slice(1))
+	_ok(only_allele is Array and str((only_allele[0] as Dictionary).get("bases", "")) == "A"
+		and not (only_allele[0] as Dictionary).has("allele"),
+		"作者格式 allele 归一化为 bases（shot_light→A），不残留 allele 键")
+	var both_ok = config._validate_genome("t14", [{ "allele": "shot_light", "bases": "A" }] + n7.slice(1))
+	_ok(both_ok is Array, "bases 与 allele 一致 → 通过")
+	var bad_bases = config._validate_genome("t14", [{ "bases": "X" }] + n7.slice(1))
+	_ok(bad_bases == null, "非法碱基 X 拒收")
+	var bad_code = config._validate_genome("t14", [{ "bases": "G" }] + n7.slice(1))
+	_ok(bad_code == null, "座0 未声明的 code G 拒收（攻击座只定义 A/T）")
+	var bad_conflict = config._validate_genome("t14", [{ "allele": "shot_light", "bases": "T" }] + n7.slice(1))
+	_ok(bad_conflict == null, "bases 与 allele 冲突拒收")
+	var bad_stats = config._validate_genome("t14", [null, { "bases": "T" }, null, null, null, null, null])
+	_ok(bad_stats == null, "数值座碱基非 allele_code 拒收（座1 只有 A）")
 
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return 0 if _failures == 0 else _failures
