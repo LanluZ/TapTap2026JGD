@@ -29,3 +29,5 @@ addons/godot_ai/
 
 # docs
 docs/
+
+dist/

@@ -8,5 +8,5 @@ var _time := 0.0
 
 func _process(delta: float) -> void:
 	_time += delta
-	_pivot.rotate_y(delta * 0.4)
-	_camera.position.y = sin(_time * 0.8) * 0.2
+	_pivot.rotate_y(delta * 0.1)
+	_camera.position.y = sin(_time * 0.8) * 0.1

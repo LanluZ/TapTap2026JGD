@@ -1,0 +1,84 @@
+[gd_resource type="Theme" format=3 uid="uid://d01bo340bjnmn"]
+
+[ext_resource type="Texture2D" uid="uid://cbblamtewav8i" path="res://art/ui/tinted/button_hover.png" id="1_ebccb"]
+[ext_resource type="Texture2D" uid="uid://b5npigxp4p4q8" path="res://art/ui/tinted/button_normal.png" id="1_funo8"]
+[ext_resource type="Texture2D" uid="uid://cu1qqa0gyy8a3" path="res://art/ui/tinted/button_pressed.png" id="3_gbcni"]
+[ext_resource type="Texture2D" uid="uid://bvhg474guthb1" path="res://art/ui/tinted/panel_menu.png" id="4_ktaku"]
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_syu7e"]
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
+texture = ExtResource("1_ebccb")
+texture_margin_left = 12.0
+texture_margin_top = 12.0
+texture_margin_right = 12.0
+texture_margin_bottom = 12.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_clnl2"]
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
+texture = ExtResource("1_funo8")
+texture_margin_left = 12.0
+texture_margin_top = 12.0
+texture_margin_right = 12.0
+texture_margin_bottom = 12.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_ktaku"]
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
+texture = ExtResource("3_gbcni")
+texture_margin_left = 12.0
+texture_margin_top = 12.0
+texture_margin_right = 12.0
+texture_margin_bottom = 12.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_ah46u"]
+content_margin_left = 28.0
+content_margin_top = 22.0
+content_margin_right = 28.0
+content_margin_bottom = 22.0
+texture = ExtResource("4_ktaku")
+texture_margin_left = 20.0
+texture_margin_top = 20.0
+texture_margin_right = 20.0
+texture_margin_bottom = 20.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_x78rd"]
+content_margin_left = 28.0
+content_margin_top = 22.0
+content_margin_right = 28.0
+content_margin_bottom = 22.0
+texture = ExtResource("4_ktaku")
+texture_margin_left = 20.0
+texture_margin_top = 20.0
+texture_margin_right = 20.0
+texture_margin_bottom = 20.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="SystemFont" id="SystemFont_yahei"]
+font_names = PackedStringArray("Microsoft YaHei UI", "Microsoft YaHei")
+subpixel_positioning = 0
+
+[resource]
+default_font = SubResource("SystemFont_yahei")
+default_font_size = 20
+Button/styles/hover = SubResource("StyleBoxTexture_syu7e")
+Button/styles/normal = SubResource("StyleBoxTexture_clnl2")
+Button/styles/pressed = SubResource("StyleBoxTexture_ktaku")
+Panel/styles/panel = SubResource("StyleBoxTexture_ah46u")
+PanelContainer/styles/panel = SubResource("StyleBoxTexture_x78rd")

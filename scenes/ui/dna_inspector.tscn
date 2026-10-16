@@ -1,9 +1,221 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/dna_inspector.gd" id="1_dna"]
 
-[node name="DnaInspector" type="Control"]
+[sub_resource type="SystemFont" id="SystemFont_dna"]
+font_names = PackedStringArray("Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC")
+subpixel_positioning = 0
+
+[sub_resource type="Theme" id="Theme_dna"]
+default_font = SubResource("SystemFont_dna")
+default_font_size = 14
+
+[sub_resource type="StyleBoxFlat" id="SB_root"]
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 16.0
+content_margin_bottom = 12.0
+bg_color = Color(0.115, 0.115, 0.135, 0.98)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.42, 0.34, 0.24, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 12
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="SB_accent"]
+bg_color = Color(0.88, 0.57, 0.24, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="SB_badge"]
+content_margin_left = 10.0
+content_margin_top = 3.0
+content_margin_right = 10.0
+content_margin_bottom = 3.0
+bg_color = Color(0.24, 0.17, 0.1, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.88, 0.57, 0.24, 0.6)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="SB_section"]
+content_margin_left = 10.0
+content_margin_top = 8.0
+content_margin_right = 10.0
+content_margin_bottom = 8.0
+bg_color = Color(0.145, 0.145, 0.168, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.28, 0.28, 0.33, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="SB_debug"]
+content_margin_left = 8.0
+content_margin_top = 6.0
+content_margin_right = 8.0
+content_margin_bottom = 6.0
+bg_color = Color(0.085, 0.085, 0.1, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.24, 0.24, 0.28, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="DnaInspector" type="PanelContainer"]
+layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+custom_minimum_size = Vector2(420, 0)
+theme = SubResource("Theme_dna")
+theme_override_styles/panel = SubResource("SB_root")
 script = ExtResource("1_dna")
+
+[node name="Box" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Header" type="HBoxContainer" parent="Box"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="AccentBar" type="Panel" parent="Box/Header"]
+layout_mode = 2
+custom_minimum_size = Vector2(3, 34)
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("SB_accent")
+
+[node name="TitleBlock" type="VBoxContainer" parent="Box/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+
+[node name="Title" type="Label" parent="Box/Header/TitleBlock"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.93, 0.93, 0.96, 1)
+theme_override_font_sizes/font_size = 18
+text = "DNA 检视"
+
+[node name="Caption" type="Label" parent="Box/Header/TitleBlock"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.63, 0.68, 1)
+theme_override_font_sizes/font_size = 11
+text = "碱基互补配对 · A–T / C–G"
+
+[node name="LociBadge" type="PanelContainer" parent="Box/Header"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("SB_badge")
+
+[node name="Count" type="Label" parent="Box/Header/LociBadge"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.72, 0.42, 1)
+theme_override_font_sizes/font_size = 12
+text = "0 / 0 座"
+
+[node name="HeadRule" type="ColorRect" parent="Box"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 1)
+size_flags_horizontal = 3
+mouse_filter = 2
+color = Color(0.3, 0.3, 0.35, 0.8)
+
+[node name="ChainSection" type="PanelContainer" parent="Box"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("SB_section")
+
+[node name="ChainBox" type="VBoxContainer" parent="Box/ChainSection"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="StrandTop" type="ColorRect" parent="Box/ChainSection/ChainBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 1)
+size_flags_horizontal = 3
+mouse_filter = 2
+color = Color(0.4, 0.4, 0.46, 0.6)
+
+[node name="Scroll" type="ScrollContainer" parent="Box/ChainSection/ChainBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+vertical_scroll_mode = 0
+
+[node name="Chain" type="HBoxContainer" parent="Box/ChainSection/ChainBox/Scroll"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="StrandBottom" type="ColorRect" parent="Box/ChainSection/ChainBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 1)
+size_flags_horizontal = 3
+mouse_filter = 2
+color = Color(0.4, 0.4, 0.46, 0.6)
+
+[node name="RulesSection" type="PanelContainer" parent="Box"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("SB_section")
+
+[node name="RulesBox" type="VBoxContainer" parent="Box/RulesSection"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="RulesHead" type="Label" parent="Box/RulesSection/RulesBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.72, 0.42, 1)
+theme_override_font_sizes/font_size = 11
+text = "融合规则"
+
+[node name="Rules" type="VBoxContainer" parent="Box/RulesSection/RulesBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="DebugRow" type="HBoxContainer" parent="Box"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DebugToggle" type="CheckButton" parent="Box/DebugRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "调试：原始序列"
+
+[node name="Spacer" type="Control" parent="Box/DebugRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="DebugPanel" type="PanelContainer" parent="Box"]
+visible = false
+layout_mode = 2
+theme_override_styles/panel = SubResource("SB_debug")
+
+[node name="DebugText" type="Label" parent="Box/DebugPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.62, 0.68, 1)
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3
+text_selectable = true

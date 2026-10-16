@@ -272,6 +272,21 @@ func _run() -> void:
 	_check(active_slots.get_child_count() == 5, "生效中卡牌过滤非法项后仍为 5 槽（实际 %d）" % active_slots.get_child_count())
 	_check(active_count.text == "0 / 5", "生效中卡牌计数归零（实际 %s）" % active_count.text)
 
+	# 13) DNA 检视预制体：节点解析 / 碱基链 / 座数徽标 / 空态
+	var dna := (load("res://scenes/ui/dna_inspector.tscn") as PackedScene).instantiate()
+	root.add_child(dna)
+	dna.set_view({"title": "测试卡", "bases": ["A", "—", "C"], "locus_names": ["甲", "乙", "丙"],
+		"rules": ["规则一"], "debug": "raw"})
+	var dna_chain := dna.get_node("Box/ChainSection/ChainBox/Scroll/Chain")
+	var dna_count := dna.get_node("Box/Header/LociBadge/Count") as Label
+	_check(dna_chain.get_child_count() == 3, "DNA 碱基链 3 格（实际 %d）" % dna_chain.get_child_count())
+	_check(dna_count.text == "2 / 3 座", "DNA 座数徽标（实际 %s）" % dna_count.text)
+	_check(dna_chain.get_child(0).get_child(2).get_child(0).text == "T", "DNA 互补碱基 A→T")
+	dna.set_view({"title": "空", "bases": [], "locus_names": [], "rules": [], "debug": ""})
+	_check(not dna.get_node("Box/ChainSection").visible, "DNA 空碱基链整段隐藏")
+	_check(not dna.get_node("Box/RulesSection").visible, "DNA 空规则整段隐藏")
+	dna.free()
+
 	_finish()
 
 

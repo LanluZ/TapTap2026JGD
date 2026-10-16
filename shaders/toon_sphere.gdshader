@@ -9,6 +9,8 @@ uniform vec3 shadow_color : source_color = vec3(0.48, 0.17, 0.30);
 uniform vec3 highlight_color : source_color = vec3(1.0, 0.83, 0.55);
 uniform vec3 spec_color : source_color = vec3(1.0, 0.96, 0.88);
 uniform vec3 rim_color : source_color = vec3(1.0, 0.62, 0.42);
+// albedo 贴图：hint_default_white 使“未挂贴图”时等于原样（白色直通）
+uniform sampler2D albedo_tex : source_color, hint_default_white;
 
 // 视口空间，指向光源（左上前方）
 uniform vec3 light_dir = vec3(-0.5, 0.7, 0.5);
@@ -33,6 +35,9 @@ void fragment() {
 	float hi = smoothstep(highlight_threshold - band_softness, highlight_threshold + band_softness, ndl);
 	vec3 col = mix(shadow_color, base_color, lit);
 	col = mix(col, highlight_color, hi);
+
+	// 贴图只调制三色阶；硬高光/边缘光在其后叠加，保持原色不被贴图染脏
+	col *= texture(albedo_tex, UV).rgb;
 
 	// 硬边高光点
 	float ndh = clamp(dot(n, normalize(l + v)), 0.0, 1.0);

@@ -89,6 +89,14 @@ func _build_dna_popup() -> void:
 	if _dna_popup != null:
 		return
 	_dna_popup = PanelContainer.new()
+	# 外壳只提供投影，卡片观感由 dna_inspector 自带的圆角面板负责（避免双重描边）
+	var shadow := StyleBoxFlat.new()
+	shadow.bg_color = Color(0, 0, 0, 0)
+	shadow.set_corner_radius_all(12)
+	shadow.shadow_size = 14
+	shadow.shadow_color = Color(0, 0, 0, 0.5)
+	shadow.shadow_offset = Vector2(0, 4)
+	_dna_popup.add_theme_stylebox_override("panel", shadow)
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 6)
 	_dna_inspector = DnaInspectorScene.instantiate()
