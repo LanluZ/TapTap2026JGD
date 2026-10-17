@@ -3,7 +3,7 @@ extends System
 ## #10 卡牌（§5）：DeckState 手牌状态（非实体，§5 说明）；打出后补抽 1 张
 ## （0 消耗规则 §12，登记于 CommandSystem，本系统在 #10 执行），手牌上限
 ## hand_max 来自 cards.json，关卡卡池来自 levels.json card_pool。
-## 抽卡堆：抽出耗尽后按关卡卡池重新洗牌循环（策划案待确认 #2 的暂行默认）。
+## 抽卡堆：抽出耗尽后按关卡卡池重新洗牌循环（策划案 §16）。
 
 
 ## 手牌/抽卡堆状态（§5：CardSystem 自己的 DeckState，不进 ECS）。
