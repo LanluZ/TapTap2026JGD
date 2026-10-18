@@ -20,6 +20,9 @@ signal line_changed(cell: Vector2i, kind: StringName)
 signal ore_delivered(entity_id: int)
 ## 矿块拒收（任务 6）：交付失败时发，供表现层做「炮塔弹药满 / 该建筑不吃矿」反馈。
 ## reason = "full"（弹药或进料库存已满，块滞留带端）/ "no_feed"（该建筑不吃矿）。
+## **边沿触发**（不是电平）：只在某实体的拒收状态「进入」时发一次——滞留矿块每 tick
+## 重试交付但同因拒收不再重复发（否则 10Hz 连发，任务 7 的反馈会持续闪）。
+## 消费方按「收到 = 刚刚进入该拒收态」使用，要查电平请直接调 deliver_ore / 读组件。
 signal ore_rejected(entity_id: int, reason: String)
 
 ## 弹药上限的权威来源（Attack 组件），deliver_ore 用它判「弹药满拒收」。
@@ -46,6 +49,10 @@ var _alive: Dictionary = {} # entity_id -> true
 var _pending_destroy: Array = [] # 延迟到帧末 cleanup（CleanupSystem #11）
 var _stores: Dictionary = {} # 组件类型(StringName) -> Dictionary[entity_id -> Component]
 var _entity_masks: Dictionary = {} # entity_id -> int 组件位掩码
+
+## 上次拒收快照（ore_rejected 边沿触发用）：entity_id -> reason。
+## 有键 = 该实体当前处于「被拒收」态且已发过信号；无键 = 无拒收态（下次拒收算新边沿）。
+var _ore_reject_last: Dictionary = {}
 
 
 # ---------------------------------------------------------------- 实体生命周期
@@ -89,6 +96,7 @@ func flush_destroyed() -> void:
 			(_stores[t] as Dictionary).erase(id)
 		_alive.erase(id)
 		_entity_masks.erase(id)
+		_ore_reject_last.erase(id) # 拒收快照随实体消失，避免字典无界增长
 		entity_destroyed.emit(id)
 
 
@@ -155,33 +163,59 @@ func entity_ids() -> Array:
 ## 因此刚放置、还没跑过任何 ProductionSystem tick 的装配台也能立刻进料。
 ## 拒收一律发 ore_rejected(entity_id, reason)：reason = "full"（弹药/库存满）/
 ## "no_feed"（该建筑不吃矿）。逻辑层到此为止，表现层（任务 7）用它做拒收反馈。
+## 信号是**边沿**触发（见 _reject_ore）：同实体同因连续拒收只发一次，让滞留块每 tick
+## 的重试交付不转成 10Hz 连发。
 func deliver_ore(entity_id: int) -> bool:
 	if not is_alive(entity_id):
+		clear_ore_reject(entity_id) # 实体没了：清残留快照
 		return false
 	if has_component(entity_id, &"Attack"):
 		var atk = get_component(entity_id, &"Attack")
 		if int(atk.ammo) >= AttackScript.AMMO_MAX:
-			ore_rejected.emit(entity_id, ORE_REJECT_FULL)
+			_reject_ore(entity_id, ORE_REJECT_FULL)
 			return false # 弹药满：块留在端头等待
 		atk.ammo += 1
+		clear_ore_reject(entity_id) # 收下了 = 退出拒收态，下次满则重新算边沿
 		ore_delivered.emit(entity_id)
 		return true
 	if not has_component(entity_id, &"Production"):
-		ore_rejected.emit(entity_id, ORE_REJECT_NO_FEED)
+		_reject_ore(entity_id, ORE_REJECT_NO_FEED)
 		return false # 无生产组件 = 无进料配方
 	var buffer = get_component(entity_id, &"ResourceBuffer")
 	if buffer == null:
-		ore_rejected.emit(entity_id, ORE_REJECT_NO_FEED)
+		_reject_ore(entity_id, ORE_REJECT_NO_FEED)
 		return false
 	var prod = get_component(entity_id, &"Production")
 	if buffer.sync_feed_stock(prod.recipe_id) <= 0:
-		ore_rejected.emit(entity_id, ORE_REJECT_NO_FEED)
+		_reject_ore(entity_id, ORE_REJECT_NO_FEED)
 		return false # 该配方不吃矿（or 库存上限 0）：块留在端头
 	if buffer.add(&"ore", 1) <= 0:
-		ore_rejected.emit(entity_id, ORE_REJECT_FULL)
+		_reject_ore(entity_id, ORE_REJECT_FULL)
 		return false # 库存满：块留在端头
+	clear_ore_reject(entity_id) # 收下了 = 退出拒收态
 	ore_delivered.emit(entity_id)
 	return true
+
+
+## ore_rejected 边沿触发（任务 6 审查修复）：只在「该实体的拒收状态发生变化」时发信号，
+## 状态 = (entity_id, reason)。
+##   · 首次拒收 → 发；同一实体同 reason 连续拒收（块滞留带端每 tick 重试）→ 静默；
+##   · reason 变化（full ↔ no_feed）→ 发（判据是 reason 不等，不是实体不等）；
+##   · 交付成功 / clear_ore_reject → 快照失效，之后再拒收算新边沿（满弹→打光→再收 能再发）。
+## 快照按实体而不是按格：同实体在任一带端被拒都归同一条状态线，块换了条带来喂满弹炮塔
+## 也不重复闪（拒收态没变）。块离开带端（矿块消失 / 线路拆除）不清快照，直到该实体
+## 下一次交付成功或再次以不同 reason 拒收——消费方按边沿用即可，不要拿它查电平。
+func _reject_ore(entity_id: int, reason: String) -> void:
+	if _ore_reject_last.get(entity_id, "") == reason:
+		return # 同因重复拒收：电平已在，不重发
+	_ore_reject_last[entity_id] = reason
+	ore_rejected.emit(entity_id, reason)
+
+
+## 清除某实体的拒收快照：交付成功时自动调；外部（物流：块离开端头 / 表现层重置）
+## 也可调，使该实体下一次拒收被当作新边沿。未知实体无副作用。
+func clear_ore_reject(entity_id: int) -> void:
+	_ore_reject_last.erase(entity_id)
 
 
 ## 供水查询（任务 4）：实体是否在水网扩散集合内。数据由 LogisticsSystem 每 tick 全量重算

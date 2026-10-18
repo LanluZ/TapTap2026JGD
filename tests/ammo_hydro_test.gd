@@ -5,7 +5,8 @@ extends SceneTree
 ##   ③ 弹药：上限 6、每发扣 1、断弹 → 冷却 ×2 且伤害 ×0.5（同时）；
 ##   ④ 断弹惩罚 × 喜水加速**乘算**：base×2×0.8 = 1.28 base；
 ##   ⑤ deliver_ore 分流：Attack→ammo（满 6 拒收，块滞留端头）/ Production→库存 /
-##      其余拒收且发 ore_rejected(entity_id, reason)；DNA 混种矿走弹药（裁定 N4）；
+##      其余拒收且发 ore_rejected(entity_id, reason)（**边沿触发**：同因连发只发一次）/
+##      DNA 混种矿走弹药（裁定 N4）；
 ##   ⑥ 生产端：嗜水断水不开工（与欠料同路径）、喜水有水 interval×0.8（实测周期）。
 ## 运行：godot --headless --path <项目目录> -s res://tests/ammo_hydro_test.gd
 ## 退出码：0 = 全部通过；非 0 = 失败项数。
@@ -186,6 +187,7 @@ func _run() -> int:
 	_t5_table()
 	_t6_deliver_routing()
 	_t7_production()
+	_t8_reject_edge()
 
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return _failures
@@ -544,3 +546,48 @@ func _measure_cycle(w, id: int) -> int:
 		w.tick(DT)
 		ticks += 1
 	return ticks
+
+
+# ================================================================ T8 ore_rejected 边沿触发
+
+## 审查重要项：ore_rejected 原本是电平（每 tick 重试交付都发）→ 10Hz 连发，任务 7 按它
+## 驱动渲染反馈会持续闪。本用例钉死边沿语义：
+##   (a) 同一滞留在端头的块连跑 30 tick（30 次重试交付）→ 信号只发 1 次；
+##   (b) 打光弹药 → 块被收下（退出拒收态）→ 再填满 → 再拒收能再发（「满弹→打光→再收」）；
+##   (c) 同一实体 reason 从 full 变 no_feed → 算新边沿再发；之后同因仍只发 1 次。
+func _t8_reject_edge() -> void:
+	print("== T8: ore_rejected 边沿触发（同因连发 1 次 / 变因再发 / 恢复后再拒收再发）==")
+	var w = _new_world()
+	_grant(w)
+	var turret: int = _place_factory_at(w, "gun_turret", Vector2i(6, 2))
+	var atk = w.get_component(turret, &"Attack")
+	_ok(turret != 0 and atk != null, "炮塔落位 [6,2]（实体 %d）" % turret)
+	atk.ammo = 6
+	_place(w, "belt", [[6, 3]], [0, -1]) # 端头 [6,3] dir(0,-1) → 指向炮塔 [6,2]
+	_set_items(w, Vector2i(6, 3), [1.0])
+	var rejected: Array = []
+	w.ore_rejected.connect(func(eid, reason): rejected.append([int(eid), str(reason)]))
+	# (a) 满弹：块滞留端头，每 tick 重试交付 → 只发一次
+	_ticks(w, 30)
+	_ok(rejected.size() == 1, "同因连续拒收 30 tick 只发 1 次信号（实际 %d）" % rejected.size())
+	_ok(rejected.size() == 1 and int(rejected[0][0]) == turret and str(rejected[0][1]) == "full",
+		"信号内容 = (炮塔, full)（实际 %s）" % str(rejected))
+	_ok(_items(w, Vector2i(6, 3)).size() == 1,
+		"滞留语义不变：块仍在端头（%d 块）" % _items(w, Vector2i(6, 3)).size())
+	# (b) 打光弹药 → 同 tick 交付成功（清快照）→ 再填满 → 再拒收重新发
+	atk.ammo = 0
+	w.tick(DT)
+	_ok(_items(w, Vector2i(6, 3)).is_empty() and int(atk.ammo) == 1,
+		"弹药清空：滞留块被收下（ammo=%d，块离开端头）" % int(atk.ammo))
+	atk.ammo = 6
+	_set_items(w, Vector2i(6, 3), [1.0])
+	_ticks(w, 10)
+	_ok(rejected.size() == 2 and str(rejected[1][1]) == "full",
+		"满弹→打光→再满：再次拒收重新发信号（共 %d 次，%s）" % [rejected.size(), str(rejected)])
+	# (c) 同一实体 reason 变化：拆掉 Attack（该实体不再吃弹药）→ full 变 no_feed → 再发
+	w.remove_component(turret, &"Attack")
+	_ticks(w, 3)
+	_ok(rejected.size() == 3 and int(rejected[2][0]) == turret and str(rejected[2][1]) == "no_feed",
+		"reason 从 full 变 no_feed → 再发一次（%s）" % str(rejected))
+	_ticks(w, 20)
+	_ok(rejected.size() == 3, "换成 no_feed 后同因仍只发 1 次（共 %d 次）" % rejected.size())

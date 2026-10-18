@@ -247,6 +247,10 @@ func _transfer_one(world, src: Vector2i, target: Vector2i) -> void:
 			_merge_last[target] = src
 		return
 	# 空地 / 管道格 / 无线路出口：矿块掉落消失（不与管道交换、不回收）。
+	# 块离开端头 → 清掉该目标的拒收快照（下一块到来算新边沿，拒收反馈能再触发）；
+	# 注意只在「块真的走了」时清，deliver_ore 返回 false 的滞留路径不清。
+	if occupant != 0:
+		world.clear_ore_reject(occupant)
 	sc.belt_items.pop_back()
 	_merge_last[target] = src
 
