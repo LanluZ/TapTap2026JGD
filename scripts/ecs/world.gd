@@ -143,6 +143,15 @@ func deliver_ore(entity_id: int) -> bool:
 	return true
 
 
+## 供水查询（任务 4）：实体是否在水网扩散集合内。数据由 LogisticsSystem 每 tick 全量重算
+## （无向 BFS，无脏标记）；LogisticsSystem 未注册或实体不在真值表里 → false。
+## 任务 6 的嗜水判定（hydro_love 加速 / hydro_thirsty 无水停摆）读这里。
+func is_watered(entity_id: int) -> bool:
+	if logistics == null:
+		return false
+	return logistics.is_watered(entity_id)
+
+
 # ---------------------------------------------------------------- 指令队列
 
 func push_command(cmd: Dictionary) -> void:

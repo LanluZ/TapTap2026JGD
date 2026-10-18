@@ -6,13 +6,16 @@ extends System
 ## Cell.line_dir 从本格入口 0.0 到出口 1.0）。本系统是唯一推进这些 float 的地方；
 ## 渲染是任务 7 的事，本文件不碰 Node/视觉。
 ##
-## 每 tick 三步（顺序固定，保证确定性）：
+## 每 tick 五步（顺序固定，保证确定性）：
 ##   ① 推进：每格从前往后，块向前走 SPEED*dt，受「前块位置 - MIN_GAP」与本格出口 1.0 限制；
 ##   ② 转移：位置到 1.0 的块按目标格规则处理——同 kind belt 插入（同向 0.0 / 异向 0.5，
 ##      落点 0.25 格内有块或容量满则等待）；对接建筑 → world.deliver_ore；其余（空地/
 ##      管道格/无出口）→ 块消失（掉落）；
 ##   ③ 注入：矿机本地缓冲有矿时，向「带起点 0.0 贴矿机、方向背向矿机」的 belt 注入，≤2 块/秒
 ##      （指向矿机的带不算出料口：会原路送回矿机自身，见 _inlets）。
+##   ④ 水网：每 tick 从「有电开工且对接口有管」的水泵沿管道无向 BFS 重算供水集合
+##      （watered），并给有对接管的泵按 1 水/秒排缓冲（见 _water_network）；
+##   ⑤ 缓冲清理：销毁实体的残留缓冲/节拍归零。
 ##
 ## 规格取值（策划 2026-10-18）：带速 2.0 格/秒、最小间距 0.25 格、每格容量 4 块、
 ## 缓冲容量 4、注入 ≤2 块/秒。
@@ -32,19 +35,39 @@ const SAME_DIR_POS := 0.0 # 同向链插入点
 const CROSS_DIR_POS := 0.5 # 方向不一致（侧向/对头）插入点
 const EPS := 0.0001
 
+## 泵排水：有对接管时每 DRAIN_INTERVAL 秒消耗 1 水（纯消费语义，水不作为物品移动）。
+const DRAIN_INTERVAL := 1.0
+
 const KIND_BELT := &"belt"
 const KIND_PIPE := &"pipe"
 const RECIPE_MINE := &"mine_ore"
+const RECIPE_PUMP := &"pump_water"
+## 泵开工门槛（配方 inputs = {power: 1}；供水种子判据「当周期能扣电开工」）。
+const PUMP_POWER_COST := 1
+
+## 四向邻居（固定顺序，保证 BFS/枚举可复现）。
+const NEIGHBORS := [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)]
 
 var _grid = null
 
 ## 矿机/水泵本地缓冲：entity_id -> int（0..BUFFER_CAPACITY）。
 ## 生产端扣减是任务 5：ProductionSystem 完工时调 add_buffer(id) 把矿塞进这里，
-## 缓冲满则停产。本系统只负责在注入成功时减 1。
+## 缓冲满则停产。本系统只负责在注入成功时减 1、在泵有对接管时按 1 水/秒减 1。
 var buffers: Dictionary = {}
+
+## 供水真值表：entity_id -> bool（任务 4，每 tick 由 _water_network 全量重算）。
+## 任务 6 消费入口是 world.is_watered(id)（等价于本字典的值，缺键 = false）。
+var watered: Dictionary = {}
+
+## 泵对接口判定结果：entity_id -> bool（本 tick 是否有「dir 指向该泵」的相邻 pipe）。
+## 任务 5 停产判据与排水判据共用这一份结果（不要各自重算几何）。
+var _pump_piped: Dictionary = {}
 
 ## 注入节拍：entity_id -> 距上次注入累计秒数（无矿时不计时）。
 var _inject_timer: Dictionary = {}
+
+## 泵排水节拍：entity_id -> 距上次排水累计秒数（无对接/缓冲空时清零，不攒额度）。
+var _drain_timer: Dictionary = {}
 
 ## 合流 round-robin 指针：目标格 -> 上次成功插入的来源格。
 var _merge_last: Dictionary = {}
@@ -63,17 +86,20 @@ func tick(world, dt: float) -> void:
 		_advance(world.grid.get_cell(cell), dt)
 	_transfer(world, belts)
 	_inject(world, dt)
+	_water_network(world, dt)
 	_prune_buffers(world)
 
 
 ## 实体销毁（融合双亲）后清掉残留缓冲与节拍，避免字典无限增长。
 func _prune_buffers(world) -> void:
-	if buffers.is_empty():
-		return
 	for id in buffers.keys():
 		if not world.is_alive(id):
 			buffers.erase(id)
 			_inject_timer.erase(id)
+			_drain_timer.erase(id)
+	for id in _drain_timer.keys():
+		if not world.is_alive(id):
+			_drain_timer.erase(id)
 
 
 # ================================================================ 公开查询/缓冲接口
@@ -106,6 +132,23 @@ func take_buffer(entity_id: int, amount: int = 1) -> int:
 		if cur - n == 0:
 			buffers.erase(entity_id)
 	return n
+
+
+## 供水查询（任务 4）：该实体本 tick 是否在水网扩散集合内（缺键 / 未知实体 = false）。
+## 每个在场工厂都会在真值表里占一个键，未供水时显式记 false。
+func is_watered(entity_id: int) -> bool:
+	return bool(watered.get(entity_id, false))
+
+
+## 真值表只读视图（调试/测试；外部不要改这张字典）。
+func watered_map() -> Dictionary:
+	return watered
+
+
+## 泵对接口：本 tick 是否有「相邻格 pipe 且 line_dir 指向该泵」的管（= 可排水 / 可播种）。
+## 任务 5 的「无对接 → 缓冲积到 4 停产」判据与本任务的排水判据共用。
+func pump_connected(entity_id: int) -> bool:
+	return bool(_pump_piped.get(entity_id, false))
 
 
 # ================================================================ ① 推进
@@ -260,6 +303,129 @@ func _inlets(world, entity_id: int) -> Array:
 			continue
 		if b - bc.line_dir == cell:
 			out.append(b)
+	out.sort_custom(_cell_less)
+	return out
+
+
+# ================================================================ ④ 水网（管道供水）
+
+## 每 tick 全量重算（规格：无向 BFS，网格 ≤ 20×10 不做脏标记优化）：
+##   种子 = 有 Production 且 recipe_id == pump_water、能扣电开工（active 或 can_afford{power:1}）、
+##          且相邻格有「line_dir 指向该泵」的 pipe 的水泵；
+##   扩散 = 从种子泵的对接口格出发，沿相邻 pipe 格无向连通（不看 dir，管道内部无向）；
+##   判定 = 建筑相邻格有 pipe、该 pipe 的 dir 指向建筑、且该 pipe 格在扩散集合内 → 有水。
+## 对接语义（规格 §2 固化）：「线 dir 指向建筑」只用于受料端——泵的对接口同样要求
+## 管指向泵；方向背对的管既不当种子也不供水（见 T21）。
+func _water_network(world, dt: float) -> void:
+	watered = {}
+	_pump_piped = {}
+	var reach: Dictionary = {}
+	var seeds: Array = []
+	var pump_ids: Array = []
+	for id in world.query(&"Production"):
+		if not world.is_alive(id):
+			continue
+		var prod = world.get_component(id, &"Production")
+		if prod == null or prod.recipe_id != RECIPE_PUMP:
+			continue
+		pump_ids.append(id)
+		var links: Array = _pipe_links(world, id)
+		_pump_piped[id] = not links.is_empty()
+		if links.is_empty():
+			continue
+		if not _pump_can_run(world, prod):
+			continue
+		for cell in links:
+			seeds.append(cell)
+	_flood_pipes(world, seeds, reach)
+	for id in world.query(&"Factory"):
+		if not world.is_alive(id):
+			continue
+		var gp = world.get_component(id, &"GridPosition")
+		if gp == null:
+			continue
+		watered[id] = _touched_by_pipe(world, gp.cell, reach)
+	_drain_pumps(world, pump_ids, dt)
+
+
+## 「当周期能扣电开工」：已经扣过电在产（active）或池里够 1 电（能开下一次）。
+func _pump_can_run(world, prod) -> bool:
+	if prod.active:
+		return true
+	if world.state == null:
+		return false
+	return world.state.can_afford({&"power": PUMP_POWER_COST})
+
+
+## 泵排水：有对接管时每 DRAIN_INTERVAL 秒消耗 1 水（纯消费，水不移动）。
+## 无对接 → 只进不出，缓冲停在 BUFFER_CAPACITY（buffer_full → 任务 5 停产）；
+## 缓冲空 → 节拍清零，不攒排水额度（避免复水瞬间连排）。
+func _drain_pumps(world, pump_ids: Array, dt: float) -> void:
+	for id in pump_ids:
+		if not bool(_pump_piped.get(id, false)):
+			_drain_timer.erase(id)
+			continue
+		if buffer_of(id) <= 0:
+			_drain_timer[id] = 0.0
+			continue
+		var t: float = float(_drain_timer.get(id, 0.0)) + dt
+		if t < DRAIN_INTERVAL - EPS:
+			_drain_timer[id] = t
+			continue
+		take_buffer(id, 1)
+		_drain_timer[id] = 0.0
+
+
+## 无向扩散：种子格 + 相邻 pipe 格（四向、不看 dir）全部入 reach。
+func _flood_pipes(world, seeds: Array, reach: Dictionary) -> void:
+	var stack: Array = []
+	for s in seeds:
+		if reach.has(s):
+			continue
+		reach[s] = true
+		stack.append(s)
+	while not stack.is_empty():
+		var cur: Vector2i = stack.pop_back()
+		for off in NEIGHBORS:
+			var n: Vector2i = cur + off
+			if reach.has(n):
+				continue
+			var nc = world.grid.get_cell(n)
+			if nc == null or nc.line_kind != KIND_PIPE:
+				continue
+			reach[n] = true
+			stack.append(n)
+
+
+## 建筑是否「接水」：相邻格有 pipe、该 pipe 的 dir 指向建筑格、且该 pipe 在扩散集合内。
+func _touched_by_pipe(world, cell: Vector2i, reach: Dictionary) -> bool:
+	for off in NEIGHBORS:
+		var p: Vector2i = cell + off
+		if not reach.has(p):
+			continue
+		var pc = world.grid.get_cell(p)
+		if pc == null or pc.line_kind != KIND_PIPE:
+			continue
+		if p + pc.line_dir == cell:
+			return true
+	return false
+
+
+## 与实体相邻、且 **line_dir 指向该实体** 的 pipe 格（升序，结果确定性）。
+## 与 _inlets 的「背向注入」正好相反：这是受料端语义（管把水送到该格）。
+func _pipe_links(world, entity_id: int) -> Array:
+	var gp = world.get_component(entity_id, &"GridPosition")
+	if gp == null:
+		return []
+	var cell: Vector2i = gp.cell
+	var out: Array = []
+	for off in NEIGHBORS:
+		var p: Vector2i = cell + off
+		var pc = world.grid.get_cell(p)
+		if pc == null or pc.line_kind != KIND_PIPE:
+			continue
+		if p + pc.line_dir == cell:
+			out.append(p)
 	out.sort_custom(_cell_less)
 	return out
 

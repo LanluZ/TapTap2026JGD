@@ -315,6 +315,12 @@ func _run() -> int:
 		_t15_inject()
 		_t16_deliver()
 		_t17_inject_rate()
+		_t18_water_supply()
+		_t19_water_break()
+		_t20_water_multi_pump()
+		_t21_water_direction()
+		_t22_pump_drain()
+		_t23_water_truth_table()
 
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return _failures
@@ -533,3 +539,178 @@ func _t17_inject_rate() -> void:
 	var rate: float = float(inject_ticks.size() - 1) / span
 	_ok(rate <= 2.0 + 0.001,
 		"T17: 平均速率 ≤2 块/秒（%d 块 / %.2fs = %.3f 块/秒）" % [inject_ticks.size() - 1, span, rate])
+
+
+# ================================================================ 任务 4：管道水网与供水
+
+## 供水真值表查询（world.is_watered = 任务 6 的消费入口）。
+func _w(world, id: int) -> bool:
+	return world.is_watered(id)
+
+
+func _t18_water_supply() -> void:
+	print("== T18: 连通供水（泵→管→建筑）==")
+	var w = _new_world()
+	_grant(w)
+	var lg = _logi(w)
+	var pump: int = _place_factory_at(w, "pump", Vector2i(4, 3))
+	var turret: int = _place_factory_at(w, "gun_turret", Vector2i(6, 2))
+	var asm: int = _place_factory_at(w, "assembler", Vector2i(8, 3))
+	var gen: int = _place_factory_at(w, "generator", Vector2i(2, 8))
+	_ok(pump != 0 and turret != 0 and asm != 0 and gen != 0, "T18: 泵/炮塔/装配台/发电机落位")
+	# 管 [5,3] 指向泵（受料端语义 = 泵的对接口）；[6,3] 指向炮塔 [6,2]；[7,3] 指向装配台 [8,3]。
+	_ok(_place(w, "pipe", [[5, 3]], [-1, 0]) == 0, "T18: 泵侧管 [5,3] dir(-1,0) 指向泵")
+	_ok(_place(w, "pipe", [[6, 3]], [0, -1]) == 0, "T18: 中段管 [6,3] dir(0,-1) 指向炮塔")
+	_ok(_place(w, "pipe", [[7, 3]], [1, 0]) == 0, "T18: 末端管 [7,3] dir(1,0) 指向装配台")
+	_ok(lg.pump_connected(pump), "T18: 泵判定为有对接管")
+	_ok(_w(w, turret), "T18: 炮塔（无 Production）接入管网 → 有水")
+	_ok(_w(w, asm), "T18: 装配台接入管网 → 有水")
+	_ok(not _w(w, gen), "T18: 远离管网的发电机 → 无水")
+	_remove(w, [[7, 3]])
+	_ok(_w(w, turret) and not _w(w, asm), "T18: 拆末端管后炮塔仍有水、装配台断水（同网分段）")
+
+
+func _t19_water_break() -> void:
+	print("== T19: 断链停供（每 tick 重算，无脏标记）==")
+	var w = _new_world()
+	_grant(w)
+	var lg = _logi(w)
+	var pump: int = _place_factory_at(w, "pump", Vector2i(4, 3))
+	var asm: int = _place_factory_at(w, "assembler", Vector2i(8, 3))
+	_ok(lg != null and pump != 0 and asm != 0, "T19: 泵与装配台落位")
+	_ok(_place(w, "pipe", [[5, 3]], [-1, 0]) == 0, "T19: 泵侧管 [5,3]")
+	_ok(_place(w, "pipe", [[7, 3]], [1, 0]) == 0, "T19: 建筑侧管 [7,3]")
+	_ok(not _w(w, asm), "T19: 中间缺 [6,3] → 断链停供")
+	_ok(_place(w, "pipe", [[6, 3]], [1, 0]) == 0, "T19: 补上 [6,3] 连通")
+	_ok(_w(w, asm), "T19: 连通当帧即恢复供水（每 tick 重算）")
+	_ok(_remove(w, [[6, 3]]) == 0, "T19: 拆掉 [6,3]")
+	_ok(not _w(w, asm), "T19: 拆除当帧即停供")
+	_ok(_remove(w, [[5, 3]]) == 0, "T19: 再拆泵侧管")
+	_ok(not lg.pump_connected(pump), "T19: 泵失去对接管")
+
+
+func _t20_water_multi_pump() -> void:
+	print("== T20: 多泵同网（任一泵在网即供水）==")
+	var w = _new_world()
+	_grant(w)
+	var lg = _logi(w)
+	var pump_a: int = _place_factory_at(w, "pump", Vector2i(4, 3))
+	var pump_b: int = _place_factory_at(w, "pump", Vector2i(4, 5))
+	var asm: int = _place_factory_at(w, "assembler", Vector2i(4, 4))
+	_ok(pump_a != 0 and pump_b != 0 and asm != 0, "T20: 两台泵 + 装配台落位")
+	_ok(_place(w, "pipe", [[5, 3], [5, 4], [5, 5]], [-1, 0]) == 0,
+		"T20: 一条竖管链 [5,3..5,5] dir(-1,0)（两端分别指向两台泵）")
+	_ok(lg.pump_connected(pump_a) and lg.pump_connected(pump_b), "T20: 两泵都判定为有对接管")
+	_ok(_w(w, asm), "T20: 装配台（管 [5,4] 指向它）有水")
+	_ok(_remove(w, [[5, 3]]) == 0, "T20: 拆掉 A 泵的对接管")
+	_ok(not lg.pump_connected(pump_a) and lg.pump_connected(pump_b), "T20: A 泵脱网、B 泵仍在网")
+	_ok(_w(w, asm), "T20: 剩余泵仍供水（多泵冗余）")
+	_ok(_remove(w, [[5, 5]]) == 0, "T20: 再拆 B 泵的对接管")
+	_ok(not _w(w, asm), "T20: 全网无泵 → 停供")
+
+
+func _t21_water_direction() -> void:
+	print("== T21: 方向背对不算对接 ==")
+	# (a) 泵侧管背离泵：不播种 → 整网无水
+	var w = _new_world()
+	_grant(w)
+	var lg = _logi(w)
+	var pump: int = _place_factory_at(w, "pump", Vector2i(4, 3))
+	var asm: int = _place_factory_at(w, "assembler", Vector2i(8, 3))
+	_ok(_place(w, "pipe", [[5, 3], [6, 3], [7, 3]], [1, 0]) == 0,
+		"T21: 管链 [5,3..7,3] dir(1,0)——[5,3] 背离泵，[7,3] 指向建筑")
+	_ok(not lg.pump_connected(pump), "T21: 背离泵的管不算泵的对接口（不播种）")
+	_ok(not _w(w, asm), "T21: 无种子 → 建筑无水（纵使末端管指向它）")
+	# (b) 建筑侧管背离建筑：不供水
+	var w2 = _new_world()
+	_grant(w2)
+	var lg2 = _logi(w2)
+	var pump2: int = _place_factory_at(w2, "pump", Vector2i(4, 3))
+	var asm2: int = _place_factory_at(w2, "assembler", Vector2i(8, 3))
+	_ok(_place(w2, "pipe", [[5, 3]], [-1, 0]) == 0, "T21: 泵侧管 [5,3] dir(-1,0) 指向泵")
+	_ok(_place(w2, "pipe", [[6, 3], [7, 3]], [-1, 0]) == 0,
+		"T21: 建筑侧管 [6,3],[7,3] dir(-1,0)——[7,3] 背离建筑 [8,3]")
+	_ok(lg2.pump_connected(pump2), "T21: 泵有对接管（网络已播种）")
+	_ok(not _w(w2, asm2), "T21: 相邻管在扩散集合内但方向背离建筑 → 无水")
+	# (c) 泵无电：不播种
+	var w3 = _new_world()
+	_grant(w3)
+	w3.state.resources[&"power"] = 0 # 有电才是种子：清空电力池
+	var lg3 = _logi(w3)
+	var pump3: int = _place_factory_at(w3, "pump", Vector2i(4, 3))
+	var asm3: int = _place_factory_at(w3, "assembler", Vector2i(8, 3))
+	_ok(pump3 != 0 and asm3 != 0, "T21: 零电力世界的泵/装配台落位")
+	_ok(_place(w3, "pipe", [[5, 3]], [-1, 0]) == 0, "T21: 泵侧管 [5,3]")
+	_ok(_place(w3, "pipe", [[6, 3], [7, 3]], [1, 0]) == 0, "T21: 通向建筑的管链")
+	_ok(lg3.pump_connected(pump3), "T21: 几何上已对接（有管指向泵）")
+	_ok(not _w(w3, asm3), "T21: 泵扣不起 1 电 → 不开工 → 不播种（实际 power=%d）"
+		% w3.state.get_amount(&"power"))
+	w3.state.add(&"power", 200)
+	w3.tick(DT)
+	_ok(_w(w3, asm3), "T21: 补电后当帧开始供水")
+
+
+func _t22_pump_drain() -> void:
+	print("== T22: 泵缓冲排水（有对接 1 水/秒；无对接积到 4 停产）==")
+	# (a) 有对接：1 水/秒排空
+	var w = _new_world()
+	_grant(w)
+	var lg = _logi(w)
+	var pump: int = _place_factory_at(w, "pump", Vector2i(4, 3))
+	_ok(_place(w, "pipe", [[5, 3]], [-1, 0]) == 0, "T22: 泵对接管 [5,3] dir(-1,0)")
+	lg.add_buffer(pump, 99)
+	_ok(lg.buffer_of(pump) == 4, "T22: 缓冲上限 4（实际 %d）" % lg.buffer_of(pump))
+	_ticks(w, 10) # 1.0 秒
+	_ok(lg.buffer_of(pump) == 3, "T22: 1.0 秒排 1 水（4→%d）" % lg.buffer_of(pump))
+	_ticks(w, 10) # 再 1.0 秒
+	_ok(lg.buffer_of(pump) == 2, "T22: 2.0 秒排 2 水（4→%d）" % lg.buffer_of(pump))
+	_ticks(w, 20) # 排空
+	_ok(lg.buffer_of(pump) == 0, "T22: 排空到 0 后不再扣（%d）" % lg.buffer_of(pump))
+	_ok(not lg.buffer_full(pump), "T22: 排空后缓冲未满 → 生产端可继续开工")
+
+	# (b) 无对接：只进不出，积到 4 停产
+	var w2 = _new_world()
+	_grant(w2)
+	var lg2 = _logi(w2)
+	var pump2: int = _place_factory_at(w2, "pump", Vector2i(4, 3))
+	_ok(not lg2.pump_connected(pump2), "T22: 孤立泵无对接管")
+	lg2.add_buffer(pump2, 99)
+	_ticks(w2, 30)
+	_ok(lg2.buffer_of(pump2) == 4, "T22: 无对接 3 秒仍积在 4（实际 %d）" % lg2.buffer_of(pump2))
+	_ok(lg2.buffer_full(pump2), "T22: 缓冲满 → buffer_full（任务 5 停产判据）")
+
+	# (c) 背对泵的管：不算对接，不排水
+	var w3 = _new_world()
+	_grant(w3)
+	var lg3 = _logi(w3)
+	var pump3: int = _place_factory_at(w3, "pump", Vector2i(4, 3))
+	_ok(_place(w3, "pipe", [[5, 3]], [1, 0]) == 0, "T22: 背离泵的管 [5,3] dir(1,0)")
+	lg3.add_buffer(pump3, 99)
+	_ticks(w3, 20)
+	_ok(lg3.buffer_of(pump3) == 4, "T22: 方向背对 → 不排水（缓冲仍 %d）" % lg3.buffer_of(pump3))
+
+
+func _t23_water_truth_table() -> void:
+	print("== T23: is_watered 真值表（嗜水判定输入）==")
+	var w = _new_world()
+	_grant(w)
+	var lg = _logi(w)
+	var gen: int = _place_factory_at(w, "generator", Vector2i(2, 8))
+	var pump: int = _place_factory_at(w, "pump", Vector2i(4, 3))
+	var turret: int = _place_factory_at(w, "gun_turret", Vector2i(6, 2))
+	_ok(not _w(w, gen) and not _w(w, turret), "T23: 无管网时全部 false")
+	_ok(not _w(w, 9999), "T23: 未知/不存在的实体 id → false（不报错）")
+	var map: Dictionary = lg.watered_map()
+	_ok(map.has(gen) and not bool(map[gen]), "T23: 真值表为 Dictionary[int,bool]，未供水实体显式记 false")
+	_ok(map.has(turret) and map.has(pump), "T23: 每个在场工厂（含无 Production 的炮塔）都在真值表中")
+	_ok(map.size() == w.query(&"Factory").size(), "T23: 真值表条目数 == 在场工厂数（%d / %d）"
+		% [map.size(), w.query(&"Factory").size()])
+	_place(w, "pipe", [[5, 3]], [-1, 0])
+	_place(w, "pipe", [[6, 3]], [0, -1])
+	_ok(_w(w, turret) and bool(lg.watered_map()[turret]), "T23: 接通后炮塔真值翻 true")
+	_ok(not _w(w, gen), "T23: 未接入的发电机仍 false")
+	# 嗜水基因字段可读（任务 6 消费：hydro_thirsty 无水停摆 / hydro_love 有水加速）
+	var prod = w.get_component(turret, &"Attack")
+	_ok(prod != null and prod.hydro == &"hydro_love", "T23: 炮塔 hydro 字段为 hydro_love（任务 6 输入）")
+	_ok(w.get_component(pump, &"Production").hydro == &"hydro_none", "T23: 泵 hydro 字段为 hydro_none")
+
