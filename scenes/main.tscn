@@ -16,6 +16,7 @@
 [ext_resource type="Texture2D" uid="uid://b5npigxp4p4q8" path="res://art/ui/tinted/button_normal.png" id="tx_btn_n"]
 [ext_resource type="Texture2D" uid="uid://cu1qqa0gyy8a3" path="res://art/ui/tinted/button_pressed.png" id="tx_btn_p"]
 [ext_resource type="Texture2D" uid="uid://dk1nngthav5d2" path="res://art/ui/tinted/panel_p001_double.png" id="tx_p001d"]
+[ext_resource type="Shader" path="res://shaders/bg_fog.gdshader" id="s_fog"]
 
 [sub_resource type="StyleBoxTexture" id="SBtex_btn_h"]
 content_margin_left = 12.0
@@ -96,6 +97,28 @@ bg_color = Color(0.36, 0.6, 0.85, 1)
 [sub_resource type="StyleBoxFlat" id="SB_bar_enemy_fill"]
 bg_color = Color(0.8, 0.35, 0.25, 1)
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bg_fog"]
+shader = ExtResource("s_fog")
+shader_parameter/pixel_size = 1.5
+shader_parameter/cloud_scale = 1.6
+shader_parameter/cloud_speed = 0.05
+shader_parameter/cloud_density = 1.0
+shader_parameter/wind_dir = Vector2(0.6, 0.05)
+shader_parameter/far_depth = 0.08
+shader_parameter/mid_depth = 0.35
+shader_parameter/near_depth = 0.8
+shader_parameter/contrast = 1.6
+shader_parameter/posterize_steps = 3.0
+shader_parameter/ink_edge = 0.25
+shader_parameter/circle_amount = 0.3
+shader_parameter/puff_amount = 0.35
+shader_parameter/mist_color = Color(0.4, 0.45, 0.5, 1)
+shader_parameter/ink_darkness = 0.45
+shader_parameter/height_bias = 0.35
+shader_parameter/min_alpha = 0.03
+shader_parameter/opacity = 0.6
+shader_parameter/time_scale = 1.0
+
 [node name="Main" type="Control" unique_id=1819869611]
 layout_mode = 3
 anchors_preset = 15
@@ -114,6 +137,15 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 color = Color(0.1, 0.11, 0.1, 1)
+
+[node name="WorldFog" type="ColorRect" parent="." unique_id=1250088596]
+material = SubResource("ShaderMaterial_bg_fog")
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
 [node name="EntityLayer" type="Node2D" parent="." unique_id=1353602226]
 script = ExtResource("2_85g3d")
