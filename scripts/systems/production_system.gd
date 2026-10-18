@@ -33,10 +33,10 @@ func tick(world, dt: float) -> void:
 		var recipe: Dictionary = world.config.get_recipe(prod.recipe_id)
 		if recipe.is_empty():
 			continue
-		# 进料库存上限（配方驱动）：装配台矿堆 6；deliver_ore 亦按此截断
-		var ore_cap: int = ResourceBufferScript.ore_cap_of(prod.recipe_id)
-		if ore_cap > 0 and buffer.cap != ore_cap:
-			buffer.cap = ore_cap
+		# 进料库存上限（配方驱动）：装配台矿堆 6；deliver_ore 亦按此截断。
+		# cap 只是 recipe_id 的镜像——无条件写回（含 0），顺带清掉换配方后的陈旧上限；
+		# 放置当帧 deliver_ore 会自己 sync，故这里只是每周期兜底。
+		buffer.sync_feed_stock(prod.recipe_id)
 		if not prod.active:
 			# 扣款开产：池输入 / 进料库存 / 本地缓冲空间任一不足 → 停产待料
 			if not _can_start(world, lg, id, buffer, recipe):

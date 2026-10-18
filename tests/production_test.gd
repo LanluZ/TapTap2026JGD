@@ -66,6 +66,25 @@ func _place(world, kind: String, cells: Array, dir_v: Array) -> void:
 	world.tick(DT)
 
 
+## 按蓝图建实体但**不 tick**：绕过 CommandSystem/ProductionSystem，
+## 模拟「刚放置、还没跑过任何 Production tick」的实体（放置当帧 Logistics 先于
+## Production 执行、存档恢复、工具直接构造实体等路径）。
+func _spawn_without_tick(world, blueprint: String, cell: Vector2i) -> int:
+	var bp: Dictionary = world.config.get_blueprint(StringName(blueprint))
+	if bp.is_empty():
+		return 0
+	var id: int = world.create_entity()
+	var specs: Array = Genome.express(bp["genome"], world.config.genes, blueprint, blueprint)
+	for sd in specs:
+		var comp = GameConfig.make_component(str(sd.get("type", "")), sd)
+		if comp == null:
+			return 0
+		if comp is GridPosition:
+			comp.cell = cell
+		world.add_component(id, comp)
+	return id
+
+
 func _ticks(world, n: int) -> void:
 	for i in n:
 		world.tick(DT)
@@ -109,6 +128,7 @@ func _run() -> int:
 	_t4_assembler_stock()
 	_t5_no_pool()
 	_t6_deliver_routing()
+	_t7_no_tick_deliver()
 
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return _failures
@@ -305,3 +325,27 @@ func _t6_deliver_routing() -> void:
 	w2.tick(DT)
 	_ok(_items(w2, Vector2i(4, 2)).is_empty(), "带端头对接装配台：块被收走")
 	_ok(_stock(w2, asm2, &"ore") == 1, "块进装配台库存（%d）" % _stock(w2, asm2, &"ore"))
+
+
+# ================================================================ T7 未跑 Production tick 也进料
+
+func _t7_no_tick_deliver() -> void:
+	print("== T7: 刚创建（未跑过任何 Production tick）的装配台立即进料 ==")
+	# 回归审查重要#2：上限判据不能依赖 ProductionSystem 每 tick 写回的派生字段 cap。
+	var w = _new_world()
+	_grant(w)
+	var asm: int = _spawn_without_tick(w, "assembler", Vector2i(4, 3))
+	_ok(asm != 0, "装配台实体建好（未跑任何 tick，实体 %d）" % asm)
+	var buf = w.get_component(asm, &"ResourceBuffer")
+	_ok(buf != null and int(buf.cap) == 0,
+		"前置条件：未跑 tick 时 cap 还是缺省 0（实际 %d）" % (int(buf.cap) if buf != null else -1))
+	_ok(w.deliver_ore(asm), "未跑 Production tick 也接收矿（按 recipe_id 现算上限）")
+	_ok(_stock(w, asm, &"ore") == 1, "矿进库存（%d）" % _stock(w, asm, &"ore"))
+	_ok(int(buf.cap) == 6, "cap 同步为权威值 6（实际 %d）" % int(buf.cap))
+	for i in 5:
+		w.deliver_ore(asm)
+	_ok(_stock(w, asm, &"ore") == 6, "上限仍为 6（实际 %d）" % _stock(w, asm, &"ore"))
+	_ok(not w.deliver_ore(asm), "满 6 后拒收（块滞留，不吞）")
+	# 反过来：配方不吃矿的实体（发电机）在同样路径下仍拒收
+	var gen: int = _spawn_without_tick(w, "generator", Vector2i(6, 3))
+	_ok(gen != 0 and not w.deliver_ore(gen), "未跑 tick 的发电机仍拒收（配方无矿堆进料）")

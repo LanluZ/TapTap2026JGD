@@ -11,7 +11,11 @@ extends Component
 var stored: Dictionary = {} # resource_id(StringName) -> int
 var flush_interval: float = 0.0 # 汇入周期（秒，蓝图配置必填）
 var flush_timer: float = 0.0
-## 本地库存上限（0 = 不限；>0 = 进料库存，按资源种类截断）。
+## 进料库存上限（装配台矿堆 6；0 = 不是进料库存）。
+## **派生镜像**：权威来源是 `Production.recipe_id` → `ore_cap_of()`，由
+## `sync_feed_stock()` 写入（Spawn 后的首个 Production tick 与 `world.deliver_ore`
+## 两处都会调，故未跑过 tick 的新实体也不会读成 0）。
+## 不要与 `LogisticsSystem.PRODUCER_BUFFER_CAPACITY`（泵/矿机**出料**缓冲 4）混淆。
 ## 只对物理资源（water / ore）生效：其他资源照旧定期汇入池，不做库存上限。
 var cap: int = 0
 
@@ -40,6 +44,14 @@ static func ore_cap_of(recipe_id: StringName) -> int:
 ## 该配方一次开产要消耗多少本地矿（0 = 不从库存扣矿）。
 static func ore_cost_of(recipe_id: StringName) -> int:
 	return ORE_STOCK_COST if recipe_id == RECIPE_ORE_STOCK else 0
+
+
+## 按配方把 cap 刷成权威值（cap 只是 recipe_id 的镜像，不是判据本身）。
+## 调用方：ProductionSystem.tick（每周期兜底）与 world.deliver_ore（放置当帧、
+## 存档恢复等「还没跑过 Production tick」的路径）。返回刷新后的 cap。
+func sync_feed_stock(recipe_id: StringName) -> int:
+	cap = ore_cap_of(recipe_id)
+	return cap
 
 
 ## 该资源的库存上限（0 = 不限）。

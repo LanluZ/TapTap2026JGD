@@ -28,7 +28,9 @@ extends System
 const SPEED := 2.0 # 格/秒
 const MIN_GAP := 0.25 # 同格最小间距（格）
 const CELL_CAPACITY := 4 # 每格块数上限
-const BUFFER_CAPACITY := 4 # 矿机/水泵本地缓冲容量
+## 生产者出料缓冲（水泵/矿机）容量，由 logistics 系统按块/秒吐到管网/传送带。
+## 与 `ResourceBuffer.cap`（装配台**进料**库存 6）是两个不同概念，不要混用。
+const PRODUCER_BUFFER_CAPACITY := 4 # 矿机/水泵本地缓冲容量
 const INJECT_INTERVAL := 0.5 # 注入周期 = ≤2 块/秒
 const INJECT_POS := 0.0 # 注入点 = 带起点
 const SAME_DIR_POS := 0.0 # 同向链插入点
@@ -50,7 +52,8 @@ const NEIGHBORS := [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0
 
 var _grid = null
 
-## 矿机/水泵本地缓冲：entity_id -> int（0..BUFFER_CAPACITY）。
+## 矿机/水泵**出料**缓冲：entity_id -> int（0..PRODUCER_BUFFER_CAPACITY）。
+## 只承接产出、由本系统吐到带/管；装配台的进料库存不在这里（见 ResourceBuffer.cap）。
 ## 生产端扣减是任务 5：ProductionSystem 完工时调 add_buffer(id) 把矿塞进这里，
 ## 缓冲满则停产。本系统只负责在注入成功时减 1、在泵有对接管时按 1 水/秒减 1。
 var buffers: Dictionary = {}
@@ -111,22 +114,22 @@ func buffer_of(entity_id: int) -> int:
 
 ## 缓冲是否已满（任务 5 停产的判据）。
 func buffer_full(entity_id: int) -> bool:
-	return buffer_of(entity_id) >= BUFFER_CAPACITY
+	return buffer_of(entity_id) >= PRODUCER_BUFFER_CAPACITY
 
 
 ## 本地缓冲剩余空间（任务 5 开产判据：本次产出放得下才扣款开工，不溢出丢弃）。
 func buffer_space(entity_id: int) -> int:
-	return maxi(BUFFER_CAPACITY - buffer_of(entity_id), 0)
+	return maxi(PRODUCER_BUFFER_CAPACITY - buffer_of(entity_id), 0)
 
 
 func buffer_has_space(entity_id: int, amount: int = 1) -> bool:
 	return buffer_space(entity_id) >= maxi(amount, 0)
 
 
-## 生产端入缓冲（任务 5 调用）：返回实际进入的数量（受 BUFFER_CAPACITY 截断）。
+## 生产端入缓冲（任务 5 调用）：返回实际进入的数量（受 PRODUCER_BUFFER_CAPACITY 截断）。
 func add_buffer(entity_id: int, amount: int = 1) -> int:
 	var cur := buffer_of(entity_id)
-	var n: int = clampi(cur + maxi(amount, 0), 0, BUFFER_CAPACITY) - cur
+	var n: int = clampi(cur + maxi(amount, 0), 0, PRODUCER_BUFFER_CAPACITY) - cur
 	if n > 0:
 		buffers[entity_id] = cur + n
 	return n
@@ -371,7 +374,7 @@ func _pump_can_run(world, prod) -> bool:
 
 
 ## 泵排水：有对接管时每 DRAIN_INTERVAL 秒消耗 1 水（纯消费，水不移动）。
-## 无对接 → 只进不出，缓冲停在 BUFFER_CAPACITY（buffer_full → 任务 5 停产）；
+## 无对接 → 只进不出，缓冲停在 PRODUCER_BUFFER_CAPACITY（buffer_full → 任务 5 停产）；
 ## 缓冲空 → 节拍清零，不攒排水额度（避免复水瞬间连排）。
 func _drain_pumps(world, pump_ids: Array, dt: float) -> void:
 	for id in pump_ids:

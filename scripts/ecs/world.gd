@@ -141,15 +141,21 @@ func entity_ids() -> Array:
 ##   ② 有 Production 且配方带矿堆进料（装配台 synth_special）：进本地库存
 ##      （ResourceBuffer.stored.ore，上限 6，见 ResourceBuffer.ore_cap_of），满则 false；
 ##   ③ 其余（发电机/光环/无进料配方）：false。
-## 进料库存以 ResourceBuffer.cap > 0 为标志，由 ProductionSystem 按配方写入（单一判据）。
+## 上限判据**不读派生字段 cap**：每次交付按 Production.recipe_id 现算（sync_feed_stock），
+## 因此刚放置、还没跑过任何 ProductionSystem.tick 的装配台也能立刻进料。
 func deliver_ore(entity_id: int) -> bool:
 	if not is_alive(entity_id):
 		return false
 	if has_component(entity_id, &"Attack"):
 		return false # 任务 6：填弹药（届时改为弹药满才拒收）
+	if not has_component(entity_id, &"Production"):
+		return false # 无生产组件 = 无进料配方
 	var buffer = get_component(entity_id, &"ResourceBuffer")
-	if buffer == null or int(buffer.cap) <= 0:
+	if buffer == null:
 		return false
+	var prod = get_component(entity_id, &"Production")
+	if buffer.sync_feed_stock(prod.recipe_id) <= 0:
+		return false # 该配方不吃矿（or 库存上限 0）：块留在端头
 	if buffer.add(&"ore", 1) <= 0:
 		return false # 库存满：块留在端头
 	ore_delivered.emit(entity_id)
