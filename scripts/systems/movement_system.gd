@@ -25,9 +25,12 @@ func tick(world, dt: float) -> void:
 		if not world.is_alive(id):
 			continue
 		var pf = world.get_component(id, &"PathFollower")
+		var en = world.get_component(id, &"Enemy")
+		# 飞行怪只沿路径飞，无视地面减速地块与减速 DEBUFF（enemies.json flying）
+		var flying: bool = en != null and en.flying
 		var mult := 1.0
 		# 减速地块：读网格数据（地块非实体，§4）
-		if world.grid != null:
+		if not flying and world.grid != null:
 			var cell: Vector2i = world.grid.world_to_cell(world.path.point_at(pf.distance))
 			var c = world.grid.get_cell(cell)
 			if c != null and c.tile_type != &"":
@@ -35,12 +38,12 @@ func tick(world, dt: float) -> void:
 				if td != null:
 					mult *= float(td["speed_mult"])
 		# 敌人 DEBUFF（AuraSystem 施加的 move_speed_mult）
-		var eff = world.get_component(id, &"Effect")
-		if eff != null and eff.has_stat(GameConfig.STAT_MOVE_SPEED_MULT):
-			mult *= eff.get_value(GameConfig.STAT_MOVE_SPEED_MULT)
+		if not flying:
+			var eff = world.get_component(id, &"Effect")
+			if eff != null and eff.has_stat(GameConfig.STAT_MOVE_SPEED_MULT):
+				mult *= eff.get_value(GameConfig.STAT_MOVE_SPEED_MULT)
 		pf.distance += pf.speed * mult * dt
 		while pf.distance >= total: # 允许单帧跨多圈
 			pf.distance -= total
-			var en = world.get_component(id, &"Enemy")
 			if en != null:
 				en.laps_done += 1

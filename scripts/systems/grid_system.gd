@@ -11,12 +11,12 @@ func can_build(world, cell: Vector2i) -> bool:
 	return world.grid.is_buildable(cell)
 
 
-## 地块放置：格子已被关卡标注（路径或可建造均可放地块）且未被工厂占用。
+## 地块放置（§7）：地块属于路面规则，只能放路径格（!buildable），且未被工厂占用。
 func can_place_tile(world, cell: Vector2i) -> bool:
 	if world.grid == null:
 		return false
 	var c = world.grid.get_cell(cell)
-	return c != null and c.occupant == 0
+	return c != null and c.occupant == 0 and not c.buildable
 
 
 func tick(world, _dt: float) -> void:

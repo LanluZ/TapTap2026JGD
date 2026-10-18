@@ -1,7 +1,11 @@
 [gd_scene format=3 uid="uid://dsbtq4slywayc"]
 
 [ext_resource type="Script" uid="uid://cjs307cpgiuji" path="res://scripts/views/entity_layer.gd" id="2_85g3d"]
+[ext_resource type="StyleBox" path="res://themes/ui_panel_outer.tres" id="8_jbj1t"]
 [ext_resource type="Script" uid="uid://0rmkftgrr02f" path="res://scripts/game.gd" id="8_tipki"]
+[ext_resource type="StyleBox" path="res://themes/ui_panel_topbar.tres" id="13_muem4"]
+[ext_resource type="StyleBox" path="res://themes/ui_panel_inner.tres" id="14_dp3eg"]
+[ext_resource type="PackedScene" path="res://scenes/ui/settings_panel.tscn" id="ps_settings"]
 [ext_resource type="Script" uid="uid://ktohmln8ahcd" path="res://scripts/ui/hand_area.gd" id="s_hand"]
 [ext_resource type="Script" uid="uid://dbsmt7efbgp8y" path="res://scripts/ui/hud.gd" id="s_hud"]
 [ext_resource type="Script" uid="uid://b3u0rlnhtgu7f" path="res://scripts/ui/card_library.gd" id="s_library"]
@@ -11,7 +15,6 @@
 [ext_resource type="Texture2D" uid="uid://cbblamtewav8i" path="res://art/ui/tinted/button_hover.png" id="tx_btn_h"]
 [ext_resource type="Texture2D" uid="uid://b5npigxp4p4q8" path="res://art/ui/tinted/button_normal.png" id="tx_btn_n"]
 [ext_resource type="Texture2D" uid="uid://cu1qqa0gyy8a3" path="res://art/ui/tinted/button_pressed.png" id="tx_btn_p"]
-[ext_resource type="Texture2D" uid="uid://b108vr2elyolf" path="res://art/ui/tinted/panel_p001.png" id="tx_p001"]
 [ext_resource type="Texture2D" uid="uid://dk1nngthav5d2" path="res://art/ui/tinted/panel_p001_double.png" id="tx_p001d"]
 
 [sub_resource type="StyleBoxTexture" id="SBtex_btn_h"]
@@ -79,32 +82,6 @@ Button/styles/pressed = SubResource("SBtex_btn_p")
 Panel/styles/panel = SubResource("SBtex_panel")
 PanelContainer/styles/panel = SubResource("SBtex_panel")
 
-[sub_resource type="StyleBoxTexture" id="SBtex_topbar"]
-content_margin_left = 12.0
-content_margin_top = 10.0
-content_margin_right = 12.0
-content_margin_bottom = 10.0
-texture = ExtResource("tx_p001")
-texture_margin_left = 20.0
-texture_margin_top = 20.0
-texture_margin_right = 20.0
-texture_margin_bottom = 20.0
-axis_stretch_horizontal = 1
-axis_stretch_vertical = 1
-
-[sub_resource type="StyleBoxTexture" id="SBtex_reslot"]
-content_margin_left = 5.0
-content_margin_top = 4.0
-content_margin_right = 5.0
-content_margin_bottom = 4.0
-texture = ExtResource("tx_p001")
-texture_margin_left = 20.0
-texture_margin_top = 20.0
-texture_margin_right = 20.0
-texture_margin_bottom = 20.0
-axis_stretch_horizontal = 1
-axis_stretch_vertical = 1
-
 [sub_resource type="StyleBoxFlat" id="SB_bar_bg"]
 bg_color = Color(0.09, 0.09, 0.1, 1)
 border_width_left = 1
@@ -166,7 +143,7 @@ theme_override_constants/separation = 8
 [node name="CardLibrary" type="PanelContainer" parent="RightRail" unique_id=2040035618]
 custom_minimum_size = Vector2(0, 130)
 layout_mode = 2
-theme_override_styles/panel = SubResource("SBtex_panel")
+theme_override_styles/panel = ExtResource("8_jbj1t")
 script = ExtResource("s_library")
 
 [node name="VBox" type="VBoxContainer" parent="RightRail/CardLibrary" unique_id=825254939]
@@ -212,7 +189,7 @@ theme_override_constants/separation = 4
 custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_styles/panel = SubResource("SBtex_panel")
+theme_override_styles/panel = ExtResource("8_jbj1t")
 script = ExtResource("s_receipts")
 
 [node name="VBox" type="VBoxContainer" parent="RightRail/Receipts" unique_id=2113165387]
@@ -246,7 +223,7 @@ offset_right = -316.0
 offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_styles/panel = SubResource("SBtex_panel")
+theme_override_styles/panel = ExtResource("8_jbj1t")
 
 [node name="VBox" type="VBoxContainer" parent="HandPanel" unique_id=1702951403]
 layout_mode = 2
@@ -290,7 +267,7 @@ layout_mode = 0
 anchor_right = 1.0
 offset_bottom = 60.0
 grow_horizontal = 2
-theme_override_styles/panel = SubResource("SBtex_topbar")
+theme_override_styles/panel = ExtResource("13_muem4")
 
 [node name="Row" type="HBoxContainer" parent="HUD/TopBar" unique_id=632603573]
 layout_mode = 2
@@ -303,7 +280,7 @@ theme_override_constants/separation = 8
 [node name="Parts" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=376885627]
 custom_minimum_size = Vector2(56, 44)
 layout_mode = 2
-theme_override_styles/panel = SubResource("SBtex_reslot")
+theme_override_styles/panel = ExtResource("14_dp3eg")
 
 [node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Parts" unique_id=126923427]
 layout_mode = 2
@@ -325,7 +302,7 @@ horizontal_alignment = 1
 [node name="Special" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=1247088617]
 custom_minimum_size = Vector2(64, 44)
 layout_mode = 2
-theme_override_styles/panel = SubResource("SBtex_reslot")
+theme_override_styles/panel = ExtResource("14_dp3eg")
 
 [node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Special" unique_id=1946827504]
 layout_mode = 2
@@ -347,7 +324,7 @@ horizontal_alignment = 1
 [node name="Power" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=1982585276]
 custom_minimum_size = Vector2(56, 44)
 layout_mode = 2
-theme_override_styles/panel = SubResource("SBtex_reslot")
+theme_override_styles/panel = ExtResource("14_dp3eg")
 
 [node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Power" unique_id=1789582526]
 layout_mode = 2
@@ -369,7 +346,7 @@ horizontal_alignment = 1
 [node name="Water" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=1497490131]
 custom_minimum_size = Vector2(56, 44)
 layout_mode = 2
-theme_override_styles/panel = SubResource("SBtex_reslot")
+theme_override_styles/panel = ExtResource("14_dp3eg")
 
 [node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Water" unique_id=904273284]
 layout_mode = 2
@@ -391,7 +368,7 @@ horizontal_alignment = 1
 [node name="Ore" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=1942927078]
 custom_minimum_size = Vector2(56, 44)
 layout_mode = 2
-theme_override_styles/panel = SubResource("SBtex_reslot")
+theme_override_styles/panel = ExtResource("14_dp3eg")
 
 [node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Ore" unique_id=1302262909]
 layout_mode = 2
@@ -459,6 +436,9 @@ custom_minimum_size = Vector2(76, 0)
 layout_mode = 2
 tooltip_text = "点击切换 1倍速 / 2倍速"
 text = "1倍速"
+
+[node name="SettingsPanel" parent="." unique_id=1002040087 instance=ExtResource("ps_settings")]
+layout_mode = 1
 
 [node name="Game" type="Node" parent="." unique_id=18194909]
 script = ExtResource("8_tipki")

@@ -11,7 +11,10 @@ const MASK_FACTORY := 2 # 工厂实体
 ## Effect.stat_id 集合（由 Movement/Targeting 等系统消费）：
 const STAT_MOVE_SPEED_MULT := &"move_speed_mult"
 const STAT_ATTACK_DAMAGE_MULT := &"attack_damage_mult"
-const STAT_IDS: Array = [STAT_MOVE_SPEED_MULT, STAT_ATTACK_DAMAGE_MULT]
+const STAT_ATTACK_RANGE_MULT := &"attack_range_mult"
+## 瞄准策略枚举（genes.json 瞄准座等位基因名，写入 Attack.targeting）
+const TARGETING_IDS: Array = ["nearest", "farthest", "highest_hp", "lowest_hp"]
+const STAT_IDS: Array = [STAT_MOVE_SPEED_MULT, STAT_ATTACK_DAMAGE_MULT, STAT_ATTACK_RANGE_MULT]
 
 ## 组件类注册表：蓝图组件校验 + 实例化（字段名即组件属性名）。
 const COMPONENT_SCRIPTS: Dictionary = {
@@ -160,6 +163,9 @@ func _parse_enemies(data, src: String) -> void:
 		var name := _req_str(d, "name", ctx)
 		var hp := _req_num(d, "hp", ctx)
 		var speed := _req_num(d, "speed", ctx)
+		var flying := false # 可选：飞行怪无视地面减速（缺省 false）
+		if d.has("flying"):
+			flying = _req_bool(d, "flying", ctx)
 		var elite := _req_bool(d, "elite", ctx)
 		var loot_id := _req_str(d, "loot_id", ctx)
 		var loot_amount := _req_int(d, "loot_amount", ctx)
@@ -178,7 +184,7 @@ func _parse_enemies(data, src: String) -> void:
 			continue
 		enemies[StringName(id)] = {
 			"id": StringName(id), "name": name, "hp": hp, "speed": speed,
-			"elite": elite, "loot_id": StringName(loot_id), "loot_amount": loot_amount,
+			"flying": flying, "elite": elite, "loot_id": StringName(loot_id), "loot_amount": loot_amount,
 		}
 
 
@@ -236,12 +242,17 @@ func _parse_factories(data, src: String) -> void:
 		var d := _req_obj(e, ctx)
 		var id := _req_str(d, "id", ctx)
 		var name := _req_str(d, "name", ctx)
-		var cost := _req_res_map(d, "cost", ctx, true)
 		if id.is_empty():
 			continue
 		var genome = _validate_genome(ctx, d.get("genome", null))
 		if genome == null:
 			continue # 校验错误已记录
+		# 价格由基因表达（§18.2）：蓝图不再手写价格；若手写则必须与段价一致
+		var cost := GenomeScript.price_of(genome, genes)
+		if d.has("cost"):
+			var hand := _req_res_map(d, "cost", ctx, true)
+			if hand != cost:
+				_err("%s: 手写 cost %s 与 DNA 段价 %s 不一致（价格是基因型的函数，禁止双源）" % [ctx, str(hand), str(cost)])
 		for spec in GenomeScript.express(genome, genes, id, name):
 			_validate_component(ctx, id, spec)
 		if blueprints.has(StringName(id)):
@@ -286,6 +297,9 @@ func _validate_component(ctx: String, blueprint_id: String, spec) -> void:
 		var pid := str(d.get("projectile", ""))
 		if not pid.is_empty() and not projectiles.has(StringName(pid)):
 			_err("%s: projectile '%s' 未在 factories.json projectiles 定义" % [ctx, pid])
+		var tgt := str(d.get("targeting", "nearest"))
+		if not (tgt in TARGETING_IDS):
+			_err("%s: 未知瞄准策略 '%s'（可选: %s）" % [ctx, tgt, str(TARGETING_IDS)])
 	if tname == "Production":
 		var rid := str(d.get("recipe_id", ""))
 		if not rid.is_empty() and not recipes.has(StringName(rid)):
@@ -476,6 +490,9 @@ func _validate_gene_refs(src: String) -> void:
 					var pid := str(payload.get("projectile", ""))
 					if pid.is_empty() or not projectiles.has(StringName(pid)):
 						_err("%s: projectile '%s' 未在 factories.json projectiles 定义" % [ctx, pid])
+				"targeting":
+					if not (str(allele) in TARGETING_IDS):
+						_err("%s: 瞄准等位基因 '%s' 不是合法策略（可选: %s）" % [ctx, str(allele), str(TARGETING_IDS)])
 				"production":
 					if not recipes.has(StringName(str(allele))):
 						_err("%s: 等位基因 '%s' 未在 recipes.json 定义" % [ctx, str(allele)])
@@ -587,6 +604,11 @@ func _parse_levels(data, src: String) -> void:
 		var tiles := _parse_tiles(d, ctx)
 		var tile_types := _parse_tile_types(d, ctx)
 		var card_pool := _req_str_list(d, "card_pool", ctx)
+		# 开局资源（Mindustry 式核心库存）与固定起手（§19.5）：均可选
+		var start_resources := {}
+		if d.has("start_resources"):
+			start_resources = _req_res_map(d, "start_resources", ctx, true)
+		var hand_start_cards := _parse_hand_start_cards(d, ctx, card_pool, hand_start)
 		var objective := _parse_objective(d, ctx)
 		var waves := _parse_waves(d, ctx)
 		if id.is_empty():
@@ -645,6 +667,7 @@ func _parse_levels(data, src: String) -> void:
 			"cell_size": cell_size, "enemy_cap": enemy_cap, "hand_start": hand_start,
 			"path": path, "buildable_cells": buildable, "path_cells": path_cells,
 			"tiles": tiles, "tile_types": tile_types, "card_pool": card_pool,
+			"start_resources": start_resources, "hand_start_cards": hand_start_cards,
 			"objective": objective, "waves": waves,
 		}
 
@@ -674,7 +697,52 @@ func _parse_tile_types(d: Dictionary, ctx: String) -> Dictionary:
 		var mult := _req_num(td, "speed_mult", tctx)
 		if mult <= 0.0 and td.has("speed_mult"):
 			_err("%s: speed_mult 应 > 0" % tctx)
-		out[StringName(k)] = {"speed_mult": mult}
+		# Loop Hero 式循环地形字段（§19.2）：combine = 邻接合成目标，per_wave = 每波返还零件
+		var combine := ""
+		if td.has("combine"):
+			combine = str(td["combine"])
+		var per_wave := 0
+		if td.has("per_wave"):
+			var pw = td["per_wave"]
+			if not (pw is int or pw is float) or int(pw) < 0:
+				_err("%s: per_wave 应为 ≥0 的整数，得到 %s" % [tctx, str(pw)])
+			else:
+				per_wave = int(pw)
+		out[StringName(k)] = {"speed_mult": mult, "combine": StringName(combine), "per_wave": per_wave}
+	# combine 目标必须是已定义地块，且不能是自身
+	for k in out.keys():
+		var target: StringName = out[k]["combine"]
+		if target.is_empty():
+			continue
+		if not out.has(target):
+			_err("%s.tile_types.%s: combine 目标 '%s' 未定义" % [ctx, str(k), str(target)])
+		elif target == k:
+			_err("%s.tile_types.%s: combine 目标不能是自身" % [ctx, str(k)])
+	return out
+
+
+func _parse_hand_start_cards(d: Dictionary, ctx: String, card_pool: Array, hand_start: int) -> Array:
+	var out: Array = []
+	if not d.has("hand_start_cards"):
+		return out
+	var raw = d["hand_start_cards"]
+	if not (raw is Array):
+		_err("%s.hand_start_cards: 应为数组" % ctx)
+		return out
+	for cid in raw:
+		var c := str(cid)
+		if not cards.has(StringName(c)):
+			_err("%s.hand_start_cards: 引用未定义卡牌 '%s'" % [ctx, c])
+			continue
+		if not card_pool.has(c):
+			_err("%s.hand_start_cards: '%s' 不在本关卡池内" % [ctx, c])
+			continue
+		if out.has(c):
+			_err("%s.hand_start_cards: 卡牌 '%s' 重复" % [ctx, c])
+			continue
+		out.append(c)
+	if out.size() > hand_start:
+		_err("%s.hand_start_cards 数量 %d 超过起手数 hand_start(%d)" % [ctx, out.size(), hand_start])
 	return out
 
 

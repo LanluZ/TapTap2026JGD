@@ -57,6 +57,10 @@ static func express(genome: Array, genes: Dictionary, blueprint_id: String, disp
 	var stats := _params_of(_at(genome, 1), loci, 1)
 	# 座0 攻击类型 + 座1 数值
 	var attack_allele := allele_at(_at(genome, 0), 0, genes)
+	var targeting := "nearest" # 座7 瞄准：空座回落到最近
+	var targeting_allele := allele_at(_at(genome, 7), 7, genes)
+	if not targeting_allele.is_empty():
+		targeting = targeting_allele
 	if not attack_allele.is_empty():
 		var payload: Dictionary = _allele_payload(loci, 0, attack_allele)
 		specs.append({
@@ -64,7 +68,7 @@ static func express(genome: Array, genes: Dictionary, blueprint_id: String, disp
 			"range": float(stats.get("range", _default_param(loci, 1, "range"))),
 			"damage": float(stats.get("damage", _default_param(loci, 1, "damage"))),
 			"cooldown": float(stats.get("cooldown", _default_param(loci, 1, "cooldown"))),
-			"target_mask": 1, "projectile": str(payload.get("projectile", "")),
+			"target_mask": 1, "targeting": targeting, "projectile": str(payload.get("projectile", "")),
 		})
 	# 座2 生产（Production 必配 ResourceBuffer，架构 §4 约束）
 	var prod = _at(genome, 2)
@@ -219,11 +223,31 @@ static func complement(base: String) -> String:
 
 ## 注册融合子代：动态蓝图（genome 表达）+ 对应卡牌写入 config，返回子代卡 id。
 ## 放置走既有 place_factory 通道，校验/实例化零改动。
+## 价格 = 基因组各座 price 之和（策划案 §18.2）：价格是基因型的函数，不写在卡牌/蓝图上。
+## 同一 DNA 必同价；融合子代按子代实际表达的座现算，丢座即降价（§18.4）。
+static func price_of(genome: Array, genes: Dictionary) -> Dictionary:
+	var out := {}
+	var loci: Array = genes.get("loci", [])
+	for i in mini(genome.size(), loci.size()):
+		if genome[i] == null:
+			continue
+		var allele := allele_at(genome[i], i, genes)
+		if allele.is_empty():
+			continue
+		var price = _allele_payload(loci, i, allele).get("price", null)
+		if not (price is Dictionary):
+			continue
+		for rid in price:
+			out[rid] = int(out.get(rid, 0)) + int(price[rid])
+	return out
+
+
 static func register_child(config, genome: Array, display_name: String) -> StringName:
 	_next_child += 1
 	var bid := "fusion_%d" % _next_child
+	var genes: Dictionary = config.get("genes")
 	config.blueprints[StringName(bid)] = {
-		"id": StringName(bid), "name": display_name, "cost": {},
+		"id": StringName(bid), "name": display_name, "cost": price_of(genome, genes),
 		"genome": genome.duplicate(true),
 	}
 	var cid := "card_" + bid

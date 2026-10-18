@@ -1,54 +1,211 @@
 {
-  "gamete_keep": 0.5,
-  "crossover": 0.5,
-  "mutation": { "rate": 0.05, "redundant_rate": 0.2, "drift": 0.15 },
-  "loci": [
-    {
-      "id": "attack_type", "name": "攻击类型", "kind": "attack",
-      "alleles": {
-        "shot_light": { "code": "A", "label": "轻炮", "projectile": "ore_shot" },
-        "shot_heavy": { "code": "T", "label": "重炮", "projectile": "ore_heavy" }
-      }
-    },
-    {
-      "id": "attack_stats", "name": "攻击数值", "kind": "stats", "allele_id": "stats", "allele_code": "A",
-      "params": {
-        "damage":   { "default": 6,   "min": 3,   "max": 12 },
-        "range":    { "default": 160, "min": 100, "max": 240 },
-        "cooldown": { "default": 0.8, "min": 0.4, "max": 1.5 }
-      }
-    },
-    {
-      "id": "production", "name": "生产", "kind": "production",
-      "alleles": {
-        "generate_power": { "code": "A", "label": "发电" },
-        "pump_water": { "code": "T", "label": "抽水" },
-        "mine_ore": { "code": "C", "label": "采矿" },
-        "synth_special": { "code": "G", "label": "合成" }
-      },
-      "params": {
-        "interval": { "default": 1.5, "min": 0.8, "max": 3.0 }
-      }
-    },
-    {
-      "id": "aura", "name": "光环", "kind": "aura",
-      "alleles": {
-        "slow_field": { "code": "A", "label": "缓速", "effect_id": "slow_field", "target_mask": 1 },
-        "damage_up":  { "code": "T", "label": "强击", "effect_id": "damage_up",  "target_mask": 2 }
-      },
-      "params": {
-        "radius": { "default": 130, "min": 80, "max": 180 }
-      }
-    },
-    {
-      "id": "buffer", "name": "后勤", "kind": "buffer",
-      "alleles": {
-        "s": { "code": "A", "flush_interval": 2.0 },
-        "m": { "code": "T", "flush_interval": 1.0 },
-        "l": { "code": "C", "flush_interval": 0.5 }
-      }
-    },
-    { "id": "redundant_a", "name": "冗余一", "kind": "redundant", "alleles": { "x1": { "code": "A" }, "x2": { "code": "T" }, "x3": { "code": "C" }, "x4": { "code": "G" } } },
-    { "id": "redundant_b", "name": "冗余二", "kind": "redundant", "alleles": { "x1": { "code": "A" }, "x2": { "code": "T" }, "x3": { "code": "C" }, "x4": { "code": "G" } } }
-  ]
+	"gamete_keep": 0.5,
+	"crossover": 0.5,
+	"mutation": {
+		"rate": 0.05,
+		"redundant_rate": 0.2,
+		"drift": 0.15
+	},
+	"loci": [
+		{
+			"id": "attack_type",
+			"name": "攻击类型",
+			"kind": "attack",
+			"alleles": {
+				"shot_light": {
+					"code": "A",
+					"label": "轻炮",
+					"projectile": "ore_shot",
+					"price": {
+						"parts": 10
+					}
+				},
+				"shot_heavy": {
+					"code": "T",
+					"label": "重炮",
+					"projectile": "ore_heavy",
+					"price": {
+						"parts": 12
+					}
+				}
+			}
+		},
+		{
+			"id": "attack_stats",
+			"name": "攻击数值",
+			"kind": "stats",
+			"allele_id": "stats",
+			"allele_code": "A",
+			"params": {
+				"damage": {
+					"default": 6,
+					"min": 3,
+					"max": 12
+				},
+				"range": {
+					"default": 160,
+					"min": 100,
+					"max": 240
+				},
+				"cooldown": {
+					"default": 0.8,
+					"min": 0.4,
+					"max": 1.5
+				}
+			}
+		},
+		{
+			"id": "production",
+			"name": "生产",
+			"kind": "production",
+			"alleles": {
+				"generate_power": {
+					"code": "A",
+					"label": "发电",
+					"price": {}
+				},
+				"pump_water": {
+					"code": "T",
+					"label": "抽水",
+					"price": {}
+				},
+				"mine_ore": {
+					"code": "C",
+					"label": "采矿",
+					"price": {}
+				},
+				"synth_special": {
+					"code": "G",
+					"label": "合成",
+					"price": {
+						"parts": 8
+					}
+				}
+			},
+			"params": {
+				"interval": {
+					"default": 1.5,
+					"min": 0.8,
+					"max": 3.0
+				}
+			}
+		},
+		{
+			"id": "aura",
+			"name": "光环",
+			"kind": "aura",
+			"alleles": {
+				"slow_field": {
+					"code": "A",
+					"label": "缓速",
+					"effect_id": "slow_field",
+					"target_mask": 1,
+					"price": {
+						"parts": 5
+					}
+				},
+				"damage_up": {
+					"code": "T",
+					"label": "强击",
+					"effect_id": "damage_up",
+					"target_mask": 2,
+					"price": {
+						"special_material": 2
+					}
+				},
+				"range_up": {
+					"code": "C",
+					"label": "增程",
+					"effect_id": "range_up",
+					"target_mask": 2,
+					"price": {
+						"parts": 6
+					}
+				}
+			},
+			"params": {
+				"radius": {
+					"default": 130,
+					"min": 80,
+					"max": 180
+				}
+			}
+		},
+		{
+			"id": "buffer",
+			"name": "后勤",
+			"kind": "buffer",
+			"alleles": {
+				"s": {
+					"code": "A",
+					"flush_interval": 2.0
+				},
+				"m": {
+					"code": "T",
+					"flush_interval": 1.0
+				},
+				"l": {
+					"code": "C",
+					"flush_interval": 0.5
+				}
+			}
+		},
+		{
+			"id": "redundant_a",
+			"name": "冗余一",
+			"kind": "redundant",
+			"alleles": {
+				"x1": {
+					"code": "A"
+				},
+				"x2": {
+					"code": "T"
+				},
+				"x3": {
+					"code": "C"
+				},
+				"x4": {
+					"code": "G"
+				}
+			}
+		},
+		{
+			"id": "redundant_b",
+			"name": "冗余二",
+			"kind": "redundant",
+			"alleles": {
+				"x1": {
+					"code": "A"
+				},
+				"x2": {
+					"code": "T"
+				},
+				"x3": {
+					"code": "C"
+				},
+				"x4": {
+					"code": "G"
+				}
+			}
+		},
+		{
+			"id": "targeting",
+			"name": "瞄准",
+			"kind": "targeting",
+			"alleles": {
+				"nearest": {
+					"code": "A"
+				},
+				"farthest": {
+					"code": "T"
+				},
+				"highest_hp": {
+					"code": "C"
+				},
+				"lowest_hp": {
+					"code": "G"
+				}
+			}
+		}
+	]
 }

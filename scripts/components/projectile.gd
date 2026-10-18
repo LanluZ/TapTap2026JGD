@@ -4,6 +4,7 @@ extends Component
 ## 命中后把 damage 记入目标 Health.pending_damage，由 DamageSystem（#9）结算。
 
 var target: int = 0 # 目标实体 id
+var proj_id: StringName = &"" # 射弹定义 id（factories.json projectiles，表现层选贴图用）
 var damage: float = 0.0
 var speed: float = 0.0 # 世界单位/秒（factories.json projectiles）
 var position: Vector2 = Vector2.ZERO

@@ -1,6 +1,25 @@
 {
-  "effects": [
-	{"id": "slow_field", "name": "减速场", "stat_id": "move_speed_mult", "value": 0.5, "duration": 2.0},
-	{"id": "damage_up", "name": "增伤光环", "stat_id": "attack_damage_mult", "value": 1.5, "duration": 3.0}
-  ]
+	"effects": [
+		{
+			"id": "slow_field",
+			"name": "减速场",
+			"stat_id": "move_speed_mult",
+			"value": 0.5,
+			"duration": 2.0
+		},
+		{
+			"id": "damage_up",
+			"name": "增伤光环",
+			"stat_id": "attack_damage_mult",
+			"value": 1.5,
+			"duration": 3.0
+		},
+		{
+			"id": "range_up",
+			"name": "增程光环",
+			"stat_id": "attack_range_mult",
+			"value": 1.2,
+			"duration": 3.0
+		}
+	]
 }

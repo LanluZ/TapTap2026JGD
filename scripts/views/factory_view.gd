@@ -2,11 +2,11 @@ class_name FactoryView
 extends Node2D
 
 const GenomeScript = preload("res://scripts/dna/genome.gd")
+const Art = preload("res://scripts/views/art_registry.gd")
 ## 工厂表现视图（DNA 外形，美术需求表 §2）：按实体基因组拼装部件子图层。
 ## 部件 = 表达出的组件：攻击座→旋转炮管、生产座→烟囱、光环座→信标+半径圈、
 ## 缓冲座→料箱、冗余座→天线（不表达组件但可见，让同源子代长得不一样）。
-## 当前为矢量占位绘制；正式素材到位后按 parts_for 的 kind/allele 换贴图，
-## 映射结构不变（美术按 allele 命名部件文件即可）。
+## 贴图查 art_registry.gd（§2 素材按部件 kind/allele 命名），映射结构不变。
 
 const ALLELE_COLORS := {
 	"shot_light": Color(0.85, 0.85, 0.92),
@@ -29,17 +29,22 @@ var _parts: Array = [] # parts_for 输出：[{kind, allele, ...}]
 var _barrel: Barrel = null
 var _attack_range: float = 0.0
 var _cell: float = 64.0
+var _base_tex: Texture2D = null
 
 
 ## 炮管子图层：绕自身原点（格心）旋转，朝向目标（FactoryView._process 驱动）。
+## 素材炮口朝上（-Y），绘制时 +90° 旋转把炮口转到 +X（look_at 的目标方向）。
 class Barrel extends Node2D:
-	var length: float = 22.0
-	var width: float = 4.0
-	var color: Color = Color.WHITE
+	var texture: Texture2D = null
+	var size: float = 28.0
 
 	func _draw() -> void:
-		draw_rect(Rect2(0.0, -width * 0.5, length, width), color)
-		draw_circle(Vector2(length, 0.0), width * 0.8, color.darkened(0.25))
+		if texture == null:
+			# 兜底：矢量细矩形（贴图缺失时不伪造外观，但炮管可见性不能丢）
+			draw_rect(Rect2(0.0, -size * 0.12, size, size * 0.24), Color(0.85, 0.85, 0.9))
+			return
+		draw_set_transform(Vector2.ZERO, PI * 0.5, Vector2.ONE)
+		draw_texture_rect(texture, Rect2(-size * 0.5, -size, size, size), false)
 
 
 func setup(w, eid: int) -> void:
@@ -51,14 +56,16 @@ func setup(w, eid: int) -> void:
 	if fac == null:
 		push_warning("[工厂视图] 实体 %d 无 Factory 组件" % eid)
 		return
+	_base_tex = Art.tex(str(Art.PARTS["base"]))
 	_parts = parts_for(fac.genome, w.config.genes)
 	var atk = w.get_component(eid, &"Attack")
 	if atk != null:
 		_attack_range = atk.range
 		_barrel = Barrel.new()
-		_barrel.length = _cell * (0.42 if String(atk.projectile) == "ore_shot" else 0.5)
-		_barrel.width = _cell * (0.06 if String(atk.projectile) == "ore_shot" else 0.12)
-		_barrel.color = color_of(_allele_of("barrel"))
+		var allele := _allele_of("barrel")
+		var heavy := allele == "shot_heavy"
+		_barrel.texture = Art.tex(str(Art.PARTS["barrel_heavy" if heavy else "barrel_light"]))
+		_barrel.size = _cell * (0.5 if heavy else 0.42)
 		add_child(_barrel)
 	queue_redraw()
 
@@ -93,7 +100,7 @@ static func parts_for(genome: Array, genes: Dictionary) -> Array:
 	return out
 
 
-## 等位基因 → 部件颜色；未收录的等位基因按名字哈希给稳定色（新等位基因零改动可见）。
+## 等位基因 → 部件颜色（光环圈/兜底用）；未收录的等位基因按名字哈希给稳定色（新等位基因零改动可见）。
 static func color_of(allele: String) -> Color:
 	if ALLELE_COLORS.has(allele):
 		return ALLELE_COLORS[allele]
@@ -103,7 +110,7 @@ static func color_of(allele: String) -> Color:
 func _process(_dt: float) -> void:
 	if world == null or _barrel == null or not world.is_alive(entity_id):
 		return
-	# 炮管朝向射程内最近敌人；无敌情时默认朝上（占位表现，规则在 TargetingSystem #7）
+	# 炮管朝向射程内最近敌人；无敌情时默认朝上（规则在 TargetingSystem #7）
 	var origin := global_position
 	var best := origin + Vector2(0.0, -1.0)
 	var best_d := _attack_range
@@ -120,30 +127,40 @@ func _process(_dt: float) -> void:
 
 func _draw() -> void:
 	var s := _cell * 0.7 # 底座边长（≈占位期 0.7× 缩放的既有观感）
-	draw_rect(Rect2(-s * 0.5, -s * 0.5, s, s), COLOR_BASE)
-	draw_rect(Rect2(-s * 0.5, -s * 0.5, s, s), Color(0.2, 0.24, 0.28), false, 2.0)
+	if _base_tex != null:
+		draw_texture_rect(_base_tex, Rect2(-s * 0.5, -s * 0.5, s, s), false)
+	else:
+		# 贴图缺失兜底：保留矢量底座，不伪造
+		draw_rect(Rect2(-s * 0.5, -s * 0.5, s, s), COLOR_BASE)
+		draw_rect(Rect2(-s * 0.5, -s * 0.5, s, s), Color(0.2, 0.24, 0.28), false, 2.0)
 	var antenna_i := 0
 	for p in _parts:
 		var allele := str(p["allele"])
-		var color := color_of(allele)
 		match str(p["kind"]):
-			"chimney": # 生产设施：右上角烟囱
-				var w0 := s * 0.18
-				draw_rect(Rect2(s * 0.16, -s * 0.5 - s * 0.22, w0, s * 0.24), color)
-				draw_rect(Rect2(s * 0.16, -s * 0.5 - s * 0.22, w0, s * 0.24), Color(0.2, 0.2, 0.24), false, 1.5)
-			"crate": # 缓冲：左下料箱
-				var cs := s * 0.3
-				draw_rect(Rect2(-s * 0.5, s * 0.5 - cs, cs, cs), color)
-				draw_rect(Rect2(-s * 0.5, s * 0.5 - cs, cs, cs), Color(0.2, 0.2, 0.24), false, 1.5)
+			"chimney": # 生产设施：右上角烟囱（贴图按等位基因取色，见 Art.CHIMNEY）
+				var ctex: Texture2D = Art.tex(str(Art.CHIMNEY.get(allele, Art.CHIMNEY_FALLBACK)))
+				if ctex != null:
+					var ps := s * 0.45
+					draw_texture_rect(ctex, Rect2(s * 0.12, -s * 0.72, ps, ps), false)
+			"crate": # 缓冲：左下料箱（s/m/l 档位缩放贴图）
+				var btex: Texture2D = Art.tex(str(Art.PARTS["crate"]))
+				if btex != null:
+					var cscale: float = { "s": 0.28, "m": 0.36, "l": 0.44 }.get(allele, 0.36)
+					var cs := s * cscale
+					draw_texture_rect(btex, Rect2(-s * 0.5, s * 0.5 - cs, cs, cs), false)
 			"beacon": # 光环装置：顶部信标
-				draw_circle(Vector2(0.0, -s * 0.5), s * 0.12, color)
-				draw_circle(Vector2(0.0, -s * 0.5), s * 0.12, Color(0.2, 0.2, 0.24), false, 1.5)
-			"aura_ring": # 光环半径指示（美术需求表 §8）
-				draw_arc(Vector2.ZERO, float(p["radius"]), 0.0, TAU, 48, Color(color, 0.45), 2.0)
+				var etex: Texture2D = Art.tex(str(Art.PARTS["beacon"]))
+				if etex != null:
+					var es := s * 0.34
+					draw_texture_rect(etex, Rect2(-es * 0.5, -s * 0.5 - es * 0.6, es, es), false)
+			"aura_ring": # 光环半径指示（美术需求表 §8，保留矢量弧）
+				draw_arc(Vector2.ZERO, float(p["radius"]), 0.0, TAU, 48, Color(color_of(allele), 0.45), 2.0)
 			"antenna": # 冗余基因天线：沿底座上沿排开
-				var ax := (-0.3 + 0.2 * antenna_i) * s
-				draw_line(Vector2(ax, -s * 0.5), Vector2(ax, -s * 0.5 - s * 0.25), color, 2.0)
-				draw_circle(Vector2(ax, -s * 0.5 - s * 0.25), s * 0.05, color)
+				var atex: Texture2D = Art.tex(str(Art.PARTS["antenna"]))
+				if atex != null:
+					var ax := (-0.3 + 0.2 * antenna_i) * s
+					var asz := s * 0.3
+					draw_texture_rect(atex, Rect2(ax - asz * 0.5, -s * 0.5 - asz, asz, asz), false)
 				antenna_i += 1
 
 

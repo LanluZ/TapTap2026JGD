@@ -126,6 +126,16 @@ func _update_wave_progress(world) -> void:
 	if wave_resolved.size() < wave_spawned.size():
 		return
 	# —— 本波完成 ——
+	# 地块每波结算（§19.2）：场上每块地块按 tile_types.per_wave 返还零件，地块从装饰变投资
+	var tile_types: Dictionary = level.get("tile_types", {})
+	var grant := 0
+	for cell in world.grid.cells:
+		var gc = world.grid.cells[cell]
+		if gc.tile_type == &"":
+			continue
+		grant += int((tile_types.get(gc.tile_type, {}) as Dictionary).get("per_wave", 0))
+	if grant > 0:
+		world.state.add(&"parts", grant)
 	waves_survived += 1
 	world.state.waves_survived = waves_survived
 	world.wave_completed.emit(current_wave)
@@ -156,7 +166,9 @@ func _spawn_enemy(world, enemy_id: StringName) -> int:
 	world.add_component(id, hp)
 	var en := Enemy.new()
 	en.wave_id = current_wave
+	en.etype = enemy_id
 	en.elite = bool(def["elite"])
+	en.flying = bool(def.get("flying", false))
 	en.loot_id = def["loot_id"]
 	en.loot_amount = int(def["loot_amount"])
 	world.add_component(id, en)

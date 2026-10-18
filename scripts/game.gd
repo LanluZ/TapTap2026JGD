@@ -11,6 +11,8 @@ extends Node
 ## preload 而非 class_name：headless/首启类缓存未含新脚本时也能解析
 const BootstrapScript = preload("res://scripts/bootstrap.gd")
 const GenomeScript = preload("res://scripts/dna/genome.gd")
+const FieldLayerScript = preload("res://scripts/views/field_layer.gd")
+const ArtScript = preload("res://scripts/views/art_registry.gd")
 
 ## 配置 id → UI 资源条 key（策划案 §4：零件/特殊材料/电力/水/矿）
 const UI_RESOURCE_KEYS := {
@@ -41,6 +43,11 @@ var _last_fusion_cells: Array = [] # 上次注入的工厂格高亮集合
 
 func _ready() -> void:
 	ui = get_parent()
+	# 选关：菜单把关卡 id 写在 root meta（menu_camera.gd），这里取走并清除
+	var root := get_tree().root
+	if root != null and root.has_meta("pending_level_id"):
+		level_id = StringName(str(root.get_meta("pending_level_id")))
+		root.remove_meta("pending_level_id")
 	config = GameConfig.load_all()
 	if config == null:
 		_push_receipt("!", "配置加载失败，无法开始关卡")
@@ -59,11 +66,19 @@ func _ready() -> void:
 	var layer := get_node_or_null("../EntityLayer")
 	if layer != null and layer.has_method("setup"):
 		_entity_layer = layer as Node2D
-		layer.setup(world) # 表现层占位图（scripts/views/）
+		layer.setup(world) # 表现层（scripts/views/）
+		# 场地地块贴图层：挂 EntityLayer 首位（同场地缩放变换，画在实体下层）
+		var field := FieldLayerScript.new()
+		_entity_layer.add_child(field)
+		_entity_layer.move_child(field, 0)
+		field.setup(world)
 	_grid_sys = world.get_system("GridSystem")
 	_card_sys = world.get_system("CardSystem")
 	var level: Dictionary = config.get_level(level_id)
 	_enemy_cap = int(level["enemy_cap"])
+	# 开局资源（§19.5 Mindustry 式核心库存）：关卡可选字段 start_resources
+	for rid in level.get("start_resources", {}):
+		world.state.add(StringName(str(rid)), int(level["start_resources"][rid]))
 	_wave_total = int((level["objective"] as Dictionary).get("waves", 0))
 	_connect_world()
 	ui.card_selected.connect(_on_card_selected)
@@ -327,6 +342,7 @@ func _ui_card_of(cid) -> Dictionary:
 		"name": display_name,
 		"kind": kind,
 		"icon": icon,
+		"art": str(ArtScript.CARD.get(String(cid), "")), # 卡面贴图路径（注册表无此项则空 → 纯文字卡面）
 		"desc": desc,
 		"cost": cost_text, # 消耗文案（卡费+蓝图费合计），卡面底部/卡牌库行内显示
 		"dna": dna, # 调试视图原始序列

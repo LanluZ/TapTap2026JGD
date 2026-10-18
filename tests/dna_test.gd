@@ -41,10 +41,13 @@ func _run() -> int:
 		return 1
 
 	print("== T0: 基因座与蓝图基因组 ==")
-	_ok(config.genes.has("loci") and (config.genes["loci"] as Array).size() == 7, "genes.json 7 个基因座已加载")
+	_ok(config.genes.has("loci") and (config.genes["loci"] as Array).size() == 8, "genes.json 8 个基因座已加载")
+	var tgt_locus: Dictionary = (config.genes["loci"] as Array)[7]
+	_ok(str(tgt_locus.get("id", "")) == "targeting" and (tgt_locus.get("alleles", {}) as Dictionary).size() == 4,
+		"瞄准座已加载（4 个策略等位基因）")
 	for bid in ["generator", "pump", "miner", "assembler", "gun_turret", "frost_beacon", "command_post"]:
 		var bp: Dictionary = config.blueprints[StringName(bid)]
-		_ok(bp.has("genome") and (bp["genome"] as Array).size() == 7, "蓝图 %s 附带 7 座基因组" % bid)
+		_ok(bp.has("genome") and (bp["genome"] as Array).size() == 8, "蓝图 %s 附带 8 座基因组" % bid)
 		_ok(not bp.has("components"), "蓝图 %s 不再手写组件清单" % bid)
 
 	print("== T1: 基因组表达 ==")
@@ -56,6 +59,7 @@ func _run() -> int:
 		if s.get("type", "") == "Attack":
 			has_attack = true
 			_ok(s["projectile"] == "ore_shot", "攻击座表达射弹 ore_shot")
+			_ok(String(s["targeting"]) == "nearest", "瞄准座表达 nearest")
 			_ok(is_equal_approx(float(s["damage"]), 6.0), "数值座表达伤害 6")
 		if s.get("type", "") == "Production":
 			has_prod = true
@@ -71,7 +75,7 @@ func _run() -> int:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1
 	var child := GenomeScript.breed(turret_genome, config.blueprints[&"miner"]["genome"], config.genes, rng)
-	_ok(child.size() == 7, "子代基因组 7 座")
+	_ok(child.size() == 8, "子代基因组 8 座")
 	var rng2 := RandomNumberGenerator.new()
 	rng2.seed = 1
 	var child2 := GenomeScript.breed(turret_genome, config.blueprints[&"miner"]["genome"], config.genes, rng2)
@@ -85,7 +89,7 @@ func _run() -> int:
 	_ok(tid != 0, "炮塔放置成功")
 	_ok(w.has_component(tid, &"Attack"), "放置后实体带 Attack 组件")
 	var fac = w.get_component(tid, &"Factory")
-	_ok(fac.display_name == "轻炮" and fac.genome.size() == 7, "Factory 组件携带 genome 与表型 display_name")
+	_ok(fac.display_name == "轻炮" and fac.genome.size() == 8, "Factory 组件携带 genome 与表型 display_name")
 
 	print("== T4: 融合指令全流程 ==")
 	w.push_command({ "type": "place_factory", "blueprint_id": "miner", "cell": [3, 2] })
@@ -155,7 +159,7 @@ func _run() -> int:
 	_ok(_fusion_card_count(config) == n3 + 1, "T7 融合执行")
 	var g_a: Array = config.blueprints[config.cards[_newest_fusion_card(config)]["effect"]["blueprint_id"]]["genome"]
 	# 与 T4 同种子(42)但双亲不同(炮塔+矿机 vs 炮塔+霜冻)——只验证基因组结构合法性
-	_ok(g_a.size() == 7, "端到端子代基因组 7 座")
+	_ok(g_a.size() == 8, "端到端子代基因组 8 座")
 
 	# 回归：打出融合子代卡不补抽（0 消耗自动抽 1 的例外）
 	var cs3 = w3.get_system("CardSystem")
@@ -195,7 +199,7 @@ func _run() -> int:
 	print("== T10: DNA 序列文本与效果描述 ==")
 	_ok(config.effects[&"slow_field"].get("name", "") == "减速场", "buffs.json 显示名已加载")
 	var seq: String = GenomeScript.sequence_text(turret_genome, config.genes)
-	_ok(seq.split("\n").size() == 7, "序列文本 7 行（每座一行）")
+	_ok(seq.split("\n").size() == 8, "序列文本 8 行（每座一行）")
 	_ok(seq.find("attack_type: shot_light") != -1 and seq.find("attack_stats") != -1, "序列含攻击座与等位基因")
 	_ok(seq.find("production: —") != -1, "空座显示为 —")
 	var et: String = GenomeScript.effect_text(turret_genome, config.genes, config)
@@ -225,22 +229,22 @@ func _run() -> int:
 	_ok(GenomeScript.phenotype_name(config.blueprints[&"generator"]["genome"], config.genes) == "发电", "发电机 → 发电")
 	_ok(String(d1["name"]) == "轻炮", "卡面显示名走表型命名（gun_turret → 轻炮）")
 	var named := [turret_genome[0], turret_genome[1], config.blueprints[&"miner"]["genome"][2],
-		null, null, null, null]
+		null, null, null, null, null]
 	_ok(GenomeScript.phenotype_name(named, config.genes) == "采矿轻炮", "采矿+轻炮 → 采矿轻炮（策划案15.9示例）")
-	_ok(GenomeScript.phenotype_name([null, null, null, null, null, null, null], config.genes) == "空机", "空基因组 → 空机")
+	_ok(GenomeScript.phenotype_name([null, null, null, null, null, null, null, null], config.genes) == "空机", "空基因组 → 空机")
 	var bl: Array = GenomeScript.base_letters(turret_genome, config.genes)
-	_ok(bl.size() == 7 and String(bl[0]) != "—" and String(bl[2]) == "—" and String(bl[0]).length() == 1,
-		"碱基链 7 位：有基因为单字母、空座为—")
+	_ok(bl.size() == 8 and String(bl[0]) != "—" and String(bl[2]) == "—" and String(bl[0]).length() == 1,
+		"碱基链 8 位：有基因为单字母、空座为—")
 	_ok(bl[0] == GenomeScript.base_letters(turret_genome, config.genes)[0], "碱基编码确定性（同基因同碱基）")
 	_ok(GenomeScript.complement("A") == "T" and GenomeScript.complement("C") == "G"
 		and GenomeScript.complement("T") == "A" and GenomeScript.complement("G") == "C"
 		and GenomeScript.complement("—") == "—", "互补配对 A↔T、C↔G")
 	var dui: Dictionary = d1["dna_ui"]
-	_ok(dui.get("bases", []).size() == 7 and (dui.get("rules", []) as Array).is_empty()
-		and str(dui.get("title", "")) == "轻炮", "dna_ui 载荷：碱基7位 + 融合规则不进UI + 表型标题")
+	_ok(dui.get("bases", []).size() == 8 and (dui.get("rules", []) as Array).is_empty()
+		and str(dui.get("title", "")) == "轻炮", "dna_ui 载荷：碱基8位 + 融合规则不进UI + 表型标题")
 	var names: Array = dui.get("locus_names", [])
-	_ok(names.size() == 7 and str(names[0]) == "染色体01" and str(names[6]) == "染色体07",
-		"座名 = 染色体编号 01…07（不再用 genes.json 座名）")
+	_ok(names.size() == 8 and str(names[0]) == "染色体01" and str(names[7]) == "染色体08",
+		"座名 = 染色体编号 01…08（不再用 genes.json 座名）")
 	game.free()
 
 	print("== T13: 字母=数据（bases 即基因型）==")
@@ -260,20 +264,20 @@ func _run() -> int:
 		"反向查表：等位基因 → 碱基")
 
 	print("== T14: 归一化与非法输入校验 ==")
-	var n7: Array = [null, null, null, null, null, null, null]
-	var only_allele = config._validate_genome("t14", [{ "allele": "shot_light" }] + n7.slice(1))
+	var n8: Array = [null, null, null, null, null, null, null, null]
+	var only_allele = config._validate_genome("t14", [{ "allele": "shot_light" }] + n8.slice(1))
 	_ok(only_allele is Array and str((only_allele[0] as Dictionary).get("bases", "")) == "A"
 		and not (only_allele[0] as Dictionary).has("allele"),
 		"作者格式 allele 归一化为 bases（shot_light→A），不残留 allele 键")
-	var both_ok = config._validate_genome("t14", [{ "allele": "shot_light", "bases": "A" }] + n7.slice(1))
+	var both_ok = config._validate_genome("t14", [{ "allele": "shot_light", "bases": "A" }] + n8.slice(1))
 	_ok(both_ok is Array, "bases 与 allele 一致 → 通过")
-	var bad_bases = config._validate_genome("t14", [{ "bases": "X" }] + n7.slice(1))
+	var bad_bases = config._validate_genome("t14", [{ "bases": "X" }] + n8.slice(1))
 	_ok(bad_bases == null, "非法碱基 X 拒收")
-	var bad_code = config._validate_genome("t14", [{ "bases": "G" }] + n7.slice(1))
+	var bad_code = config._validate_genome("t14", [{ "bases": "G" }] + n8.slice(1))
 	_ok(bad_code == null, "座0 未声明的 code G 拒收（攻击座只定义 A/T）")
-	var bad_conflict = config._validate_genome("t14", [{ "allele": "shot_light", "bases": "T" }] + n7.slice(1))
+	var bad_conflict = config._validate_genome("t14", [{ "allele": "shot_light", "bases": "T" }] + n8.slice(1))
 	_ok(bad_conflict == null, "bases 与 allele 冲突拒收")
-	var bad_stats = config._validate_genome("t14", [null, { "bases": "T" }, null, null, null, null, null])
+	var bad_stats = config._validate_genome("t14", [null, { "bases": "T" }, null, null, null, null, null, null])
 	_ok(bad_stats == null, "数值座碱基非 allele_code 拒收（座1 只有 A）")
 
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])

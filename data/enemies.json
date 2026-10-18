@@ -1,7 +1,64 @@
 {
-  "enemies": [
-	{"id": "slime", "name": "史莱姆", "hp": 30, "speed": 90, "elite": false, "loot_id": "parts", "loot_amount": 1},
-	{"id": "bat", "name": "洞穴蝙蝠", "hp": 18, "speed": 130, "elite": false, "loot_id": "parts", "loot_amount": 1},
-	{"id": "slime_king", "name": "史莱姆王", "hp": 150, "speed": 70, "elite": true, "loot_id": "special_material", "loot_amount": 1}
-  ]
+	"enemies": [
+		{
+			"id": "slime",
+			"name": "史莱姆",
+			"hp": 30.0,
+			"speed": 90.0,
+			"flying": false,
+			"elite": false,
+			"loot_id": "parts",
+			"loot_amount": 1.0
+		},
+		{
+			"id": "golem",
+			"name": "岩石傀儡",
+			"hp": 240.0,
+			"speed": 45.0,
+			"flying": false,
+			"elite": false,
+			"loot_id": "parts",
+			"loot_amount": 3.0
+		},
+		{
+			"id": "bat",
+			"name": "洞穴蝙蝠",
+			"hp": 18.0,
+			"speed": 160.0,
+			"flying": false,
+			"elite": false,
+			"loot_id": "parts",
+			"loot_amount": 1.0
+		},
+		{
+			"id": "swarm",
+			"name": "晶壳虫群",
+			"hp": 8.0,
+			"speed": 110.0,
+			"flying": false,
+			"elite": false,
+			"loot_id": "parts",
+			"loot_amount": 1.0
+		},
+		{
+			"id": "moth",
+			"name": "虚空飞蛾",
+			"hp": 40.0,
+			"speed": 120.0,
+			"flying": true,
+			"elite": false,
+			"loot_id": "parts",
+			"loot_amount": 1.0
+		},
+		{
+			"id": "slime_king",
+			"name": "史莱姆王",
+			"hp": 300.0,
+			"speed": 70.0,
+			"flying": false,
+			"elite": true,
+			"loot_id": "special_material",
+			"loot_amount": 1.0
+		}
+	]
 }

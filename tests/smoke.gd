@@ -47,6 +47,10 @@ func _run() -> int:
 	for rid in ["parts", "power", "water", "ore", "special_material"]:
 		_ok(config.resources.has(StringName(rid)), "资源已定义: %s" % rid)
 	_ok(config.levels.has(&"level_1"), "关卡 level_1 已加载")
+	for eid in ["slime", "golem", "bat", "swarm", "moth", "slime_king"]:
+		_ok(config.enemies.has(StringName(eid)), "敌人已定义: %s" % eid)
+	_ok(bool(config.get_enemy(&"moth")["flying"]), "moth 标记为飞行怪")
+	_ok(not bool(config.get_enemy(&"slime")["flying"]), "非飞行怪 flying 缺省 false")
 	_ok(config.blueprints.size() >= 5, "工厂蓝图 ≥5（零代码扩展的配置基础）")
 	_test_config_validation()
 
@@ -103,6 +107,22 @@ func _run() -> int:
 	# 满速应到 260；减速带内 1 秒只走 50 → 约 210
 	_ok(pf2b.distance < 240.0 and pf2b.distance > 195.0,
 		"减速带使推进变慢（1 秒后 distance=%.1f，满速应为 260）" % pf2b.distance)
+
+	print("== T2c: 飞行怪无视减速地块 ==")
+	var w2c := _make_world(config)
+	var eid2c := w2c.create_entity()
+	var pf2c := PathFollower.new()
+	pf2c.path_id = config.get_level(&"level_1")["path_id"]
+	pf2c.speed = 120.0
+	pf2c.distance = 160.0 # 同 T2b，起点在减速格 [4,1]
+	w2c.add_component(eid2c, pf2c)
+	var en2c := Enemy.new()
+	en2c.flying = true
+	w2c.add_component(eid2c, en2c)
+	for i in 10:
+		w2c.tick(DT)
+	_ok(pf2c.distance > 270.0,
+		"飞行怪在减速带上保持满速（distance=%.1f，满速应约 280）" % pf2c.distance)
 
 	print("== T3: 波次完成判定 → 撑过 N 波胜利 ==")
 	var w3 := _make_world(config)
@@ -201,6 +221,49 @@ func _run() -> int:
 	_ok(not w6.is_alive(eid6), "炮塔击杀目标敌人（用时 %d tick）" % ticks6)
 	_ok(died6.has(eid6), "entity_died 信号发出")
 	_ok(st6.get_amount(&"parts") > 40, "击杀掉落入账零件（余额 %d）" % st6.get_amount(&"parts"))
+
+	print("== T6b: 瞄准策略（DNA 瞄准座）==")
+	# 纯函数：座7 改 farthest → Attack.targeting 跟着变
+	var g_tgt: Array = config.blueprints[&"gun_turret"]["genome"].duplicate(true)
+	g_tgt[7] = { "bases": "T" } # farthest 的碱基（基因型即数据）
+	var tgt_specs: Array = Genome.express(g_tgt, config.genes, "gun_turret", "轻炮")
+	var tgt_value := ""
+	for s in tgt_specs:
+		if s.get("type", "") == "Attack":
+			tgt_value = String(s["targeting"])
+	_ok(tgt_value == "farthest", "瞄准座改为 farthest → Attack.targeting 表达为 farthest")
+	var w6b := _make_world(config)
+	w6b.state.waves_running = false # 关掉波次刷怪，避免干扰索敌
+	w6b.state.add(&"parts", 50)
+	w6b.push_command({"type": "place_factory", "blueprint_id": "gun_turret", "cell": [4, 2]})
+	w6b.tick(DT)
+	var tid6b := _find_factory(w6b, &"gun_turret")
+	var atk6b = w6b.get_component(tid6b, &"Attack")
+	_ok(String(atk6b.targeting) == "nearest", "蓝图默认瞄准策略来自 DNA（nearest）")
+	var near_low := _spawn_test_enemy(w6b, config, &"slime") # 30hp，更近
+	var far_high := _spawn_test_enemy(w6b, config, &"golem") # 240hp，更远
+	w6b.get_component(near_low, &"PathFollower").distance = 100.0
+	w6b.get_component(far_high, &"PathFollower").distance = 300.0
+	atk6b.targeting = &"highest_hp"
+	atk6b.cooldown_left = 0.0
+	w6b.tick(DT)
+	var shot_target := -1
+	for pid in w6b.query(&"Projectile"):
+		if not w6b.is_alive(pid):
+			continue
+		shot_target = w6b.get_component(pid, &"Projectile").target
+	_ok(shot_target == far_high, "highest_hp 越过更近目标，选中血量更高的敌人")
+	atk6b.targeting = &"lowest_hp"
+	atk6b.cooldown_left = 0.0
+	for pid in w6b.query(&"Projectile"):
+		w6b.destroy_entity(pid)
+	w6b.tick(DT)
+	shot_target = -1
+	for pid in w6b.query(&"Projectile"):
+		if not w6b.is_alive(pid):
+			continue
+		shot_target = w6b.get_component(pid, &"Projectile").target
+	_ok(shot_target == near_low, "lowest_hp 选中血量更低的目标")
 
 	print("== T7: 光环 BUFF/DEBUFF ==")
 	var w7 := _make_world(config)
@@ -334,6 +397,7 @@ func _spawn_test_enemy(world, config, enemy_id: StringName) -> int:
 	var en := Enemy.new()
 	en.wave_id = -1
 	en.elite = bool(def["elite"])
+	en.flying = bool(def.get("flying", false))
 	en.loot_id = def["loot_id"]
 	en.loot_amount = int(def["loot_amount"])
 	world.add_component(id, en)

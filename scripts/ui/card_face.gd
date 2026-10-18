@@ -4,11 +4,12 @@ extends RefCounted
 ##   id   : String  配置 id（可选）
 ##   name : String  卡面名
 ##   kind : String  "factory" | "tile"（其他值原样显示为标签）
-##   icon : String  卡面图形（可选，非空才显示；空则卡面只有标签+名称）
+##   icon : String  卡面文字图形（可选，非空才显示；art 优先于 icon）
+##   art  : String  卡面贴图 res:// 路径（可选，非空且加载成功 → TextureRect，不再显示 icon/名称行）
 ##   desc : String  描述（可选，当前仅作 tooltip）
 ##   cost : String  消耗文案（可选，卡费+蓝图费合计，如 "零件×10"；空则不显示消耗行）
 
-const FIELDS: Array[String] = ["id", "name", "kind", "icon", "desc", "cost"]
+const FIELDS: Array[String] = ["id", "name", "kind", "icon", "art", "desc", "cost"]
 const KIND_LABELS := {"factory": "工厂", "tile": "地块"}
 const FALLBACK_NAME := "???"
 
@@ -34,7 +35,7 @@ static func kind_label(kind: String) -> String:
 	return str(KIND_LABELS.get(kind, kind))
 
 
-## 构造卡面（VBox：标签 / 图形 / 名称）。返回 null 表示数据非法。
+## 构造卡面（VBox：贴图版=图+消耗 / 文字版=标签/图形/名称/消耗）。返回 null 表示数据非法。
 ## 放进 Button（手牌）时由调用方设为 FULL_RECT；放进 PanelContainer 时由容器排版。
 static func body(card) -> VBoxContainer:
 	var data := normalize(card)
@@ -42,6 +43,22 @@ static func body(card) -> VBoxContainer:
 		return null
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 2)
+
+	# 贴图卡面：整图自带名称/框体，只在下方补消耗行（运行时费用，图里没有）
+	if not data["art"].is_empty():
+		var tex: Texture2D = load(data["art"])
+		if tex != null:
+			var art := TextureRect.new()
+			art.texture = tex
+			art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			art.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			box.add_child(art)
+			if not data["cost"].is_empty():
+				box.add_child(_cost_label(data["cost"]))
+			box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			return box
+		push_warning("[卡面] 贴图加载失败，回退文字卡面: " + data["art"])
 
 	var tag := Label.new()
 	tag.text = kind_label(data["kind"])
@@ -68,16 +85,21 @@ static func body(card) -> VBoxContainer:
 	box.add_child(tag)
 	box.add_child(title)
 	if not data["cost"].is_empty():
-		var cost := Label.new()
-		cost.text = "消耗: " + data["cost"]
-		cost.add_theme_font_size_override("font_size", 11)
-		cost.add_theme_color_override("font_color", UiStyle.COLOR_ACCENT)
-		cost.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		cost.clip_text = true
-		cost.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		box.add_child(cost)
+		box.add_child(_cost_label(data["cost"]))
 	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	return box
+
+
+## 消耗行标签（贴图版/文字版卡面共用）。
+static func _cost_label(cost_text: String) -> Label:
+	var cost := Label.new()
+	cost.text = "消耗: " + cost_text
+	cost.add_theme_font_size_override("font_size", 11)
+	cost.add_theme_color_override("font_color", UiStyle.COLOR_ACCENT)
+	cost.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cost.clip_text = true
+	cost.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	return cost
 
 
 ## 把卡面铺满父节点并留出内边距（父节点须为非容器 Control，如 Button）。

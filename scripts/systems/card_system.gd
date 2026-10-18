@@ -31,7 +31,17 @@ func setup(world) -> void:
 	deck.pool = _card_pool.duplicate()
 	_rng.randomize()
 	_shuffle(deck.pool)
-	# 初始手牌：hand_start 张（levels.json，≤ hand_max 已由配置校验）
+	# 初始手牌：优先关卡固定起手 hand_start_cards（§19.5），其余洗入抽牌堆
+	var fixed: Array = level.get("hand_start_cards", [])
+	for cid in fixed:
+		var c := str(cid)
+		# 从抽牌堆移除同名卡，避免同卡同时在手牌与牌堆
+		var at: int = deck.pool.find(c)
+		if at >= 0:
+			deck.pool.remove_at(at)
+		if deck.hand.size() < deck.hand_max:
+			deck.hand.append(c)
+	# 不足 hand_start 张时从抽牌堆补（hand_start_cards 为空 = 纯随机起手）
 	while deck.hand.size() < int(level["hand_start"]):
 		if not _draw_one():
 			break

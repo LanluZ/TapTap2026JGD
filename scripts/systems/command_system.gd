@@ -165,9 +165,18 @@ func _place_tile(world, tile_type: String, cell) -> bool:
 		_reject(world, "place_tile 缺少合法 cell")
 		return false
 	if _grid_system == null or not _grid_system.can_place_tile(world, cell):
-		_reject(world, "格子已被占用，无法放地块: %s" % str(cell))
+		_reject(world, "格子已被占用或不是路面，无法放地块: %s" % str(cell))
 		return false
-	world.grid.set_tile(cell, StringName(tile_type))
+	var placed := StringName(tile_type)
+	world.grid.set_tile(cell, placed)
+	# 邻接合成（§19.2 Loop Hero 式确定性变换）：与同种地块相邻时，后放的这块变为 combine 目标
+	var target: StringName = (tile_types.get(placed, {}) as Dictionary).get("combine", &"")
+	if not target.is_empty():
+		for off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n = world.grid.get_cell(cell + off)
+			if n != null and n.tile_type == placed:
+				world.grid.set_tile(cell, target)
+				break
 	return true
 
 

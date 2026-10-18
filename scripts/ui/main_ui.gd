@@ -1,12 +1,12 @@
 extends Control
-## 关卡 UI 根节点：HUD + 手牌 + 放置预览 + 卡牌库/战报。
+## 关卡 UI 根节点：HUD + 手牌 + 放置预览 + 卡牌库/战报 + 设置面板。
 ##
 ## 对外契约（逻辑层接线只依赖这里）：
 ##   公开方法：set_resources / set_hand / set_hand_max / set_wave_info /
 ##             set_enemy_count / set_placement_preview / set_grid_geometry /
 ##             set_library_cards / set_library_expanded /
 ##             set_receipts / cancel_placement / get_selected_card / is_placing /
-##             get_hand / load_mock_data
+##             get_hand / open_settings / is_settings_open / load_mock_data
 ##   信号：card_selected(card)、card_played(card, cell)、placement_cancelled()
 ##
 ## 数据全部由调用方注入；本脚本只做展示与交互状态，不引用
@@ -53,6 +53,7 @@ var _dna_inspector: Control
 var _current_card_id := "" # 右键同一张卡再次点击 = 收起
 var _start_btn: Button
 var _speed_btn: Button
+var _settings: Control # scenes/ui/settings_panel.tscn 实例（main.tscn 内）
 var _wave_running := false # 与 GameState.waves_running 初值一致（默认暂停）
 var _speed := 1.0
 
@@ -87,8 +88,20 @@ func _resolve_nodes() -> void:
 	_speed_btn = get_node_or_null("HUD/TopBar/Row/SpeedBtn") as Button
 	if _start_btn == null or _speed_btn == null:
 		push_warning("[关卡UI] main.tscn 缺少 HUD/TopBar/Row 下的 StartBtn/SpeedBtn")
+	_bind_settings()
 	_build_fusion_panel()
 	_build_dna_popup()
+
+
+## 设置面板实例（main.tscn 内的 SettingsPanel）：「返回标题」由本层切场景，
+## 其余（暂停/恢复、ESC 关闭）都由 settings_panel.gd 自己处理。
+func _bind_settings() -> void:
+	_settings = get_node_or_null("SettingsPanel")
+	if _settings == null:
+		push_warning("[关卡UI] main.tscn 缺少 SettingsPanel 实例（res://scenes/ui/settings_panel.tscn）")
+		return
+	if not _settings.is_connected("title_requested", _on_settings_title_requested):
+		_settings.connect("title_requested", _on_settings_title_requested)
 
 
 ## DNA 检视弹窗（程序化构建）：内嵌 dna_inspector 预制体；关闭按钮/Esc/再右键收起。
@@ -389,8 +402,36 @@ func _on_card_right_clicked(card: Dictionary) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+	if not (event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE):
+		return
+	# 面板打开时处于暂停态：ESC 由 settings_panel.gd 处理（它 process_mode=WHEN_PAUSED）
+	if _settings != null and _settings.visible:
+		return
+	# ESC 优先收尾正在看的东西，其次才是打开设置
+	if _dna_popup != null and _dna_popup.visible:
 		hide_dna()
+		get_viewport().set_input_as_handled()
+		return
+	open_settings()
+	get_viewport().set_input_as_handled()
+
+
+# ---------------------------------------------------------------- 设置面板
+
+## 打开设置面板（等价于游戏内按 ESC）：暂停整棵场景树
+func open_settings() -> void:
+	_prepare()
+	if _settings != null:
+		_settings.open()
+
+
+func is_settings_open() -> bool:
+	return _settings != null and _settings.visible
+
+
+## 「返回标题」：面板关闭已解除暂停，这里只负责切场景
+func _on_settings_title_requested() -> void:
+	get_tree().change_scene_to_file("res://scenes/menu.tscn")
 
 
 func _on_selection_cleared() -> void:
