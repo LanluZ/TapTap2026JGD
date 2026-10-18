@@ -188,6 +188,7 @@ func _run() -> int:
 	_t6_deliver_routing()
 	_t7_production()
 	_t8_reject_edge()
+	_t9_start_ammo()
 
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return _failures
@@ -241,6 +242,7 @@ func _t2_hydro_none() -> void:
 	var turret: int = s["turret"]
 	var atk = s["atk"]
 	atk.hydro = &"hydro_none" # 组件字段即契约：漠水基因
+	atk.ammo = 0 # 裁定 T6-9：蓝图 start_ammo=6 → 落地即满仓；本用例只看 hydro，仍按投料路径装满
 	for i in 6:
 		w.deliver_ore(turret) # 满弹：只看 hydro 影响
 	_ok(atk.ammo == 6, "前置：弹药 6（实际 %d）" % atk.ammo)
@@ -310,7 +312,8 @@ func _t4_dry_fire() -> void:
 	var turret: int = s["turret"]
 	var atk = s["atk"]
 	atk.hydro = &"hydro_none" # 纯断弹语境：base 0.8 / 6 伤害
-	_ok(atk.ammo == 0, "前置：炮塔初始无弹 ammo=0")
+	atk.ammo = 0 # 裁定 T6-9：蓝图 start_ammo=6 落地即满仓 → 断弹用例显式清空
+	_ok(atk.ammo == 0, "前置：手动置空弹药 ammo=0")
 	var r: Dictionary = _fire_once(w, atk)
 	_ok(int(r["shots"]) == 1, "断弹仍发射（半伤空放，不是停摆）")
 	_ok(is_equal_approx(float(r["damage"]), 3.0),
@@ -383,6 +386,7 @@ func _t6_deliver_routing() -> void:
 	var atk = w.get_component(turret, &"Attack")
 	_ok(AttackScript.AMMO_MAX == 6, "Attack 组件弹药上限常量 = 6（实际 %d）" % AttackScript.AMMO_MAX)
 	var all_ok := true
+	atk.ammo = 0 # 裁定 T6-9：落地即满仓 → 先清空，本用例才测得到「连收 6 矿填满」的投料路径
 	for i in 6:
 		all_ok = w.deliver_ore(turret) and all_ok
 	_ok(all_ok and int(atk.ammo) == 6, "炮塔连收 6 矿填满弹药（ammo=%d）" % int(atk.ammo))
@@ -411,10 +415,11 @@ func _t6_deliver_routing() -> void:
 	var w3 = _new_world()
 	_grant(w3)
 	var t3: int = _place_factory_at(w3, "gun_turret", Vector2i(6, 2))
+	var atk3 = w3.get_component(t3, &"Attack")
+	atk3.ammo = 0 # 裁定 T6-9：落地即满仓 → 清空，看单块投料
 	_place(w3, "belt", [[6, 3]], [0, -1])
 	_set_items(w3, Vector2i(6, 3), [1.0])
 	w3.tick(DT)
-	var atk3 = w3.get_component(t3, &"Attack")
 	_ok(_items(w3, Vector2i(6, 3)).is_empty() and int(atk3.ammo) == 1,
 		"端头对接炮塔：块进弹药（ammo=%d）并离开带上" % int(atk3.ammo))
 	# 设计裁定 N4：DNA 混种（Attack + Production）矿先填弹药，不进合成库存
@@ -591,3 +596,44 @@ func _t8_reject_edge() -> void:
 		"reason 从 full 变 no_feed → 再发一次（%s）" % str(rejected))
 	_ticks(w, 20)
 	_ok(rejected.size() == 3, "换成 no_feed 后同因仍只发 1 次（共 %d 次）" % rejected.size())
+# ================================================================ T9 蓝图级初始弹药（裁定 T6-9）
+
+## 炮塔蓝图 `start_ammo`：轻炮塔（gun_turret）6 = 满仓、重炮塔（gun_turret_heavy）3 = 半仓；
+## 蓝图没这个字段（融合子代 / 非炮塔）→ 0 = 空仓（向后兼容：旧行为靠投料装弹）。
+## 配置侧（GameConfig 归一化后的字段值）+ 运行侧（放置时写进 Attack.ammo）双断言。
+func _t9_start_ammo() -> void:
+	print("== T9: 蓝图级初始弹药 start_ammo（轻 6 / 重 3 / 无字段 0）==")
+	_ok(int(_config.blueprints[&"gun_turret"].get("start_ammo", -1)) == 6,
+		"配置：轻炮塔 start_ammo=6（实际 %s）" % str(_config.blueprints[&"gun_turret"].get("start_ammo", "缺")))
+	_ok(int(_config.blueprints[&"gun_turret_heavy"].get("start_ammo", -1)) == 3,
+		"配置：重炮塔 start_ammo=3（实际 %s）" % str(_config.blueprints[&"gun_turret_heavy"].get("start_ammo", "缺")))
+	var plain_bps: Array = []
+	for bid in _config.blueprints:
+		if int(_config.blueprints[bid].get("start_ammo", 0)) != 0:
+			plain_bps.append(String(bid))
+	_ok(plain_bps == ["gun_turret", "gun_turret_heavy"] or
+		(plain_bps.size() == 2 and plain_bps.has("gun_turret") and plain_bps.has("gun_turret_heavy")),
+		"配置：只有两座炮塔带非零 start_ammo（实际 %s）" % str(plain_bps))
+	var w = _new_world()
+	_grant(w)
+	var light: int = _place_factory_at(w, "gun_turret", Vector2i(6, 2))
+	var heavy: int = _place_factory_at(w, "gun_turret_heavy", Vector2i(8, 2))
+	_ok(light != 0 and heavy != 0, "轻炮塔 [6,2] / 重炮塔 [8,2] 落位")
+	var light_atk = w.get_component(light, &"Attack")
+	var heavy_atk = w.get_component(heavy, &"Attack")
+	_ok(int(light_atk.ammo) == 6, "运行：新放轻炮塔 ammo=6（实际 %d）" % int(light_atk.ammo))
+	_ok(int(light_atk.ammo) == AttackScript.AMMO_MAX, "运行：轻炮塔落地即满仓（= AMMO_MAX %d）" % AttackScript.AMMO_MAX)
+	_ok(int(heavy_atk.ammo) == 3, "运行：新放重炮塔 ammo=3（实际 %d）" % int(heavy_atk.ammo))
+	# 无字段蓝图：拷轻炮塔基因组但去掉 start_ammo、cost 置空（临时注册，用完即删）
+	var bp: Dictionary = _config.blueprints[&"gun_turret"].duplicate(true)
+	bp["id"] = &"t_no_ammo"
+	bp["name"] = "无字段炮塔"
+	bp.erase("start_ammo")
+	bp["cost"] = {}
+	_config.blueprints[&"t_no_ammo"] = bp
+	var plain: int = _place_factory_at(w, "t_no_ammo", Vector2i(10, 2))
+	_config.blueprints.erase(&"t_no_ammo")
+	_ok(plain != 0, "无 start_ammo 字段的蓝图可放置")
+	if plain != 0:
+		_ok(int(w.get_component(plain, &"Attack").ammo) == 0,
+			"运行：蓝图无该字段 → ammo=0（向后兼容；实际 %d）" % int(w.get_component(plain, &"Attack").ammo))

@@ -26,8 +26,16 @@ signal ore_delivered(entity_id: int)
 ## ResourceBuffer 组件——**不要调 deliver_ore**：它有副作用（扣弹药、进库存、发信号）。
 signal ore_rejected(entity_id: int, reason: String)
 
+## 断水提示（产品裁定，物流层边沿触发）：某建筑上一 tick 有水、这一 tick 无水，且它旁边
+## 确实有管道 ⇒ 管道方向没指向该建筑（dir 只用于受料端，见 logistics_system._touched_by_pipe）。
+## **边沿触发**：同一次断水只发一次；恢复供水后再次断水算新边沿（同 ore_rejected 模式）。
+## 消费方把 World.WATER_HINT_TEXT 原样显示即可（游戏层已接回执）。
+signal water_lost(entity_id: int)
+
 ## 弹药上限的权威来源（Attack 组件），deliver_ore 用它判「弹药满拒收」。
 const AttackScript = preload("res://scripts/components/attack.gd")
+## 断水提示文案（语义单一来源：物流层发 water_lost，表现层直接显示这句）。
+const WATER_HINT_TEXT := "管道方向需指向建筑"
 const ORE_REJECT_FULL := "full"
 const ORE_REJECT_NO_FEED := "no_feed"
 

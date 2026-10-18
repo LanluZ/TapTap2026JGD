@@ -315,6 +315,7 @@ func _t6_deliver_routing() -> void:
 	_ok(_stock(w, asm, &"ore") == 1, "接收后库存 +1（%d）" % _stock(w, asm, &"ore"))
 	_ok(deliveries.size() == 1 and deliveries[0] == asm, "成功交付发 ore_delivered（%s）" % str(deliveries))
 	var turret_atk = w.get_component(turret, &"Attack")
+	turret_atk.ammo = 0 # 裁定 T6-9：蓝图 start_ammo=6 落地即满仓 → 清空，测投料分流
 	_ok(w.deliver_ore(turret), "炮塔（有 Attack）：任务 6 起收矿填弹药 → true")
 	_ok(int(turret_atk.ammo) == 1, "炮塔弹药 +1（ammo=%d）" % int(turret_atk.ammo))
 	_ok(deliveries.size() == 2 and deliveries[1] == turret, "炮塔交付也发 ore_delivered（%s）" % str(deliveries))

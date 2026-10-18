@@ -226,16 +226,40 @@ func _on_placement_cancelled() -> void:
 ## 拖拽画线松手（UI → 逻辑）：按指令协议原文形态 [[x,y]] / [dx,dy] 入队，下一逻辑帧执行。
 ## 这里**不做**合法性预判：GridSystem.can_place_line 只用于预览，最终以指令层
 ## command_rejected 为准（失败整条不动，回执显示原因）。
+## 唯一例外 = 拆除：先按 Cell.has_line 过滤（空格不让整条被拒），见 cells_with_line。
 func _on_line_committed(kind: String, cells: Array, dir: Vector2i) -> void:
 	if world == null or cells.is_empty():
+		return
+	if kind == "remove":
+		# 拆除过滤（产品裁定 ②）：只提交真有线的格。指令层保持严格（每格必须有线），
+		# 这里在提交前把拖拽扫过的空格去掉，避免一个空格让整条拆除被拒。
+		var line_cells: Array = cells_with_line(world, cells)
+		if line_cells.is_empty():
+			return # 拖过的格都没线：不发指令，也不产生无意义回执
+		var rm: Array = []
+		for c in line_cells:
+			rm.append([c.x, c.y])
+		world.push_command({"type": "remove_line", "cells": rm})
 		return
 	var proto: Array = []
 	for c in cells:
 		proto.append([c.x, c.y])
-	if kind == "remove":
-		world.push_command({"type": "remove_line", "cells": proto})
-	else:
-		world.push_command({"type": "place_line", "kind": kind, "cells": proto, "dir": [dir.x, dir.y]})
+	world.push_command({"type": "place_line", "kind": kind, "cells": proto, "dir": [dir.x, dir.y]})
+
+
+## 格集中只有真带线的格（保持传入顺序、去重）。静态纯函数：headless 测试可直接调，
+## 不依赖本场景实例（参数名 w 而非 world：避免与本类同名实例字段的 shadow 警告）。
+## 非法元素（非坐标）跳过——合法性与否由指令层最终裁决。
+static func cells_with_line(w, cells: Array) -> Array:
+	var out: Array = []
+	for raw in cells:
+		var c = GridSystem._as_cell(raw)
+		if c == null or out.has(c):
+			continue
+		var cell_data = w.grid.get_cell(c) if w != null and w.grid != null else null
+		if cell_data != null and cell_data.has_line():
+			out.append(c)
+	return out
 
 
 # ---------------------------------------------------------------- 融合（DNA 系统）
@@ -298,6 +322,8 @@ func _sync_fusion_preview(force: bool = false) -> void:
 
 func _connect_world() -> void:
 	world.command_rejected.connect(func(reason: String): _push_receipt("✗", reason))
+	# 断水提示（产品裁定 ①）：相邻有管却接不上 → 文案固定，语义单一来源在 world.gd
+	world.water_lost.connect(func(_eid: int): _push_receipt("!", World.WATER_HINT_TEXT))
 	world.wave_completed.connect(func(_i: int):
 		_push_receipt("波", "第 %d 波完成" % world.state.waves_survived))
 	world.game_won.connect(func():

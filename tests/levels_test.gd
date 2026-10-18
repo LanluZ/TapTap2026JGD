@@ -116,8 +116,11 @@ func _run() -> int:
 					enemy_bad += 1
 		_ok(enemy_bad == 0, "%s 波次敌人均已定义（%d 波）" % [tag, (lv["waves"] as Array).size()])
 
-		# 8. 关卡级字段
-		_ok(int(lv["start_resources"].get("parts", 0)) > 0, "%s 开局零件 = %d" % [tag, int(lv["start_resources"].get("parts", 0))])
+		# 8. 关卡级字段：开局零件按产品裁定锁值（14/16/14；改关卡数值必须同步本条）
+		var want_parts := {&"level_1": 14, &"level_2": 16, &"level_3": 14}
+		var parts0 := int(lv["start_resources"].get("parts", 0))
+		_ok(parts0 == int(want_parts[lid]),
+			"%s 开局零件 = %d（期望 %d）" % [tag, parts0, int(want_parts[lid])])
 
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return _failures

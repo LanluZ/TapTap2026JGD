@@ -8,6 +8,9 @@ extends SceneTree
 const BootstrapScript = preload("res://scripts/bootstrap.gd")
 const LineToolScript = preload("res://scripts/ui/line_tool.gd")
 const LogisticsLayerScript = preload("res://scripts/views/logistics_layer.gd")
+## 接线层（game.gd）：只取静态纯函数 cells_with_line 测「拆除只拆有线格」的过滤（裁定 ②），
+## 不实例化 main.tscn（那是 ui_selftest 的事）。
+const GameScript = preload("res://scripts/game.gd")
 const DT := 0.1
 
 var _checks: int = 0
@@ -220,6 +223,8 @@ func _run() -> int:
 	_ok(w4.grid.get_cell(Vector2i(5, 2)).line_kind == &"", "指令原子失败：同批 [5,2] 未被写入")
 	_ok(_place(w4, "pipe", [[6, 6]], [1, 0]) == 0, "先放一条 pipe 成功")
 	_ok(_place(w4, "belt", [[6, 6]], [0, 1]) == 1, "已有线路的格重复放置被拒绝")
+	_ok(_rejects[-1].find("拐角格要留给后一段") != -1,
+		"已有线路的拒绝回执补拐弯提示（实际 %s）" % _rejects[-1])
 	_ok(w4.grid.get_cell(Vector2i(6, 6)).line_kind == &"pipe", "拒绝后原 pipe 保持不变")
 	_ok(_place(w4, "wire", [[7, 7]], [1, 0]) == 1, "未知 kind 的指令被拒绝")
 	_ok(_place(w4, "pipe", [[7, 7]], [1, 1]) == 1, "对角 dir 的指令被拒绝")
@@ -335,6 +340,7 @@ func _run() -> int:
 		_t24_drag_end_to_end()
 		_t25_drag_to_cells()
 		_t26_render_data()
+		_t27_product_rulings()
 
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return _failures
@@ -900,3 +906,103 @@ func _t26_render_data() -> void:
 	_remove(w, [[4, 6]])
 	_ok(LogisticsLayerScript.line_items(w).size() == 2, "T26: 拆线后该格不再进渲染快照")
 
+# ================================================================ T27 产品裁定轮（三处无声失败 + 拆除过滤）
+
+## 裁定 ①：断水提示（边沿）——「有水 → 无水」且旁边确有管道 ⇒ 方向没指向建筑。
+## 场景：泵 [2,5] → 管 [3,5][4,5] dir(1,0) → 建筑 [5,5]（接水）；
+## 把 [4,5] 改成 dir(0,1)（管道方向背离建筑）⇒ 断水 1 次提示，之后不再重复。
+func _t27_water_hint() -> void:
+	print("== T27a: 断水提示（water_lost 边沿，同因只提示一次）==")
+	var w = _new_world()
+	_grant(w)
+	var pump: int = _place_factory_at(w, "pump", Vector2i(2, 5))
+	var bld: int = _place_factory_at(w, "generator", Vector2i(5, 5))
+	_ok(pump != 0 and bld != 0, "T27a: 水泵 [2,5] / 建筑 [5,5] 落位")
+	var hints: Array = []
+	w.water_lost.connect(func(eid): hints.append(int(eid)))
+	_ok(_place(w, "pipe", [[3, 5], [4, 5]], [1, 0]) == 0, "T27a: 铺管 [3,5][4,5] dir(1,0)（指向建筑）")
+	_ok(w.is_watered(bld), "T27a: 前置：建筑已接水")
+	_ok(hints.is_empty(), "T27a: 供水正常时不发断水提示（实际 %d）" % hints.size())
+	# 同一帧内「拆除 + 重铺背离方向」：水网只重算一次 → 干净的真→假边沿
+	w.push_command({"type": "remove_line", "cells": [[4, 5]]})
+	w.push_command({"type": "place_line", "kind": "pipe", "cells": [[4, 5]], "dir": [0, 1]})
+	w.tick(DT)
+	_ok(not w.is_watered(bld), "T27a: 管道方向背离 → 断水")
+	_ok(hints.size() == 1 and int(hints[0]) == bld,
+		"T27a: 断水发 1 次 water_lost(建筑)（实际 %s）" % str(hints))
+	_ticks(w, 10)
+	_ok(hints.size() == 1, "T27a: 同一断水态连跑 10 tick 不重复提示（实际 %d）" % hints.size())
+	_ok(not hints.has(pump), "T27a: 泵自身不触发提示（泵端不判方向，提示会误导）")
+	# 恢复供水 → 清边沿标记 → 再断一次能再提示
+	w.push_command({"type": "remove_line", "cells": [[4, 5]]})
+	w.push_command({"type": "place_line", "kind": "pipe", "cells": [[4, 5]], "dir": [1, 0]})
+	w.tick(DT)
+	_ok(w.is_watered(bld), "T27a: 改回指向建筑 → 复水")
+	w.push_command({"type": "remove_line", "cells": [[4, 5]]})
+	w.push_command({"type": "place_line", "kind": "pipe", "cells": [[4, 5]], "dir": [0, -1]})
+	w.tick(DT)
+	_ok(not w.is_watered(bld) and hints.size() == 2,
+		"T27a: 复水后再断水 → 再提示一次（共 %d 次）" % hints.size())
+	# 相邻没管（真断源，不是方向问题）→ 不提示
+	var w2 = _new_world()
+	_grant(w2)
+	var bld2: int = _place_factory_at(w2, "generator", Vector2i(5, 5))
+	var hints2: Array = []
+	w2.water_lost.connect(func(eid): hints2.append(int(eid)))
+	_ticks(w2, 3)
+	_ok(hints2.is_empty() and not w2.is_watered(bld2), "T27a: 从来没接水的建筑不发提示（无真→假沿）")
+
+
+## 裁定 ②：拆除只拆有线格（接线层过滤）——拖拽扫过的空格不再让整条被拒。
+## 指令层仍是严格的「每格必须有线」（内核不动），过滤只发生在 game.cells_with_line。
+func _t27_remove_filter() -> void:
+	print("== T27b: 拆除只提交有线格（cells_with_line 过滤）==")
+	var w = _new_world()
+	_ok(_place(w, "pipe", [[6, 6], [7, 6]], [1, 0]) == 0, "T27b: 铺 [6,6][7,6] 两格管")
+	var drag: Array = [Vector2i(5, 6), Vector2i(6, 6), Vector2i(7, 6), Vector2i(8, 6)]
+	var kept: Array = GameScript.cells_with_line(w, drag)
+	_ok(_cells_eq(kept, [Vector2i(6, 6), Vector2i(7, 6)]),
+		"T27b: 拖过 4 格（两端空格）→ 只留有线 2 格（实际 %s）" % str(kept))
+	_ok(GameScript.cells_with_line(w, [Vector2i(9, 6)]).is_empty(), "T27b: 全是空格 → 过滤结果为空")
+	_ok(GameScript.cells_with_line(w, [Vector2i(6, 6), Vector2i(6, 6)]).size() == 1,
+		"T27b: 重复格去重（同格只拆一次）")
+	# 对照：未经过滤的原始拖拽在指令层被严格拒绝（内核语义不变）
+	var before: int = _rejects.size()
+	w.push_command({"type": "remove_line", "cells": _protocol(drag)})
+	w.tick(DT)
+	_ok(_rejects.size() == before + 1 and w.grid.get_cell(Vector2i(6, 6)).line_kind == &"pipe",
+		"T27b: 对照——未过滤的拖拽仍整条被拒（%d 次拒绝）" % (_rejects.size() - before))
+	# 过滤后提交：成功拆掉两格，无拒绝、无残留
+	_rejects.clear()
+	w.push_command({"type": "remove_line", "cells": _protocol(GameScript.cells_with_line(w, drag))})
+	w.tick(DT)
+	_ok(w.grid.get_cell(Vector2i(6, 6)).line_kind == &"" and w.grid.get_cell(Vector2i(7, 6)).line_kind == &"",
+		"T27b: 过滤后提交 → 两格线路拆净")
+	_ok(_rejects.is_empty(), "T27b: 过滤后提交无拒绝（实际 %d）" % _rejects.size())
+
+
+## 裁定 ③：拐弯提示——place_line 因「格已有线」被拒时，回执补「拐角格要留给后一段」。
+## 回执文本本身在 T4 断言（同一世界的重复放置）；这里钉住「其余拒绝原因不加这句」。
+func _t27_corner_hint() -> void:
+	print("== T27c: 拐弯提示只加在「格已有线」因上 ==")
+	var w = _new_world()
+	_ok(_place(w, "pipe", [[6, 6]], [1, 0]) == 0, "T27c: 先铺 [6,6]")
+	var before: int = _rejects.size()
+	w.push_command({"type": "place_line", "kind": "pipe", "cells": [[6, 6], [7, 6]], "dir": [1, 0]})
+	w.tick(DT)
+	_ok(_rejects.size() == before + 1, "T27c: 拐弯（起手格已有线）被拒")
+	if _rejects.size() > before:
+		_ok(_rejects[-1].find(GridSystem.REASON_HAS_LINE) != -1
+			and _rejects[-1].find("拐角格要留给后一段") != -1,
+			"T27c: 回执含原因 + 拐弯提示（实际 %s）" % _rejects[-1])
+	before = _rejects.size()
+	w.push_command({"type": "place_line", "kind": "pipe", "cells": [[1, 1]], "dir": [1, 0]})
+	w.tick(DT)
+	_ok(_rejects.size() == before + 1 and _rejects[-1].find("拐角格要留给后一段") == -1,
+		"T27c: 路径格拒绝不加拐弯提示（实际 %s）" % _rejects[-1])
+
+
+func _t27_product_rulings() -> void:
+	_t27_water_hint()
+	_t27_remove_filter()
+	_t27_corner_hint()

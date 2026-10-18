@@ -208,8 +208,8 @@ func _run() -> int:
 
 	print("== T6: 索敌 → 射弹 → 击杀入账 ==")
 	var w6 := _make_world(config)
-	w6.state.waves_running = false # 任务 6：炮塔默认断弹（冷却 ×2 / 伤害 ×0.5），
-	# 关掉波次刷怪以免多目标分流把「单目标击杀链路」拖成边际失败（同 T6b 做法）
+	w6.state.waves_running = false # 关掉波次刷怪以免多目标分流把「单目标击杀链路」拖成边际失败
+	# （同 T6b 做法）。裁定 T6-9 起炮塔落地即带弹（蓝图 start_ammo），首发即全伤。
 	var st6 = w6.state
 	st6.add(&"parts", 50)
 	w6.push_command({"type": "place_factory", "blueprint_id": "gun_turret", "cell": [4, 2]})
@@ -217,11 +217,10 @@ func _run() -> int:
 	var turret_id := _find_factory(w6, &"gun_turret")
 	_ok(turret_id != 0, "炮塔放置成功")
 	_ok(st6.get_amount(&"parts") == 36, "蓝图 cost 扣费 14 零件（含喜水×4，余额 %d）" % st6.get_amount(&"parts"))
-	# 任务 6：炮塔已改吃弹药（默认 ammo=0 = 断弹：冷却 ×2、伤害 ×0.5）。
-	# 本用例测「索敌→射弹→击杀入账」链路，先按物流正常路径投 6 矿装满弹药。
-	for i in 6:
-		w6.deliver_ore(turret_id)
-	_ok(int(w6.get_component(turret_id, &"Attack").ammo) == 6, "炮塔弹药装满 6（供弹链路）")
+	# 裁定 T6-9：轻炮塔蓝图 start_ammo=6 → 放置即满仓，不再需要手工投料装弹
+	# （投料/拒收路径由 ammo_hydro_test T6 覆盖）。本用例只测「索敌→射弹→击杀入账」链路。
+	_ok(int(w6.get_component(turret_id, &"Attack").ammo) == 6,
+		"轻炮塔落地即满仓 ammo=6（蓝图 start_ammo）")
 	var eid6 := _spawn_test_enemy(w6, config, &"slime")
 	var died6: Array = []
 	w6.entity_died.connect(func(e): died6.append(e))
@@ -395,6 +394,35 @@ func _test_config_validation() -> void:
 			found = true
 		print("    预期错误: " + str(e))
 	_ok(found, "错误信息包含“缺字段 'name'”")
+
+	# start_ammo（裁定 T6-9）写在无 Attack 的蓝图上 = 静默无效配置 → 必须报错
+	# 这份坏配置要能走到蓝图校验：补上 T9 文件清单里没拷的 genes.json（基因组校验依据）
+	var genes_text := FileAccess.get_file_as_string("res://data/genes.json")
+	var gf0 := FileAccess.open(dir + "genes.json", FileAccess.WRITE)
+	if gf0 != null:
+		gf0.store_string(genes_text)
+		gf0.close()
+	var res_text := FileAccess.get_file_as_string("res://data/resources.json")
+	var rf := FileAccess.open(dir + "resources.json", FileAccess.WRITE)
+	if rf != null:
+		rf.store_string(res_text)
+		rf.close()
+	var fac = JSON.parse_string(FileAccess.get_file_as_string("res://data/factories.json"))
+	for b in (fac as Dictionary)["blueprints"]:
+		if str((b as Dictionary)["id"]) == "generator":
+			(b as Dictionary)["start_ammo"] = 1
+	var ff := FileAccess.open(dir + "factories.json", FileAccess.WRITE)
+	if ff != null:
+		ff.store_string(JSON.stringify(fac))
+		ff.close()
+	var bad2 := GameConfig.new()
+	var ok2 := bad2.load_from(dir)
+	var found2 := false
+	for e in bad2.get_errors():
+		if str(e).find("start_ammo") != -1:
+			found2 = true
+			print("    预期错误: " + str(e))
+	_ok(not ok2 and found2, "start_ammo 写在无 Attack 的蓝图上 → 加载失败（不静默忽略）")
 
 
 # ================================================================ 构建辅助

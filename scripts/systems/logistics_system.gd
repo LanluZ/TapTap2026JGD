@@ -15,6 +15,7 @@ extends System
 ##      （指向矿机的带不算出料口：会原路送回矿机自身，见 _inlets）。
 ##   ④ 水网：每 tick 从「有电开工且对接口有管」的水泵沿管道无向 BFS 重算供水集合
 ##      （watered），并给有对接管的泵按 1 水/秒排缓冲（见 _water_network）；
+##      某建筑「有水→无水」且旁边确有管道 → 发 world.water_lost 一次（见 _maybe_pipe_hint）；
 ##   ⑤ 缓冲清理：销毁实体的残留缓冲/节拍归零。
 ##
 ## 规格取值（策划 2026-10-18）：带速 2.0 格/秒、最小间距 0.25 格、每格容量 4 块、
@@ -62,6 +63,10 @@ var buffers: Dictionary = {}
 ## 任务 6 消费入口是 world.is_watered(id)（等价于本字典的值，缺键 = false）。
 var watered: Dictionary = {}
 
+## 上一 tick 的供水快照：entity_id -> bool。断水提示只看这一份快照的「真→假」沿：
+## 一次断水只在翻转那一 tick 提示一次（电平式实现会 10Hz 连发，见 _maybe_pipe_hint）。
+var _watered_prev: Dictionary = {}
+
 ## 泵对接口判定结果：entity_id -> bool（本 tick 相邻格是否有 pipe，**不看 line_dir**）。
 ## 任务 5 停产判据与排水判据共用这一份结果（不要各自重算几何）。
 var _pump_piped: Dictionary = {}
@@ -103,6 +108,9 @@ func _prune_buffers(world) -> void:
 	for id in _drain_timer.keys():
 		if not world.is_alive(id):
 			_drain_timer.erase(id)
+	for id in _watered_prev.keys():
+		if not world.is_alive(id):
+			_watered_prev.erase(id)
 
 
 # ================================================================ 公开查询/缓冲接口
@@ -364,8 +372,28 @@ func _water_network(world, dt: float) -> void:
 		var gp = world.get_component(id, &"GridPosition")
 		if gp == null:
 			continue
-		watered[id] = _touched_by_pipe(world, gp.cell, reach)
+		var now: bool = _touched_by_pipe(world, gp.cell, reach)
+		var was: bool = bool(_watered_prev.get(id, false))
+		watered[id] = now
+		_maybe_pipe_hint(world, id, now, was)
+		_watered_prev[id] = now
 	_drain_pumps(world, pump_ids, dt)
+
+
+## 断水提示（产品裁定 ①「无声失败」）：真→假 + 旁边确有管道 ⇒ 管道方向没指向该建筑，
+## 发 world.water_lost 让表现层提示「管道方向需指向建筑」。
+## **边沿触发**：只在翻转这一 tick 发（不读电平，滞留断水态不会 10Hz 连发）；
+## 恢复供水后 prev 变真，下次断水自然算新边沿，不需要额外标记。
+## 泵自身不发：泵端不判方向（见 _adjacent_pipes），提示会误导。
+func _maybe_pipe_hint(world, id: int, now: bool, was: bool) -> void:
+	if now or not was:
+		return
+	var prod = world.get_component(id, &"Production")
+	if prod != null and prod.recipe_id == RECIPE_PUMP:
+		return
+	if _adjacent_pipes(world, id).is_empty():
+		return
+	world.water_lost.emit(id)
 
 
 ## 「当周期能扣电开工」：已经扣过电在产（active）或池里够 1 电（能开下一次）。

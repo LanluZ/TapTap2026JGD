@@ -684,7 +684,7 @@
 				}
 			],
 			"start_resources": {
-				"parts": 10
+				"parts": 14
 			},
 			"hand_start_cards": [
 				"card_generator",
@@ -1082,7 +1082,7 @@
 				}
 			],
 			"start_resources": {
-				"parts": 12
+				"parts": 16
 			},
 			"hand_start_cards": [
 				"card_generator",
@@ -1641,7 +1641,7 @@
 				}
 			],
 			"start_resources": {
-				"parts": 10
+				"parts": 14
 			},
 			"hand_start_cards": [
 				"card_generator",

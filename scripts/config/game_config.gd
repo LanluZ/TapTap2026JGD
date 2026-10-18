@@ -64,7 +64,7 @@ var resources: Dictionary = {} # id -> {id, name}
 var enemies: Dictionary = {} # id -> {name, hp, speed, elite, loot_id, loot_amount}
 var recipes: Dictionary = {} # id -> {inputs, outputs}（StringName -> int）
 var projectiles: Dictionary = {} # id -> {speed}
-var blueprints: Dictionary = {} # id -> {name, cost, components}
+var blueprints: Dictionary = {} # id -> {name, cost, genome, start_ammo}（start_ammo 缺省 0）
 var effects: Dictionary = {} # id -> {stat_id, value, duration}
 var cards: Dictionary = {} # id -> {name, cost, effect}
 var levels: Dictionary = {} # id -> 归一化关卡
@@ -247,18 +247,30 @@ func _parse_factories(data, src: String) -> void:
 		var genome = _validate_genome(ctx, d.get("genome", null))
 		if genome == null:
 			continue # 校验错误已记录
+		# 初始弹药（T6-9 产品裁定）：炮塔蓝图可选字段，缺省 0（向后兼容：融合子代/旧蓝图不带该字段即空仓）。
+		# 只对真有 Attack 的蓝图有意义——写在无攻击蓝图上是静默无效配置，按本文件原则报错。
+		var start_ammo := 0
+		if d.has("start_ammo"):
+			start_ammo = _req_int(d, "start_ammo", ctx)
+			if start_ammo < 0:
+				_err("%s: start_ammo 应 ≥ 0，得到 %d" % [ctx, start_ammo])
 		# 价格由基因表达（§18.2）：蓝图不再手写价格；若手写则必须与段价一致
 		var cost := GenomeScript.price_of(genome, genes)
 		if d.has("cost"):
 			var hand := _req_res_map(d, "cost", ctx, true)
 			if hand != cost:
 				_err("%s: 手写 cost %s 与 DNA 段价 %s 不一致（价格是基因型的函数，禁止双源）" % [ctx, str(hand), str(cost)])
+		var has_attack := false
 		for spec in GenomeScript.express(genome, genes, id, name):
+			if spec is Dictionary and str((spec as Dictionary).get("type", "")) == "Attack":
+				has_attack = true
 			_validate_component(ctx, id, spec)
+		if start_ammo > 0 and not has_attack:
+			_err("%s: start_ammo=%d 但蓝图不表达 Attack 组件（该字段会被静默忽略）" % [ctx, start_ammo])
 		if blueprints.has(StringName(id)):
 			_err("%s: 蓝图 id 重复 '%s'" % [ctx, id])
 			continue
-		blueprints[StringName(id)] = {"id": StringName(id), "name": name, "cost": cost, "genome": genome}
+		blueprints[StringName(id)] = {"id": StringName(id), "name": name, "cost": cost, "genome": genome, "start_ammo": start_ammo}
 
 
 func _validate_component(ctx: String, blueprint_id: String, spec) -> void:

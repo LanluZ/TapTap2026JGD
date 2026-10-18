@@ -4,6 +4,10 @@ extends System
 ## 可建造性由关卡标注（§6 path_cells/buildable_cells），本系统提供同步校验
 ## API 供 CommandSystem（#1）即时调用；每帧另做占用一致性清扫。
 
+## 拒绝原因前缀：格已有线。CommandSystem 据此在回执里补「拐角格要留给后一段」
+## （产品裁定：拖拐弯时上一段占住拐角格，下一段必须从空格续拖）。
+const REASON_HAS_LINE := "格子已有线路"
+
 ## 工厂放置：格子存在、关卡标注可建造、无占用。
 ## 入参同样是协议形态（Vector2i / Vector2 / [x, y]）——UI 与指令侧可直接抛 [x, y]，
 ## 归一化失败（null）一律拒绝，不做隐式强转（T2-1）。
@@ -87,7 +91,7 @@ func _line_cell_reason(world, cell: Vector2i) -> String:
 	if c.occupant != 0:
 		return "格子被工厂占用: %s" % str(cell)
 	if c.has_line():
-		return "格子已有线路（%s）: %s" % [String(c.line_kind), str(cell)]
+		return "%s（%s）: %s" % [REASON_HAS_LINE, String(c.line_kind), str(cell)]
 	return ""
 
 

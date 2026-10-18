@@ -116,6 +116,9 @@ func _place_factory(world, blueprint_id: String, cell) -> bool:
 	var id: int = world.create_entity()
 	var display_name := GenomeScript.phenotype_name(bp["genome"], world.config.genes) # 表型命名（策划案 15.6）
 	var specs: Array = GenomeScript.express(bp["genome"], world.config.genes, blueprint_id, display_name)
+	# 蓝图级初始弹药（裁定 T6-9）：炮塔落地即有弹；蓝图无该字段（含融合子代）→ 0 = 空仓，
+	# 与旧行为一致（旧行为靠投料装弹；这里只改初值，不动投料/拒收规则）。
+	var start_ammo: int = int(bp.get("start_ammo", 0))
 	for spec in specs:
 		var sd: Dictionary = spec
 		var comp = GameConfig.make_component(str(sd.get("type", "")), sd)
@@ -124,6 +127,8 @@ func _place_factory(world, blueprint_id: String, cell) -> bool:
 			world.destroy_entity(id)
 			_reject(world, "蓝图 %s 组件创建失败: %s" % [blueprint_id, str(sd.get("type", ""))])
 			return false
+		if comp is Attack:
+			comp.ammo = start_ammo
 		if comp is GridPosition:
 			comp.cell = cell
 		world.add_component(id, comp)
@@ -194,6 +199,10 @@ func _place_line(world, kind: String, cells, dir_v) -> bool:
 		return false
 	var reason: String = _grid_system.can_place_line(world, cells, kind, dir_v)
 	if not reason.is_empty():
+		# 拐弯提示（产品裁定）：一格式一物 ⇒ 拖 L 形时上一段已占拐角格，下一段必然被拒。
+		# 只在「格已有线」这一因上补一句怎么绕过；其余拒绝原因原样透出（不改判定规则）。
+		if reason.begins_with(GridSystem.REASON_HAS_LINE):
+			reason += "——拐角格要留给后一段，从空格续拖"
 		_reject(world, reason)
 		return false
 	var k := StringName(kind)
