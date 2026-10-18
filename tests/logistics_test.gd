@@ -108,6 +108,15 @@ func _grant(world) -> void:
 		world.state.add(StringName(rid), 200)
 
 
+## 隔离生产端（任务 5 起泵会把产出写进同一个本地缓冲）：把周期拉到极大，
+## 避免自动补水/补矿干扰「排水/注入速率」的精确断言。
+## 生产端 → 缓冲的接线由 tests/production_test.gd 覆盖，这里只测物流侧。
+func _freeze_production(world, id: int) -> void:
+	var prod = world.get_component(id, &"Production")
+	if prod != null:
+		prod.interval = 1.0e9
+
+
 ## 放置工厂并返回实体 id（0 = 失败）。
 func _place_factory_at(world, blueprint: String, cell: Vector2i) -> int:
 	world.push_command({"type": "place_factory", "blueprint_id": blueprint, "cell": [cell.x, cell.y]})
@@ -490,17 +499,33 @@ func _t15_inject() -> void:
 
 
 func _t16_deliver() -> void:
-	print("== T16: 端头对接建筑 → world.deliver_ore（stub）==")
+	print("== T16: 端头对接建筑 → world.deliver_ore（任务 5 分流）==")
+	# 装配台（配方带矿堆进料）接收矿 → 本地库存；炮塔填弹药是任务 6，其余建筑拒收
+	#（拒收 = 返回 false，块留在端头等待，不消失）。
 	var w = _new_world()
-	var gen: int = _place_factory_at(w, "generator", Vector2i(3, 6))
-	_ok(gen != 0, "T16: 建筑落位 [3,6]（实体 %d）" % gen)
+	_grant(w)
+	var asm: int = _place_factory_at(w, "assembler", Vector2i(3, 6))
+	_ok(asm != 0, "T16: 装配台落位 [3,6]（实体 %d）" % asm)
 	_ok(_place(w, "belt", [[2, 6]], [1, 0]) == 0, "T16: 端头带 [2,6] dir(1,0) 指向建筑")
 	_set_items(w, Vector2i(2, 6), [1.0])
 	w.tick(DT)
-	_ok(_deliveries.size() == 1 and int(_deliveries[0]) == gen,
-		"T16: 对接建筑交付一次且携带实体 id（实际 %s）" % str(_deliveries))
+	_ok(_deliveries.size() == 1 and int(_deliveries[0]) == asm,
+		"T16: 对接装配台交付一次且携带实体 id（实际 %s）" % str(_deliveries))
 	_ok(_items(w, Vector2i(2, 6)).is_empty(), "T16: 交付后块从端头移除")
-	_ok(w.deliver_ore(gen), "T16: world.deliver_ore(entity_id) 返回 true（任务 6 前的 stub）")
+	var stock = w.get_component(asm, &"ResourceBuffer")
+	_ok(stock.count_of(&"ore") == 1, "T16: 矿进装配台本地库存（实际 %d）" % stock.count_of(&"ore"))
+	_ok(w.deliver_ore(asm), "T16: world.deliver_ore(装配台) 返回 true")
+
+	# 不接收矿的建筑（发电机：无 Attack、配方无矿堆进料）→ 交付失败，块滞留端头
+	var w2 = _new_world()
+	var gen: int = _place_factory_at(w2, "generator", Vector2i(3, 6))
+	_ok(gen != 0, "T16: 发电机落位 [3,6]")
+	_ok(_place(w2, "belt", [[2, 6]], [1, 0]) == 0, "T16: 发电机端头带")
+	_set_items(w2, Vector2i(2, 6), [1.0])
+	w2.tick(DT)
+	_ok(_deliveries.is_empty(), "T16: 发电机不接收矿 → 不发 ore_delivered（实际 %s）" % str(_deliveries))
+	_ok(_items(w2, Vector2i(2, 6)).size() == 1, "T16: 交付失败 → 块留在端头等待（不消失）")
+	_ok(not w2.deliver_ore(gen), "T16: world.deliver_ore(发电机) 返回 false")
 
 
 func _t17_inject_rate() -> void:
@@ -659,6 +684,7 @@ func _t22_pump_drain() -> void:
 	_grant(w)
 	var lg = _logi(w)
 	var pump: int = _place_factory_at(w, "pump", Vector2i(4, 3))
+	_freeze_production(w, pump) # 只测物流侧排水，隔离生产端补水
 	_ok(_place(w, "pipe", [[5, 3]], [-1, 0]) == 0, "T22: 泵对接管 [5,3] dir(-1,0)")
 	lg.add_buffer(pump, 99)
 	_ok(lg.buffer_of(pump) == 4, "T22: 缓冲上限 4（实际 %d）" % lg.buffer_of(pump))
@@ -686,6 +712,7 @@ func _t22_pump_drain() -> void:
 	_grant(w3)
 	var lg3 = _logi(w3)
 	var pump3: int = _place_factory_at(w3, "pump", Vector2i(4, 3))
+	_freeze_production(w3, pump3) # 只测物流侧排水，隔离生产端补水
 	_ok(_place(w3, "pipe", [[5, 3]], [1, 0]) == 0, "T22: 背离泵的管 [5,3] dir(1,0)")
 	_ok(lg3.pump_connected(pump3), "T22: 背离泵的管也判为有对接管（泵端不查方向）")
 	lg3.add_buffer(pump3, 99)
@@ -728,6 +755,7 @@ func _t24_drag_end_to_end() -> void:
 	var lg = _logi(w)
 	var pump: int = _place_factory_at(w, "pump", Vector2i(4, 3))
 	var turret: int = _place_factory_at(w, "gun_turret", Vector2i(8, 3))
+	_freeze_production(w, pump) # 只测排水与供水，隔离生产端补水
 	_ok(pump != 0 and turret != 0, "T24: 泵 [4,3] 与炮塔 [8,3] 落位")
 	_ok(_place(w, "pipe", [[5, 3], [6, 3], [7, 3]], [1, 0]) == 0,
 		"T24: 一条拖拽指令写三格、全条 dir(1,0)（= 真实拖拽，贴泵段 [5,3] 背向泵）")

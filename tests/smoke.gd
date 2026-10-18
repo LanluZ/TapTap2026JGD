@@ -157,20 +157,22 @@ func _run() -> int:
 	_ok(rejects4.size() == 1, "判败后指令被拒绝")
 
 	print("== T5: 配方产出与欠料停产 ==")
-	# T5a 水泵：欠电停产 → 投电产水 → 电尽再停产
+	# T5a 水泵：欠电停产 → 投电产水进本地缓冲（任务 5：水不进资源池）→ 电尽再停产
 	var w5 := _make_world(config)
 	var st5 = w5.state
+	var lg5 = w5.get_system("LogisticsSystem")
 	w5.push_command({"type": "place_factory", "blueprint_id": "pump", "cell": [3, 3]})
 	w5.tick(DT)
 	var pump_id := _find_factory(w5, &"pump")
 	_ok(pump_id != 0, "place_factory 指令创建工厂实体")
 	_ok(w5.grid.get_cell(Vector2i(3, 3)).occupant == pump_id, "网格记录占用者")
+	_ok(lg5 != null, "LogisticsSystem 已注册（本地缓冲查询入口）")
 	var t5 := 0.0
 	while t5 < 5.0:
 		w5.tick(DT)
 		t5 += DT
 	var prod5 = w5.get_component(pump_id, &"Production")
-	_ok(st5.get_amount(&"water") == 0, "欠料（无电力）时零产出")
+	_ok(lg5.buffer_of(pump_id) == 0 and st5.get_amount(&"water") == 0, "欠料（无电力）时零产出")
 	_ok(not prod5.active and prod5.progress == 0.0, "停产待料：active=false, progress=0")
 	st5.add(&"power", 3)
 	var guard5 := 0
@@ -178,17 +180,19 @@ func _run() -> int:
 		w5.tick(DT)
 		guard5 += 1
 	var t5b := 0.0
-	while t5b < 3.0: # 等缓冲汇入
+	while t5b < 3.0: # 等已扣电的周期走完
 		w5.tick(DT)
 		t5b += DT
-	_ok(st5.get_amount(&"water") == 3, "投入 3 电力产出 3 水（实际 %d）" % st5.get_amount(&"water"))
+	_ok(lg5.buffer_of(pump_id) == 3, "投入 3 电力产 3 水进本地缓冲（实际 %d）" % lg5.buffer_of(pump_id))
+	_ok(st5.get_amount(&"water") == 0, "水不再汇入资源池（water=%d）" % st5.get_amount(&"water"))
 	_ok(st5.get_amount(&"power") == 0, "电力作为配方输入被逐次扣除")
-	var water_at_stop: int = st5.get_amount(&"water")
+	var water_at_stop: int = lg5.buffer_of(pump_id)
 	var t5c := 0.0
 	while t5c < 5.0:
 		w5.tick(DT)
 		t5c += DT
-	_ok(st5.get_amount(&"water") == water_at_stop, "电力耗尽后停产（水停在 %d）" % water_at_stop)
+	_ok(lg5.buffer_of(pump_id) == water_at_stop, "电力耗尽后停产（本地缓冲停在 %d）" % water_at_stop)
+	_ok(st5.get_amount(&"water") == 0, "停产期间水仍不进池（water=%d）" % st5.get_amount(&"water"))
 	_ok(not prod5.active, "欠料时 active=false")
 	# T5b 发电机：无输入配方持续产电（电力是普通资源 §7）
 	var w5b := _make_world(config)

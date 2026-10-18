@@ -114,6 +114,15 @@ func buffer_full(entity_id: int) -> bool:
 	return buffer_of(entity_id) >= BUFFER_CAPACITY
 
 
+## 本地缓冲剩余空间（任务 5 开产判据：本次产出放得下才扣款开工，不溢出丢弃）。
+func buffer_space(entity_id: int) -> int:
+	return maxi(BUFFER_CAPACITY - buffer_of(entity_id), 0)
+
+
+func buffer_has_space(entity_id: int, amount: int = 1) -> bool:
+	return buffer_space(entity_id) >= maxi(amount, 0)
+
+
 ## 生产端入缓冲（任务 5 调用）：返回实际进入的数量（受 BUFFER_CAPACITY 截断）。
 func add_buffer(entity_id: int, amount: int = 1) -> int:
 	var cur := buffer_of(entity_id)

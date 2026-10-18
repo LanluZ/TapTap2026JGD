@@ -135,10 +135,23 @@ func entity_ids() -> Array:
 	return _alive.keys()
 
 
-## 矿块交付 stub（任务 3）：传送带端头对接建筑时由 LogisticsSystem 调用。
-## 本任务只发 world.ore_delivered 并按「接收成功」返回 true；任务 6 在此实装弹药填充
-## （届时建筑弹药满应返回 false，让块留在端头等待）。
+## 矿块交付（传送带端头对接建筑时由 LogisticsSystem 调用）：任务 5 实装分流。
+## 返回 false = 本帧不接收 → 块留在端头等待（不吞、不算掉落）。
+##   ① 有 Attack（炮塔）：弹药填充是任务 6，本任务先不接收（false），避免矿被静默吞掉；
+##   ② 有 Production 且配方带矿堆进料（装配台 synth_special）：进本地库存
+##      （ResourceBuffer.stored.ore，上限 6，见 ResourceBuffer.ore_cap_of），满则 false；
+##   ③ 其余（发电机/光环/无进料配方）：false。
+## 进料库存以 ResourceBuffer.cap > 0 为标志，由 ProductionSystem 按配方写入（单一判据）。
 func deliver_ore(entity_id: int) -> bool:
+	if not is_alive(entity_id):
+		return false
+	if has_component(entity_id, &"Attack"):
+		return false # 任务 6：填弹药（届时改为弹药满才拒收）
+	var buffer = get_component(entity_id, &"ResourceBuffer")
+	if buffer == null or int(buffer.cap) <= 0:
+		return false
+	if buffer.add(&"ore", 1) <= 0:
+		return false # 库存满：块留在端头
 	ore_delivered.emit(entity_id)
 	return true
 
