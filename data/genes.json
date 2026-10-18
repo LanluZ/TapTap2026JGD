@@ -132,6 +132,30 @@
 			}
 		},
 		{
+			"id": "hydro",
+			"name": "亲水",
+			"kind": "hydro",
+			"alleles": {
+				"hydro_love": {
+					"code": "A",
+					"label": "喜水",
+					"price": {
+						"parts": 4
+					}
+				},
+				"hydro_thirsty": {
+					"code": "T",
+					"label": "嗜水",
+					"price": {}
+				},
+				"hydro_none": {
+					"code": "C",
+					"label": "漠水",
+					"price": {}
+				}
+			}
+		},
+		{
 			"id": "buffer",
 			"name": "后勤",
 			"kind": "buffer",

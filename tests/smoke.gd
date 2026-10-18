@@ -210,7 +210,7 @@ func _run() -> int:
 	w6.tick(DT)
 	var turret_id := _find_factory(w6, &"gun_turret")
 	_ok(turret_id != 0, "炮塔放置成功")
-	_ok(st6.get_amount(&"parts") == 40, "蓝图 cost 扣费 10 零件（余额 %d）" % st6.get_amount(&"parts"))
+	_ok(st6.get_amount(&"parts") == 36, "蓝图 cost 扣费 14 零件（含喜水×4，余额 %d）" % st6.get_amount(&"parts"))
 	var eid6 := _spawn_test_enemy(w6, config, &"slime")
 	var died6: Array = []
 	w6.entity_died.connect(func(e): died6.append(e))
@@ -220,12 +220,12 @@ func _run() -> int:
 		ticks6 += 1
 	_ok(not w6.is_alive(eid6), "炮塔击杀目标敌人（用时 %d tick）" % ticks6)
 	_ok(died6.has(eid6), "entity_died 信号发出")
-	_ok(st6.get_amount(&"parts") > 40, "击杀掉落入账零件（余额 %d）" % st6.get_amount(&"parts"))
+	_ok(st6.get_amount(&"parts") > 36, "击杀掉落入账零件（余额 %d）" % st6.get_amount(&"parts"))
 
 	print("== T6b: 瞄准策略（DNA 瞄准座）==")
-	# 纯函数：座7 改 farthest → Attack.targeting 跟着变
+	# 纯函数：座8 改 farthest → Attack.targeting 跟着变
 	var g_tgt: Array = config.blueprints[&"gun_turret"]["genome"].duplicate(true)
-	g_tgt[7] = { "bases": "T" } # farthest 的碱基（基因型即数据）
+	g_tgt[8] = { "bases": "T" } # farthest 的碱基（基因型即数据）
 	var tgt_specs: Array = Genome.express(g_tgt, config.genes, "gun_turret", "轻炮")
 	var tgt_value := ""
 	for s in tgt_specs:

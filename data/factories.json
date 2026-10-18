@@ -24,6 +24,9 @@
 				},
 				null,
 				{
+					"allele": "hydro_none"
+				},
+				{
 					"allele": "m"
 				},
 				{
@@ -46,6 +49,9 @@
 					}
 				},
 				null,
+				{
+					"allele": "hydro_none"
+				},
 				{
 					"allele": "m"
 				},
@@ -70,6 +76,9 @@
 				},
 				null,
 				{
+					"allele": "hydro_none"
+				},
+				{
 					"allele": "m"
 				},
 				{
@@ -92,6 +101,9 @@
 					}
 				},
 				null,
+				{
+					"allele": "hydro_love"
+				},
 				{
 					"allele": "m"
 				},
@@ -119,6 +131,9 @@
 				},
 				null,
 				null,
+				{
+					"allele": "hydro_love"
+				},
 				null,
 				{
 					"allele": "x3"
@@ -142,6 +157,9 @@
 						"radius": 140
 					}
 				},
+				{
+					"allele": "hydro_none"
+				},
 				null,
 				null,
 				{
@@ -162,6 +180,9 @@
 					"params": {
 						"radius": 120
 					}
+				},
+				{
+					"allele": "hydro_none"
 				},
 				null,
 				{
@@ -188,6 +209,9 @@
 				},
 				null,
 				null,
+				{
+					"allele": "hydro_thirsty"
+				},
 				null,
 				null,
 				{
@@ -210,6 +234,9 @@
 					"params": {
 						"radius": 128
 					}
+				},
+				{
+					"allele": "hydro_none"
 				},
 				null,
 				null,

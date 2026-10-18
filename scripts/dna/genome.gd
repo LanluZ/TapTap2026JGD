@@ -1,7 +1,7 @@
 class_name Genome
 extends RefCounted
 ## DNA 基因组（规格 docs/superpowers/specs/2026-10-13-dna-fusion-design.md）。
-## 基因组 = Array，长度 = genes.json loci 数（7），每座为 null（无基因）
+## 基因组 = Array，长度 = genes.json loci 数（9），每座为 null（无基因）
 ## 或 {"bases": String, "params": Dictionary}。碱基（A/T/C/G）是基因型唯一数据源：
 ## 座 code→等位基因表在 genes.json，解码统一走 allele_at（改 bases 即改基因型）。
 ## 作者层（factories.json）可写 {"allele", "params"}，GameConfig._validate_genome
@@ -57,10 +57,16 @@ static func express(genome: Array, genes: Dictionary, blueprint_id: String, disp
 	var stats := _params_of(_at(genome, 1), loci, 1)
 	# 座0 攻击类型 + 座1 数值
 	var attack_allele := allele_at(_at(genome, 0), 0, genes)
-	var targeting := "nearest" # 座7 瞄准：空座回落到最近
-	var targeting_allele := allele_at(_at(genome, 7), 7, genes)
+	var targeting := "nearest" # 座8 瞄准：空座回落到最近
+	var targeting_allele := allele_at(_at(genome, 8), 8, genes)
 	if not targeting_allele.is_empty():
 		targeting = targeting_allele
+	# 座4 亲水：写入 Attack/Production 的 hydro 字段（空座/非亲水座回落到漠水）
+	var hydro := &"hydro_none"
+	if loci.size() > 4 and str((loci[4] as Dictionary).get("kind", "")) == "hydro":
+		var hydro_allele := allele_at(_at(genome, 4), 4, genes)
+		if not hydro_allele.is_empty():
+			hydro = StringName(hydro_allele)
 	if not attack_allele.is_empty():
 		var payload: Dictionary = _allele_payload(loci, 0, attack_allele)
 		specs.append({
@@ -69,19 +75,21 @@ static func express(genome: Array, genes: Dictionary, blueprint_id: String, disp
 			"damage": float(stats.get("damage", _default_param(loci, 1, "damage"))),
 			"cooldown": float(stats.get("cooldown", _default_param(loci, 1, "cooldown"))),
 			"target_mask": 1, "targeting": targeting, "projectile": str(payload.get("projectile", "")),
+			"hydro": hydro,
 		})
 	# 座2 生产（Production 必配 ResourceBuffer，架构 §4 约束）
 	var prod = _at(genome, 2)
 	var prod_allele := allele_at(prod, 2, genes)
 	var buffer_flush := 1.0 # buffer 座缺省时的兜底汇入周期
-	var buffer_allele := allele_at(_at(genome, 4), 4, genes)
+	var buffer_allele := allele_at(_at(genome, 5), 5, genes)
 	if not buffer_allele.is_empty():
-		buffer_flush = float(_allele_payload(loci, 4, buffer_allele).get("flush_interval", 1.0))
+		buffer_flush = float(_allele_payload(loci, 5, buffer_allele).get("flush_interval", 1.0))
 	if not prod_allele.is_empty():
 		var iparams := _params_of(prod, loci, 2)
 		specs.append({
 			"type": "Production", "recipe_id": prod_allele,
 			"interval": float(iparams.get("interval", _default_param(loci, 2, "interval"))),
+			"hydro": hydro,
 		})
 		specs.append({ "type": "ResourceBuffer", "flush_interval": buffer_flush })
 	elif not buffer_allele.is_empty():

@@ -8,4 +8,5 @@ var cooldown: float = 0.0 # 两次发射间隔（秒）
 var target_mask: int = 0 # 目标位掩码（GameConfig.MASK_*）
 var targeting: StringName = &"nearest" # 瞄准策略（DNA 瞄准座：nearest/farthest/highest_hp/lowest_hp）
 var projectile: StringName = &"" # 射弹定义 id（factories.json projectiles）
+var hydro: StringName = &"hydro_none" # 亲水基因：hydro_love / hydro_thirsty / hydro_none（断水惩罚由系统读取）
 var cooldown_left: float = 0.0 # 剩余冷却

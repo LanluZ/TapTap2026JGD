@@ -7,4 +7,5 @@ extends Component
 var recipe_id: StringName = &""
 var progress: float = 0.0
 var interval: float = 0.0 # 单次生产周期（秒）
+var hydro: StringName = &"hydro_none" # 亲水基因：hydro_love / hydro_thirsty / hydro_none（断水惩罚由系统读取）
 var active: bool = false

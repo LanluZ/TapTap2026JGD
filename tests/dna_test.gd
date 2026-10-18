@@ -41,13 +41,27 @@ func _run() -> int:
 		return 1
 
 	print("== T0: 基因座与蓝图基因组 ==")
-	_ok(config.genes.has("loci") and (config.genes["loci"] as Array).size() == 8, "genes.json 8 个基因座已加载")
-	var tgt_locus: Dictionary = (config.genes["loci"] as Array)[7]
+	_ok(config.genes.has("loci") and (config.genes["loci"] as Array).size() == 9, "genes.json 9 个基因座已加载")
+	var hydro_locus: Dictionary = (config.genes["loci"] as Array)[4]
+	_ok(str(hydro_locus.get("id", "")) == "hydro" and str(hydro_locus.get("kind", "")) == "hydro"
+		and (hydro_locus.get("alleles", {}) as Dictionary).size() == 3,
+		"亲水座在下标 4（aura 之后、buffer 之前，3 个等位基因）")
+	var hydro_alleles: Dictionary = hydro_locus.get("alleles", {})
+	var hydro_love: Dictionary = hydro_alleles.get("hydro_love", {})
+	var hydro_thirsty: Dictionary = hydro_alleles.get("hydro_thirsty", {})
+	var hydro_none: Dictionary = hydro_alleles.get("hydro_none", {})
+	_ok(str(hydro_love.get("code", "")) == "A" and int((hydro_love.get("price", {}) as Dictionary).get("parts", 0)) == 4,
+		"喜水 = 碱基 A，价 parts×4")
+	_ok(str(hydro_thirsty.get("code", "")) == "T"
+		and (hydro_thirsty.get("price", {}) as Dictionary).is_empty()
+		and str(hydro_none.get("code", "")) == "C" and (hydro_none.get("price", {}) as Dictionary).is_empty(),
+		"嗜水 = T、漠水 = C，均免费")
+	var tgt_locus: Dictionary = (config.genes["loci"] as Array)[8]
 	_ok(str(tgt_locus.get("id", "")) == "targeting" and (tgt_locus.get("alleles", {}) as Dictionary).size() == 4,
 		"瞄准座已加载（4 个策略等位基因）")
 	for bid in ["generator", "pump", "miner", "assembler", "gun_turret", "frost_beacon", "command_post"]:
 		var bp: Dictionary = config.blueprints[StringName(bid)]
-		_ok(bp.has("genome") and (bp["genome"] as Array).size() == 8, "蓝图 %s 附带 8 座基因组" % bid)
+		_ok(bp.has("genome") and (bp["genome"] as Array).size() == 9, "蓝图 %s 附带 9 座基因组" % bid)
 		_ok(not bp.has("components"), "蓝图 %s 不再手写组件清单" % bid)
 
 	print("== T1: 基因组表达 ==")
@@ -64,18 +78,33 @@ func _run() -> int:
 		if s.get("type", "") == "Production":
 			has_prod = true
 	_ok(has_attack and not has_prod, "炮塔基因组只表达攻击不表达生产")
+	_ok(str(specs_hydro(specs, "Attack")) == "hydro_love", "炮塔亲水座（喜水）写入 Attack.hydro")
+	var heavy_specs: Array = GenomeScript.express(config.blueprints[&"gun_turret_heavy"]["genome"], config.genes, "gun_turret_heavy", "重炮")
+	_ok(str(specs_hydro(heavy_specs, "Attack")) == "hydro_thirsty", "重炮塔亲水座（嗜水）写入 Attack.hydro")
+	var asm_specs: Array = GenomeScript.express(config.blueprints[&"assembler"]["genome"], config.genes, "assembler", "装配台")
+	_ok(str(specs_hydro(asm_specs, "Production")) == "hydro_love", "装配台亲水座（喜水）写入 Production.hydro")
 	var gen_specs: Array = GenomeScript.express(config.blueprints[&"generator"]["genome"], config.genes, "generator", "发电机")
 	var gen_types := {}
 	for s in gen_specs:
 		gen_types[s.get("type", "")] = true
 	_ok(gen_types.has("Production") and gen_types.has("ResourceBuffer") and not gen_types.has("Attack"),
 		"发电机基因组表达 生产+缓冲、无攻击")
+	_ok(str(specs_hydro(gen_specs, "Production")) == "hydro_none", "发电机亲水座（漠水）写入 Production.hydro")
+	# 空座回落：座4 为 null 时 Attack/Production 默认漠水（断水无影响的兜底）
+	var blank_hydro: Array = config.blueprints[&"gun_turret"]["genome"].duplicate(true)
+	blank_hydro[4] = null
+	_ok(str(specs_hydro(GenomeScript.express(blank_hydro, config.genes, "gun_turret", "轻炮"), "Attack")) == "hydro_none",
+		"亲水座为空 → Attack.hydro 默认 hydro_none")
+	var blank_asm: Array = config.blueprints[&"assembler"]["genome"].duplicate(true)
+	blank_asm[4] = null
+	_ok(str(specs_hydro(GenomeScript.express(blank_asm, config.genes, "assembler", "装配台"), "Production")) == "hydro_none",
+		"亲水座为空 → Production.hydro 默认 hydro_none")
 
 	print("== T2: breed 结构与同种子确定性 ==")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1
 	var child := GenomeScript.breed(turret_genome, config.blueprints[&"miner"]["genome"], config.genes, rng)
-	_ok(child.size() == 8, "子代基因组 8 座")
+	_ok(child.size() == 9, "子代基因组 9 座")
 	var rng2 := RandomNumberGenerator.new()
 	rng2.seed = 1
 	var child2 := GenomeScript.breed(turret_genome, config.blueprints[&"miner"]["genome"], config.genes, rng2)
@@ -89,7 +118,9 @@ func _run() -> int:
 	_ok(tid != 0, "炮塔放置成功")
 	_ok(w.has_component(tid, &"Attack"), "放置后实体带 Attack 组件")
 	var fac = w.get_component(tid, &"Factory")
-	_ok(fac.display_name == "轻炮" and fac.genome.size() == 8, "Factory 组件携带 genome 与表型 display_name")
+	_ok(fac.display_name == "轻炮" and fac.genome.size() == 9, "Factory 组件携带 genome 与表型 display_name")
+	var atk3 = w.get_component(tid, &"Attack")
+	_ok(atk3 != null and String(atk3.hydro) == "hydro_love", "Attack 组件实例携带 hydro 字段（喜水）")
 
 	print("== T4: 融合指令全流程 ==")
 	w.push_command({ "type": "place_factory", "blueprint_id": "miner", "cell": [3, 2] })
@@ -159,7 +190,7 @@ func _run() -> int:
 	_ok(_fusion_card_count(config) == n3 + 1, "T7 融合执行")
 	var g_a: Array = config.blueprints[config.cards[_newest_fusion_card(config)]["effect"]["blueprint_id"]]["genome"]
 	# 与 T4 同种子(42)但双亲不同(炮塔+矿机 vs 炮塔+霜冻)——只验证基因组结构合法性
-	_ok(g_a.size() == 8, "端到端子代基因组 8 座")
+	_ok(g_a.size() == 9, "端到端子代基因组 9 座")
 
 	# 回归：打出融合子代卡不补抽（0 消耗自动抽 1 的例外）
 	var cs3 = w3.get_system("CardSystem")
@@ -184,7 +215,7 @@ func _run() -> int:
 	var parts_g: Array = FactoryViewScript.parts_for(config.blueprints[&"generator"]["genome"], config.genes)
 	_ok(_has_kind(parts_g, "chimney") and not _has_kind(parts_g, "barrel"), "发电机基因组 → 只有烟囱部件")
 	var hybrid := [turret_genome[0], turret_genome[1], config.blueprints[&"miner"]["genome"][2],
-		config.blueprints[&"frost_beacon"]["genome"][3], config.blueprints[&"miner"]["genome"][4], null, null]
+		config.blueprints[&"frost_beacon"]["genome"][3], null, config.blueprints[&"miner"]["genome"][5], null, null, null]
 	var parts_h: Array = FactoryViewScript.parts_for(hybrid, config.genes)
 	_ok(_has_kind(parts_h, "barrel") and _has_kind(parts_h, "chimney") and _has_kind(parts_h, "beacon")
 		and _has_kind(parts_h, "aura_ring") and _has_kind(parts_h, "crate"),
@@ -199,7 +230,7 @@ func _run() -> int:
 	print("== T10: DNA 序列文本与效果描述 ==")
 	_ok(config.effects[&"slow_field"].get("name", "") == "减速场", "buffs.json 显示名已加载")
 	var seq: String = GenomeScript.sequence_text(turret_genome, config.genes)
-	_ok(seq.split("\n").size() == 8, "序列文本 8 行（每座一行）")
+	_ok(seq.split("\n").size() == 9, "序列文本 9 行（每座一行）")
 	_ok(seq.find("attack_type: shot_light") != -1 and seq.find("attack_stats") != -1, "序列含攻击座与等位基因")
 	_ok(seq.find("production: —") != -1, "空座显示为 —")
 	var et: String = GenomeScript.effect_text(turret_genome, config.genes, config)
@@ -229,22 +260,23 @@ func _run() -> int:
 	_ok(GenomeScript.phenotype_name(config.blueprints[&"generator"]["genome"], config.genes) == "发电", "发电机 → 发电")
 	_ok(String(d1["name"]) == "轻炮", "卡面显示名走表型命名（gun_turret → 轻炮）")
 	var named := [turret_genome[0], turret_genome[1], config.blueprints[&"miner"]["genome"][2],
-		null, null, null, null, null]
+		null, null, null, null, null, null]
 	_ok(GenomeScript.phenotype_name(named, config.genes) == "采矿轻炮", "采矿+轻炮 → 采矿轻炮（策划案15.9示例）")
-	_ok(GenomeScript.phenotype_name([null, null, null, null, null, null, null, null], config.genes) == "空机", "空基因组 → 空机")
+	_ok(GenomeScript.phenotype_name([null, null, null, null, null, null, null, null, null], config.genes) == "空机", "空基因组 → 空机")
 	var bl: Array = GenomeScript.base_letters(turret_genome, config.genes)
-	_ok(bl.size() == 8 and String(bl[0]) != "—" and String(bl[2]) == "—" and String(bl[0]).length() == 1,
-		"碱基链 8 位：有基因为单字母、空座为—")
+	_ok(bl.size() == 9 and String(bl[0]) != "—" and String(bl[2]) == "—" and String(bl[0]).length() == 1,
+		"碱基链 9 位：有基因为单字母、空座为—")
+	_ok(String(bl[4]) == "A", "碱基链第 5 位 = 亲水座（炮塔喜水 A）")
 	_ok(bl[0] == GenomeScript.base_letters(turret_genome, config.genes)[0], "碱基编码确定性（同基因同碱基）")
 	_ok(GenomeScript.complement("A") == "T" and GenomeScript.complement("C") == "G"
 		and GenomeScript.complement("T") == "A" and GenomeScript.complement("G") == "C"
 		and GenomeScript.complement("—") == "—", "互补配对 A↔T、C↔G")
 	var dui: Dictionary = d1["dna_ui"]
-	_ok(dui.get("bases", []).size() == 8 and (dui.get("rules", []) as Array).is_empty()
-		and str(dui.get("title", "")) == "轻炮", "dna_ui 载荷：碱基8位 + 融合规则不进UI + 表型标题")
+	_ok(dui.get("bases", []).size() == 9 and (dui.get("rules", []) as Array).is_empty()
+		and str(dui.get("title", "")) == "轻炮", "dna_ui 载荷：碱基9位 + 融合规则不进UI + 表型标题")
 	var names: Array = dui.get("locus_names", [])
-	_ok(names.size() == 8 and str(names[0]) == "染色体01" and str(names[7]) == "染色体08",
-		"座名 = 染色体编号 01…08（不再用 genes.json 座名）")
+	_ok(names.size() == 9 and str(names[0]) == "染色体01" and str(names[8]) == "染色体09",
+		"座名 = 染色体编号 01…09（不再用 genes.json 座名）")
 	game.free()
 
 	print("== T13: 字母=数据（bases 即基因型）==")
@@ -264,21 +296,31 @@ func _run() -> int:
 		"反向查表：等位基因 → 碱基")
 
 	print("== T14: 归一化与非法输入校验 ==")
-	var n8: Array = [null, null, null, null, null, null, null, null]
-	var only_allele = config._validate_genome("t14", [{ "allele": "shot_light" }] + n8.slice(1))
+	var n9: Array = [null, null, null, null, null, null, null, null, null]
+	var only_allele = config._validate_genome("t14", [{ "allele": "shot_light" }] + n9.slice(1))
 	_ok(only_allele is Array and str((only_allele[0] as Dictionary).get("bases", "")) == "A"
 		and not (only_allele[0] as Dictionary).has("allele"),
 		"作者格式 allele 归一化为 bases（shot_light→A），不残留 allele 键")
-	var both_ok = config._validate_genome("t14", [{ "allele": "shot_light", "bases": "A" }] + n8.slice(1))
+	var both_ok = config._validate_genome("t14", [{ "allele": "shot_light", "bases": "A" }] + n9.slice(1))
 	_ok(both_ok is Array, "bases 与 allele 一致 → 通过")
-	var bad_bases = config._validate_genome("t14", [{ "bases": "X" }] + n8.slice(1))
+	var bad_bases = config._validate_genome("t14", [{ "bases": "X" }] + n9.slice(1))
 	_ok(bad_bases == null, "非法碱基 X 拒收")
-	var bad_code = config._validate_genome("t14", [{ "bases": "G" }] + n8.slice(1))
+	var bad_code = config._validate_genome("t14", [{ "bases": "G" }] + n9.slice(1))
 	_ok(bad_code == null, "座0 未声明的 code G 拒收（攻击座只定义 A/T）")
-	var bad_conflict = config._validate_genome("t14", [{ "allele": "shot_light", "bases": "T" }] + n8.slice(1))
+	var bad_conflict = config._validate_genome("t14", [{ "allele": "shot_light", "bases": "T" }] + n9.slice(1))
 	_ok(bad_conflict == null, "bases 与 allele 冲突拒收")
-	var bad_stats = config._validate_genome("t14", [null, { "bases": "T" }, null, null, null, null, null, null])
+	var bad_stats = config._validate_genome("t14", [null, { "bases": "T" }, null, null, null, null, null, null, null])
 	_ok(bad_stats == null, "数值座碱基非 allele_code 拒收（座1 只有 A）")
+	var bad_hydro = config._validate_genome("t14", [null, null, null, null, { "bases": "G" }, null, null, null, null])
+	_ok(bad_hydro == null, "亲水座未声明的 code G 拒收（亲水座只定义 A/T/C）")
+	var hydro_ok = config._validate_genome("t14", [null, null, null, null, { "allele": "hydro_thirsty" }, null, null, null, null])
+	_ok(hydro_ok is Array and str((hydro_ok[4] as Dictionary).get("bases", "")) == "T",
+		"亲水座作者格式 allele 归一化为 bases（hydro_thirsty→T）")
+	_ok(GenomeScript.price_of(turret_genome, config.genes).get("parts", 0) == 14
+		and GenomeScript.price_of(config.blueprints[&"assembler"]["genome"], config.genes).get("parts", 0) == 12
+		and GenomeScript.price_of(config.blueprints[&"gun_turret_heavy"]["genome"], config.genes).get("parts", 0) == 12
+		and GenomeScript.price_of(config.blueprints[&"generator"]["genome"], config.genes).is_empty(),
+		"亲水价计入蓝图费（炮塔 14 / 装配台 12 / 重炮塔 12 / 发电机 0）")
 
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return 0 if _failures == 0 else _failures
@@ -319,6 +361,14 @@ func _has_kind(parts: Array, kind: String) -> bool:
 		if str(p.get("kind", "")) == kind:
 			return true
 	return false
+
+
+## 表达规格里某组件类型的 hydro 字段（缺该组件返回空串）。
+func specs_hydro(specs: Array, type_name: String) -> String:
+	for s in specs:
+		if str((s as Dictionary).get("type", "")) == type_name:
+			return str(s.get("hydro", ""))
+	return ""
 
 
 func _newest_fusion_card(config) -> StringName:
