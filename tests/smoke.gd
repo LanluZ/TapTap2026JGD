@@ -208,6 +208,8 @@ func _run() -> int:
 
 	print("== T6: 索敌 → 射弹 → 击杀入账 ==")
 	var w6 := _make_world(config)
+	w6.state.waves_running = false # 任务 6：炮塔默认断弹（冷却 ×2 / 伤害 ×0.5），
+	# 关掉波次刷怪以免多目标分流把「单目标击杀链路」拖成边际失败（同 T6b 做法）
 	var st6 = w6.state
 	st6.add(&"parts", 50)
 	w6.push_command({"type": "place_factory", "blueprint_id": "gun_turret", "cell": [4, 2]})
@@ -215,6 +217,11 @@ func _run() -> int:
 	var turret_id := _find_factory(w6, &"gun_turret")
 	_ok(turret_id != 0, "炮塔放置成功")
 	_ok(st6.get_amount(&"parts") == 36, "蓝图 cost 扣费 14 零件（含喜水×4，余额 %d）" % st6.get_amount(&"parts"))
+	# 任务 6：炮塔已改吃弹药（默认 ammo=0 = 断弹：冷却 ×2、伤害 ×0.5）。
+	# 本用例测「索敌→射弹→击杀入账」链路，先按物流正常路径投 6 矿装满弹药。
+	for i in 6:
+		w6.deliver_ore(turret_id)
+	_ok(int(w6.get_component(turret_id, &"Attack").ammo) == 6, "炮塔弹药装满 6（供弹链路）")
 	var eid6 := _spawn_test_enemy(w6, config, &"slime")
 	var died6: Array = []
 	w6.entity_died.connect(func(e): died6.append(e))

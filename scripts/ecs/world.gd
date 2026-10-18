@@ -18,6 +18,14 @@ signal line_changed(cell: Vector2i, kind: StringName)
 ## 矿块交付（传送带端头对接建筑）：entity_id = 接收方实体。
 ## 任务 3 只发信号；任务 6 在此之后实装弹药/库存填充。
 signal ore_delivered(entity_id: int)
+## 矿块拒收（任务 6）：交付失败时发，供表现层做「炮塔弹药满 / 该建筑不吃矿」反馈。
+## reason = "full"（弹药或进料库存已满，块滞留带端）/ "no_feed"（该建筑不吃矿）。
+signal ore_rejected(entity_id: int, reason: String)
+
+## 弹药上限的权威来源（Attack 组件），deliver_ore 用它判「弹药满拒收」。
+const AttackScript = preload("res://scripts/components/attack.gd")
+const ORE_REJECT_FULL := "full"
+const ORE_REJECT_NO_FEED := "no_feed"
 
 ## —— 游戏层挂载点（由关卡 bootstrap 注入）——
 var config: RefCounted = null # GameConfig
@@ -135,28 +143,42 @@ func entity_ids() -> Array:
 	return _alive.keys()
 
 
-## 矿块交付（传送带端头对接建筑时由 LogisticsSystem 调用）：任务 5 实装分流。
+## 矿块交付（传送带端头对接建筑时由 LogisticsSystem 调用）：任务 5 实装分流、任务 6 实装弹药。
 ## 返回 false = 本帧不接收 → 块留在端头等待（不吞、不算掉落）。
-##   ① 有 Attack（炮塔）：弹药填充是任务 6，本任务先不接收（false），避免矿被静默吞掉；
+##   ① 有 Attack（炮塔）：**填弹药**（上限 AttackScript.AMMO_MAX = 6），满则 false；
 ##   ② 有 Production 且配方带矿堆进料（装配台 synth_special）：进本地库存
 ##      （ResourceBuffer.stored.ore，上限 6，见 ResourceBuffer.ore_cap_of），满则 false；
 ##   ③ 其余（发电机/光环/无进料配方）：false。
+## 设计裁定 N4：DNA 混种（同有 Attack 与 Production）**攻击优先**——矿填弹药，
+## 不进合成库存；弹药满也直接拒收（不回落 ②）。故 ① 必须留在 ② 之前，勿调换。
 ## 上限判据**不读派生字段 cap**：每次交付按 Production.recipe_id 现算（sync_feed_stock），
-## 因此刚放置、还没跑过任何 ProductionSystem.tick 的装配台也能立刻进料。
+## 因此刚放置、还没跑过任何 ProductionSystem tick 的装配台也能立刻进料。
+## 拒收一律发 ore_rejected(entity_id, reason)：reason = "full"（弹药/库存满）/
+## "no_feed"（该建筑不吃矿）。逻辑层到此为止，表现层（任务 7）用它做拒收反馈。
 func deliver_ore(entity_id: int) -> bool:
 	if not is_alive(entity_id):
 		return false
 	if has_component(entity_id, &"Attack"):
-		return false # 任务 6：填弹药（届时改为弹药满才拒收）
+		var atk = get_component(entity_id, &"Attack")
+		if int(atk.ammo) >= AttackScript.AMMO_MAX:
+			ore_rejected.emit(entity_id, ORE_REJECT_FULL)
+			return false # 弹药满：块留在端头等待
+		atk.ammo += 1
+		ore_delivered.emit(entity_id)
+		return true
 	if not has_component(entity_id, &"Production"):
+		ore_rejected.emit(entity_id, ORE_REJECT_NO_FEED)
 		return false # 无生产组件 = 无进料配方
 	var buffer = get_component(entity_id, &"ResourceBuffer")
 	if buffer == null:
+		ore_rejected.emit(entity_id, ORE_REJECT_NO_FEED)
 		return false
 	var prod = get_component(entity_id, &"Production")
 	if buffer.sync_feed_stock(prod.recipe_id) <= 0:
+		ore_rejected.emit(entity_id, ORE_REJECT_NO_FEED)
 		return false # 该配方不吃矿（or 库存上限 0）：块留在端头
 	if buffer.add(&"ore", 1) <= 0:
+		ore_rejected.emit(entity_id, ORE_REJECT_FULL)
 		return false # 库存满：块留在端头
 	ore_delivered.emit(entity_id)
 	return true

@@ -308,13 +308,20 @@ func _t6_deliver_routing() -> void:
 	var gen: int = _place_factory_at(w, "generator", Vector2i(8, 3))
 	_ok(asm != 0 and turret != 0 and gen != 0, "装配台 / 炮塔 / 发电机落位")
 	var deliveries: Array = []
+	var rejects: Array = []
 	w.ore_delivered.connect(func(e): deliveries.append(int(e)))
+	w.ore_rejected.connect(func(e, r): rejects.append([int(e), str(r)]))
 	_ok(w.deliver_ore(asm), "装配台（配方带矿堆进料）→ 接收")
 	_ok(_stock(w, asm, &"ore") == 1, "接收后库存 +1（%d）" % _stock(w, asm, &"ore"))
 	_ok(deliveries.size() == 1 and deliveries[0] == asm, "成功交付发 ore_delivered（%s）" % str(deliveries))
-	_ok(not w.deliver_ore(turret), "炮塔（有 Attack）：任务 6 前不收矿 → false（块滞留，不丢失）")
+	var turret_atk = w.get_component(turret, &"Attack")
+	_ok(w.deliver_ore(turret), "炮塔（有 Attack）：任务 6 起收矿填弹药 → true")
+	_ok(int(turret_atk.ammo) == 1, "炮塔弹药 +1（ammo=%d）" % int(turret_atk.ammo))
+	_ok(deliveries.size() == 2 and deliveries[1] == turret, "炮塔交付也发 ore_delivered（%s）" % str(deliveries))
 	_ok(not w.deliver_ore(gen), "发电机（配方无矿堆进料）→ false（块滞留）")
-	_ok(deliveries.size() == 1, "拒收不发 ore_delivered（%d 次）" % deliveries.size())
+	_ok(rejects.size() == 1 and int(rejects[0][0]) == gen and str(rejects[0][1]) == "no_feed",
+		"发电机拒收发 ore_rejected(gen, no_feed)（%s）" % str(rejects))
+	_ok(deliveries.size() == 2, "拒收不发 ore_delivered（%d 次）" % deliveries.size())
 	_ok(not w.deliver_ore(9999), "不存在的实体 → false（不报错）")
 	# 传送带端头对接装配台：块真正进库存并从带上消失
 	var w2 = _new_world()
