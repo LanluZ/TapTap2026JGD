@@ -225,7 +225,22 @@ func _run() -> int:
 	var eid6 := _spawn_test_enemy(w6, config, &"slime")
 	var died6: Array = []
 	w6.entity_died.connect(func(e): died6.append(e))
-	var ticks6 := 0
+	# T6-1：「敌人死了」对「有弹全伤」零判别力——断弹半伤（×0.5）同样能打死史莱姆。
+	# 单独锁定首发的定格伤害 == base（弹药 > 0 ⇒ 不乘 DRY_DAMAGE_MULT）。
+	var atk6 = w6.get_component(turret_id, &"Attack")
+	var base_dmg6: float = atk6.damage
+	w6.get_component(eid6, &"PathFollower").distance = 100.0 # 进场即入射程，首发确定发生
+	atk6.cooldown_left = 0.0
+	w6.tick(DT)
+	var ticks6 := 1
+	var first_dmg6 := -1.0
+	for pid in w6.query(&"Projectile"):
+		if not w6.is_alive(pid):
+			continue
+		first_dmg6 = float(w6.get_component(pid, &"Projectile").damage)
+	_ok(is_equal_approx(first_dmg6, base_dmg6),
+		"首发生效伤害 == base（%.1f vs %.1f）——有弹全伤，非断弹半伤" % [first_dmg6, base_dmg6])
+	_ok(int(atk6.ammo) == 5, "全伤发每发扣 1 矿（6 → %d）" % int(atk6.ammo))
 	while w6.is_alive(eid6) and ticks6 < 1200:
 		w6.tick(DT)
 		ticks6 += 1

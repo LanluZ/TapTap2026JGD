@@ -537,13 +537,16 @@ func _t17_inject_rate() -> void:
 	var w = _new_world()
 	_grant(w)
 	var miner: int = _place_factory_at(w, "miner", Vector2i(4, 3))
+	# 隔离生产端：否则矿机自己的产出会补缓冲，「缓冲仍 4」不再只反映注入（T3-9）
+	_freeze_production(w, miner)
 	var belt := Vector2i(4, 2)
 	_ok(_place(w, "belt", [belt], [0, -1]) == 0, "T17: 输出带 [4,2] dir(0,-1)——起点 0.0 贴矿机")
 	var lg = _logi(w)
 	lg.add_buffer(miner, 4)
-	# 堵转：下游堵塞 → 注入落点被 4 块塞满（容量满），每次注入都失败，节拍被钉在等待重试
+	# 堵转：下游堵塞 → 注入落点被 4 块塞满（容量满），每次注入都失败，节拍被钉在等待重试。
+	# 缓冲只在循环外一次性填满：若每个 tick 都回填 4 块，「缓冲仍 4」恒真，注入速率回归
+	# 就永远不会红（T3-9）。
 	for i in 6:
-		lg.add_buffer(miner, 4)
 		_set_items(w, belt, [0.0, 0.25, 0.5, 0.75])
 		w.tick(DT)
 	_ok(lg.buffer_of(miner) == 4, "T17: 堵转 6 tick 一块未注入（缓冲仍 %d）" % lg.buffer_of(miner))
@@ -559,6 +562,10 @@ func _t17_inject_rate() -> void:
 			inject_ticks.append(i + 1)
 	print("    T17: 疏通后注入发生在 tick %s（dt=%.2f）" % [str(inject_ticks), DT])
 	_ok(inject_ticks.size() >= 4, "T17: 疏通后注入持续恢复（%d 次）" % inject_ticks.size())
+	# 首因保护：注入次数不足时上面已报出失败，此处的首末下标计算会越界二次崩、
+	# 用 SCRIPT ERROR 盖掉首个失败原因（T3-11）⇒ 直接早退。
+	if inject_ticks.size() < 2:
+		return
 	# 最小间隔：节拍残留 dt 会让相邻两次注入只隔 0.4s（4 tick）
 	var min_gap: float = 999.0
 	for i in range(1, inject_ticks.size()):

@@ -59,10 +59,14 @@ func _run() -> int:
 	var tgt_locus: Dictionary = (config.genes["loci"] as Array)[8]
 	_ok(str(tgt_locus.get("id", "")) == "targeting" and (tgt_locus.get("alleles", {}) as Dictionary).size() == 4,
 		"瞄准座已加载（4 个策略等位基因）")
-	for bid in ["generator", "pump", "miner", "assembler", "gun_turret", "frost_beacon", "command_post"]:
+	for bid in ["generator", "pump", "miner", "assembler", "gun_turret", "gun_turret_heavy", "frost_beacon", "command_post", "signal_tower"]:
 		var bp: Dictionary = config.blueprints[StringName(bid)]
 		_ok(bp.has("genome") and (bp["genome"] as Array).size() == 9, "蓝图 %s 附带 9 座基因组" % bid)
 		_ok(not bp.has("components"), "蓝图 %s 不再手写组件清单" % bid)
+	# T1-1：signal_tower 只有光环座（无 Attack/Production ⇒ hydro 不落任何组件），
+	# 亲水座只体现在 genome[4]，这里按碱基解码断言它确实是漠水 C。
+	_ok(GenomeScript.allele_at(config.blueprints[&"signal_tower"]["genome"][4], 4, config.genes) == "hydro_none",
+		"signal_tower 亲水座碱基解码为 hydro_none（漠水）")
 
 	print("== T1: 基因组表达 ==")
 	var turret_genome: Array = config.blueprints[&"gun_turret"]["genome"]

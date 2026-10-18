@@ -5,17 +5,26 @@ extends System
 ## API 供 CommandSystem（#1）即时调用；每帧另做占用一致性清扫。
 
 ## 工厂放置：格子存在、关卡标注可建造、无占用。
-func can_build(world, cell: Vector2i) -> bool:
-	if world.grid == null:
+## 入参同样是协议形态（Vector2i / Vector2 / [x, y]）——UI 与指令侧可直接抛 [x, y]，
+## 归一化失败（null）一律拒绝，不做隐式强转（T2-1）。
+func can_build(world, cell) -> bool:
+	if world == null or world.grid == null:
 		return false
-	return world.grid.is_buildable(cell)
+	var c = _as_cell(cell)
+	if c == null:
+		return false
+	return world.grid.is_buildable(c)
 
 
 ## 地块放置（§7）：地块属于路面规则，只能放路径格（!buildable），且未被工厂占用。
-func can_place_tile(world, cell: Vector2i) -> bool:
-	if world.grid == null:
+## 入参形态同 can_build。
+func can_place_tile(world, cell) -> bool:
+	if world == null or world.grid == null:
 		return false
-	var c = world.grid.get_cell(cell)
+	var v = _as_cell(cell)
+	if v == null:
+		return false
+	var c = world.grid.get_cell(v)
 	return c != null and c.occupant == 0 and not c.buildable
 
 
@@ -89,8 +98,8 @@ func _is_axis_dir(v) -> bool:
 
 
 ## 坐标/方向归一化：Vector2i / Vector2 / [x, y] → Vector2i；非法返回 null。
-## 与 CommandSystem._cell_value 同构（指令层仍保留自己的入队归一，合并留终审分诊）。
-func _as_cell(v):
+## 全仓唯一归一化实现：CommandSystem._cell_value 直接转调本函数（不再各抄一份）。
+static func _as_cell(v):
 	if v is Vector2i:
 		return v
 	if v is Vector2:

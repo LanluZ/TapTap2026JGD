@@ -245,15 +245,9 @@ func _cells_of(d: Dictionary):
 	return out
 
 
+## 归一化转调 GridSystem 的唯一实现（T2-1：两份同构实现合并，避免协议形态分叉）。
 func _cell_value(v):
-	if v is Vector2i:
-		return v
-	if v is Vector2:
-		return Vector2i(int(v.x), int(v.y))
-	if v is Array and v.size() >= 2 \
-			and (v[0] is int or v[0] is float) and (v[1] is int or v[1] is float):
-		return Vector2i(int(v[0]), int(v[1]))
-	return null
+	return GridSystem._as_cell(v)
 
 
 ## dir 参数归一化：[dx, dy] / Vector2i / Vector2 → Vector2i；非法返回 null。

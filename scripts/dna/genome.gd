@@ -46,6 +46,11 @@ static func bases_of_allele(locus: Dictionary, allele: String) -> String:
 
 # ================================================================ 表达
 
+## 亲水座索引（genes.json 座序：aura 3 → hydro 4 → buffer 5 → redundant_a 6 → redundant_b 7
+## → targeting 8）。座序再动时改这里一处，并靠 express 里的 kind 断言出声——否则
+## kind 不符会静默把所有建筑的亲水效果回落到漠水。
+const HYDRO_IDX := 4
+
 ## 基因组 → 组件规格数组（GameConfig.make_component 可直接实例化的 spec）。
 ## 无非法组合约束：座上有基因即表达，缺的数值用 genes.json 默认值补。
 static func express(genome: Array, genes: Dictionary, blueprint_id: String, display_name: String) -> Array:
@@ -63,8 +68,8 @@ static func express(genome: Array, genes: Dictionary, blueprint_id: String, disp
 		targeting = targeting_allele
 	# 座4 亲水：写入 Attack/Production 的 hydro 字段（空座/非亲水座回落到漠水）
 	var hydro := &"hydro_none"
-	if loci.size() > 4 and str((loci[4] as Dictionary).get("kind", "")) == "hydro":
-		var hydro_allele := allele_at(_at(genome, 4), 4, genes)
+	if _hydro_locus_ready(loci):
+		var hydro_allele := allele_at(_at(genome, HYDRO_IDX), HYDRO_IDX, genes)
 		if not hydro_allele.is_empty():
 			hydro = StringName(hydro_allele)
 	if not attack_allele.is_empty():
@@ -328,6 +333,21 @@ static func _res_name(config, rid) -> String:
 
 
 # ================================================================ 工具
+
+## 亲水座就绪判定：座存在且 kind == "hydro"。不满足时 push_error 出声（而不是静默回落漠水）——
+## 座序是 genes.json 的数据契约，漂移必须报错，否则所有建筑的亲水效果会无声消失（T1-2）。
+static func _hydro_locus_ready(loci: Array) -> bool:
+	if loci.size() <= HYDRO_IDX:
+		push_error("genes.json 亲水座缺失：loci 只有 %d 座，需 > %d（hydro 将回落漠水）"
+			% [loci.size(), HYDRO_IDX])
+		return false
+	var kind := str((loci[HYDRO_IDX] as Dictionary).get("kind", ""))
+	if kind != "hydro":
+		push_error("genes.json 座 %d 的 kind 应为 \"hydro\"，实际 \"%s\"（hydro 将回落漠水）"
+			% [HYDRO_IDX, kind])
+		return false
+	return true
+
 
 static func _at(genome: Array, idx: int):
 	return genome[idx] if idx < genome.size() else null
