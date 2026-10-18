@@ -230,7 +230,8 @@ func _cell_of(d: Dictionary):
 
 
 ## cells 参数归一化：[[x, y]...] → 强类型 Array[Vector2i]；非数组、空数组或含非法元素返回 null。
-## 返回的数组直接喂给 GridSystem.can_place_line / can_remove_line（它们只吃 Vector2i 元素）。
+## 返回的数组直接喂给 GridSystem.can_place_line / can_remove_line（它们也收协议形态，
+## 这里先归一是为了让下游拿到强类型 Array[Vector2i]）。
 func _cells_of(d: Dictionary):
 	var v = d.get("cells", null)
 	if not (v is Array) or (v as Array).is_empty():

@@ -384,7 +384,7 @@ func _test_config_validation() -> void:
 
 # ================================================================ 构建辅助
 
-## 按 §5 固定顺序组装 11 个系统的世界（bootstrap 已提取到 scripts/bootstrap.gd）。
+## 按 §5 固定顺序组装 12 个系统的世界（命令 → 物流 #1.5 → 波次 … → 清理；bootstrap 已提取到 scripts/bootstrap.gd）。
 ## 用 preload 而非 class_name：headless -s 不重扫类缓存，避免 Bootstrap 未注册。
 const BootstrapScript = preload("res://scripts/bootstrap.gd")
 

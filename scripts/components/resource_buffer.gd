@@ -6,7 +6,8 @@ extends Component
 ##   · 泵/矿机的**出料缓冲**放在 LogisticsSystem（容量 4，按块/秒吐到带/管），
 ##     本组件承载**进料库存**（装配台矿堆）与可汇入池的普通资源。
 ##   · 本组件的 cap 只约束物理资源（water/ore）：放不下就停产，绝不溢出丢弃。
-##     cap = 0 表示「不是进料库存」→ world.deliver_ore 拒收（矿块留在带端等待）。
+##     cap = 0 表示「当前没有进料库存上限」（它不是接收判据：`world.deliver_ore`
+##     先按配方把 cap 从 `ore_cap_of()` 同步过来，再判定放不放得下）。
 
 var stored: Dictionary = {} # resource_id(StringName) -> int
 var flush_interval: float = 0.0 # 汇入周期（秒，蓝图配置必填）
