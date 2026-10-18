@@ -27,17 +27,33 @@ signal ore_delivered(entity_id: int)
 signal ore_rejected(entity_id: int, reason: String)
 
 ## 断水提示（产品裁定，物流层边沿触发）：某建筑上一 tick 有水、这一 tick 无水，且它旁边
-## 确实有管道 ⇒ 管道方向没指向该建筑（dir 只用于受料端，见 logistics_system._touched_by_pipe）。
+## 确实有管道。reason 说明**能确定的原因档位**（不要凭「有管没水」就断言方向错——断电 /
+## 泵停 / 上游拆管同样满足该条件，见 final-review NEW-3）：
+##   WATER_LOST_DIRECTION  = 相邻管**没有任何一格**指向本格 ⇒ 方向确实是可改的一环；
+##   WATER_LOST_UNSUPPLIED = 至少一格指向本格（方向没问题），水却没到 ⇒ 水源侧问题
+##                           （供电 / 泵停产 / 上游管被拆），文案只作中性陈述。
 ## **边沿触发**：同一次断水只发一次；恢复供水后再次断水算新边沿（同 ore_rejected 模式）。
-## 消费方把 World.WATER_HINT_TEXT 原样显示即可（游戏层已接回执）。
-signal water_lost(entity_id: int)
+## 消费方按 reason 取 WATER_HINT_TEXTS 的文案即可（游戏层已接回执，并按实体+文案去重）。
+signal water_lost(entity_id: int, reason: String)
 
 ## 弹药上限的权威来源（Attack 组件），deliver_ore 用它判「弹药满拒收」。
 const AttackScript = preload("res://scripts/components/attack.gd")
-## 断水提示文案（语义单一来源：物流层发 water_lost，表现层直接显示这句）。
-const WATER_HINT_TEXT := "管道方向需指向建筑"
+## 断水原因档位（water_lost.reason 的取值，语义单一来源）。
+const WATER_LOST_DIRECTION := "direction"
+const WATER_LOST_UNSUPPLIED := "unsupplied"
+## 断水提示文案（语义单一来源：物流层发 water_lost(reason)，表现层查这张表直接显示）。
+## 只有 DIRECTION 档才点名「方向」；UNSUPPLIED 档不点名原因，避免把断电/拆管误诊成方向错。
+const WATER_HINT_TEXTS := {
+	WATER_LOST_DIRECTION: "管道方向需指向建筑",
+	WATER_LOST_UNSUPPLIED: "该建筑未接上水（检查水泵供电与上游管道）",
+}
 const ORE_REJECT_FULL := "full"
 const ORE_REJECT_NO_FEED := "no_feed"
+
+
+## 断水原因档位 → 提示文案（未知/缺省档位按中性处理：宁可少说，不误诊方向）。
+static func water_hint_text(reason: String) -> String:
+	return str(WATER_HINT_TEXTS.get(reason, WATER_HINT_TEXTS[WATER_LOST_UNSUPPLIED]))
 
 ## —— 游戏层挂载点（由关卡 bootstrap 注入）——
 var config: RefCounted = null # GameConfig

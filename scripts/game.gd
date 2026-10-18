@@ -322,8 +322,9 @@ func _sync_fusion_preview(force: bool = false) -> void:
 
 func _connect_world() -> void:
 	world.command_rejected.connect(func(reason: String): _push_receipt("✗", reason))
-	# 断水提示（产品裁定 ①）：相邻有管却接不上 → 文案固定，语义单一来源在 world.gd
-	world.water_lost.connect(func(_eid: int): _push_receipt("!", World.WATER_HINT_TEXT))
+	# 断水提示（产品裁定 ①）：按 reason 取文案（方向 / 中性），语义单一来源在 world.gd；
+	# 去重键带实体+档位 ⇒ 断电抖动反复进入同一断水态时，未出队前不重复入队（NEW-3 刷屏）。
+	world.water_lost.connect(_on_water_lost)
 	world.wave_completed.connect(func(_i: int):
 		_push_receipt("波", "第 %d 波完成" % world.state.waves_survived))
 	world.game_won.connect(func():
@@ -335,8 +336,23 @@ func _connect_world() -> void:
 	get_viewport().size_changed.connect(_fit_field_to_viewport)
 
 
-func _push_receipt(icon: String, text: String) -> void:
-	_receipts.push_front({"icon": icon, "text": text})
+## 断水提示接线（NEW-3）：reason 决定文案（方向 / 中性），去重键 = 实体 + 档位
+## ⇒ 断电抖动反复进入同一断水态时，同一条提示未出 8 条窗口前不再重复入队。
+func _on_water_lost(eid: int, reason: String) -> void:
+	_push_receipt("!", World.water_hint_text(reason), "water:%d:%s" % [eid, reason])
+
+
+func _push_receipt(icon: String, text: String, dedupe_key: String = "") -> void:
+	# 去重（NEW-3）：同一条「实体+文案」仍在列（未被踢出 8 条窗口）时不再堆同一条，
+	# 否则断电抖动之类的反复边沿会把 ✗ 拒收等有效信息挤出队列。dedupe_key 为空 = 不去重。
+	if dedupe_key != "":
+		for item in _receipts:
+			if str(item.get("dedupe", "")) == dedupe_key:
+				return
+	var entry := {"icon": icon, "text": text}
+	if dedupe_key != "":
+		entry["dedupe"] = dedupe_key
+	_receipts.push_front(entry)
 	if _receipts.size() > 8:
 		_receipts.resize(8)
 	if ui != null and ui.has_method("set_receipts"):

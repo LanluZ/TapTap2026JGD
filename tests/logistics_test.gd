@@ -8,8 +8,9 @@ extends SceneTree
 const BootstrapScript = preload("res://scripts/bootstrap.gd")
 const LineToolScript = preload("res://scripts/ui/line_tool.gd")
 const LogisticsLayerScript = preload("res://scripts/views/logistics_layer.gd")
-## 接线层（game.gd）：只取静态纯函数 cells_with_line 测「拆除只拆有线格」的过滤（裁定 ②），
-## 不实例化 main.tscn（那是 ui_selftest 的事）。
+## 接线层（game.gd）：取静态纯函数 cells_with_line 测「拆除只拆有线格」的过滤（裁定 ②），
+## 并裸实例化 GameScript.new()（不加载 main.tscn）测断水回执去重（NEW-3）；
+## 完整场景仍是 ui_selftest 的事。
 const GameScript = preload("res://scripts/game.gd")
 const DT := 0.1
 
@@ -908,49 +909,129 @@ func _t26_render_data() -> void:
 
 # ================================================================ T27 产品裁定轮（三处无声失败 + 拆除过滤）
 
-## 裁定 ①：断水提示（边沿）——「有水 → 无水」且旁边确有管道 ⇒ 方向没指向建筑。
-## 场景：泵 [2,5] → 管 [3,5][4,5] dir(1,0) → 建筑 [5,5]（接水）；
-## 把 [4,5] 改成 dir(0,1)（管道方向背离建筑）⇒ 断水 1 次提示，之后不再重复。
+## 裁定 ①：断水提示（边沿 + 原因分档）——「有水 → 无水」才发，且只有「没有任何相邻管
+## 指向本格」时才说「管道方向需指向建筑」；断电 / 上游拆管走中性档（NEW-3）。
+## 场景：泵 [2,5] → 管 [3,5][4,5] dir(1,0) → 建筑 [5,5]（接水）。
 func _t27_water_hint() -> void:
-	print("== T27a: 断水提示（water_lost 边沿，同因只提示一次）==")
+	print("== T27a: 断水提示（water_lost 边沿 + 原因分档，同因只提示一次）==")
 	var w = _new_world()
 	_grant(w)
 	var pump: int = _place_factory_at(w, "pump", Vector2i(2, 5))
 	var bld: int = _place_factory_at(w, "generator", Vector2i(5, 5))
 	_ok(pump != 0 and bld != 0, "T27a: 水泵 [2,5] / 建筑 [5,5] 落位")
-	var hints: Array = []
-	w.water_lost.connect(func(eid): hints.append(int(eid)))
+	_freeze_production(w, bld) # 建筑自身不产电（避免断电用例被自补电救活）
+	var hints: Array = [] # [eid, reason]
+	w.water_lost.connect(func(eid, reason): hints.append([int(eid), str(reason)]))
 	_ok(_place(w, "pipe", [[3, 5], [4, 5]], [1, 0]) == 0, "T27a: 铺管 [3,5][4,5] dir(1,0)（指向建筑）")
 	_ok(w.is_watered(bld), "T27a: 前置：建筑已接水")
 	_ok(hints.is_empty(), "T27a: 供水正常时不发断水提示（实际 %d）" % hints.size())
-	# 同一帧内「拆除 + 重铺背离方向」：水网只重算一次 → 干净的真→假边沿
+	# —— 场景 1：方向错（同帧拆+重铺背离方向）→ 定向提示
 	w.push_command({"type": "remove_line", "cells": [[4, 5]]})
 	w.push_command({"type": "place_line", "kind": "pipe", "cells": [[4, 5]], "dir": [0, 1]})
 	w.tick(DT)
 	_ok(not w.is_watered(bld), "T27a: 管道方向背离 → 断水")
-	_ok(hints.size() == 1 and int(hints[0]) == bld,
-		"T27a: 断水发 1 次 water_lost(建筑)（实际 %s）" % str(hints))
+	_ok(hints.size() == 1 and int(hints[0][0]) == bld and str(hints[0][1]) == World.WATER_LOST_DIRECTION,
+		"T27a: 方向背离 → 发 1 次 water_lost(建筑, direction)（实际 %s）" % str(hints))
+	_ok(World.water_hint_text(World.WATER_LOST_DIRECTION) == "管道方向需指向建筑",
+		"T27a: direction 档文案点名方向（实际 %s）" % World.water_hint_text(World.WATER_LOST_DIRECTION))
 	_ticks(w, 10)
 	_ok(hints.size() == 1, "T27a: 同一断水态连跑 10 tick 不重复提示（实际 %d）" % hints.size())
-	_ok(not hints.has(pump), "T27a: 泵自身不触发提示（泵端不判方向，提示会误导）")
-	# 恢复供水 → 清边沿标记 → 再断一次能再提示
+	var pump_hints: int = 0
+	for h in hints:
+		if int(h[0]) == pump:
+			pump_hints += 1
+	_ok(pump_hints == 0, "T27a: 泵自身不触发提示（泵端不判方向，提示会误导）")
+	# —— 场景 2：复水 → 再断（沿语义仍成立）
 	w.push_command({"type": "remove_line", "cells": [[4, 5]]})
 	w.push_command({"type": "place_line", "kind": "pipe", "cells": [[4, 5]], "dir": [1, 0]})
 	w.tick(DT)
 	_ok(w.is_watered(bld), "T27a: 改回指向建筑 → 复水")
+	# —— 场景 3：断电 → 中性档，不误导去查方向（NEW-3）
+	_power_cut(w, pump)
+	w.tick(DT)
+	_ok(not w.is_watered(bld), "T27a: 断电 → 断水（管仍指向建筑）")
+	_ok(hints.size() == 2 and str(hints[1][1]) == World.WATER_LOST_UNSUPPLIED,
+		"T27a: 断电不发 direction 档（实际 %s）" % str(hints))
+	if hints.size() == 2:
+		var cut_text: String = World.water_hint_text(str(hints[1][1]))
+		_ok(cut_text.find("方向") == -1,
+			"T27a: 断电回执不点名方向（实际「%s」）" % cut_text)
+	# 恢复供电 → 复水 → 不再提示
+	w.state.resources[&"power"] = 200
+	w.tick(DT)
+	_ok(w.is_watered(bld), "T27a: 恢复供电 → 复水")
+	_ok(hints.size() == 2, "T27a: 复水本身不提示（实际 %d）" % hints.size())
+	# —— 场景 4：上游拆管（贴建筑的管仍指向建筑）→ 中性档；重铺后复水
+	w.push_command({"type": "remove_line", "cells": [[3, 5]]})
+	w.tick(DT)
+	_ok(not w.is_watered(bld), "T27a: 拆上游管 [3,5] → 断水（[4,5] 仍指向建筑）")
+	_ok(hints.size() == 3 and str(hints[2][1]) == World.WATER_LOST_UNSUPPLIED,
+		"T27a: 上游拆管不发 direction 档（实际 %s）" % str(hints))
+	w.push_command({"type": "place_line", "kind": "pipe", "cells": [[3, 5]], "dir": [1, 0]})
+	w.tick(DT)
+	_ok(w.is_watered(bld) and hints.size() == 3,
+		"T27a: 重铺上游管 → 复水且不提示（实际 %d 次）" % hints.size())
+	# —— 场景 5：重铺后再把指向管改背离 → 又回到定向档（方向确实是可改的一环）
 	w.push_command({"type": "remove_line", "cells": [[4, 5]]})
 	w.push_command({"type": "place_line", "kind": "pipe", "cells": [[4, 5]], "dir": [0, -1]})
 	w.tick(DT)
-	_ok(not w.is_watered(bld) and hints.size() == 2,
-		"T27a: 复水后再断水 → 再提示一次（共 %d 次）" % hints.size())
+	_ok(not w.is_watered(bld) and hints.size() == 4
+		and str(hints[3][1]) == World.WATER_LOST_DIRECTION,
+		"T27a: 复水后再断（方向背离）→ 再提示 direction（共 %d 次）" % hints.size())
 	# 相邻没管（真断源，不是方向问题）→ 不提示
 	var w2 = _new_world()
 	_grant(w2)
 	var bld2: int = _place_factory_at(w2, "generator", Vector2i(5, 5))
 	var hints2: Array = []
-	w2.water_lost.connect(func(eid): hints2.append(int(eid)))
+	w2.water_lost.connect(func(eid, reason): hints2.append([int(eid), str(reason)]))
 	_ticks(w2, 3)
 	_ok(hints2.is_empty() and not w2.is_watered(bld2), "T27a: 从来没接水的建筑不发提示（无真→假沿）")
+
+
+## 断电模拟：池里电清零 + 泵当前周期作废（active 会绕过 can_afford，见 _pump_can_run）。
+func _power_cut(world, pump_id: int) -> void:
+	world.state.resources[&"power"] = 0
+	var prod = world.get_component(pump_id, &"Production")
+	if prod != null:
+		prod.active = false
+		prod.progress = 0.0
+
+
+## 回执去重（NEW-3 刷屏）：断电抖动反复进入同一断水态 → 同实体同文案只留 1 条。
+## 走真实接线 game._on_water_lost（不是复制一份逻辑）。
+func _t27_water_hint_dedupe() -> void:
+	print("== T27d: 断水回执去重（断电抖动不刷屏）==")
+	var w = _new_world()
+	_grant(w)
+	var pump: int = _place_factory_at(w, "pump", Vector2i(2, 5))
+	var bld: int = _place_factory_at(w, "generator", Vector2i(5, 5))
+	_freeze_production(w, bld) # 同上：不让建筑自补电
+	_ok(_place(w, "pipe", [[3, 5], [4, 5]], [1, 0]) == 0 and w.is_watered(bld),
+		"T27d: 前置：泵 → 管 → 建筑 已接水")
+	var g = GameScript.new()
+	w.water_lost.connect(g._on_water_lost)
+	# 抖动 3 轮：断电（断水沿）→ 来电（复水）。每轮都是新的真→假沿。
+	for i in 3:
+		_power_cut(w, pump)
+		w.tick(DT)
+		w.state.resources[&"power"] = 200
+		w.tick(DT)
+	var water_receipts: int = 0
+	for r in g._receipts:
+		if str(r.get("dedupe", "")) == "water:%d:%s" % [bld, World.WATER_LOST_UNSUPPLIED]:
+			water_receipts += 1
+	_ok(water_receipts == 1, "T27d: 断电抖动 3 次 → 只 1 条断水回执（实际 %d，队列 %d）"
+		% [water_receipts, g._receipts.size()])
+	_ok(g._receipts.size() == 1, "T27d: 队列没被同款提示刷满（实际 %d 条）" % g._receipts.size())
+	# 不同实体 / 不同档位 = 不同的键，仍照常入队
+	g._push_receipt("!", World.water_hint_text(World.WATER_LOST_UNSUPPLIED),
+		"water:%d:%s" % [bld + 100, World.WATER_LOST_UNSUPPLIED])
+	_ok(g._receipts.size() == 2, "T27d: 另一实体同文案照常入队（实际 %d 条）" % g._receipts.size())
+	# 无键调用不去重（其他回执行为不变）
+	g._push_receipt("✗", "同一句")
+	g._push_receipt("✗", "同一句")
+	_ok(g._receipts.size() == 4, "T27d: 无去重键的回执行为不变（实际 %d 条）" % g._receipts.size())
+	g.free()
 
 
 ## 裁定 ②：拆除只拆有线格（接线层过滤）——拖拽扫过的空格不再让整条被拒。
@@ -1004,5 +1085,6 @@ func _t27_corner_hint() -> void:
 
 func _t27_product_rulings() -> void:
 	_t27_water_hint()
+	_t27_water_hint_dedupe()
 	_t27_remove_filter()
 	_t27_corner_hint()

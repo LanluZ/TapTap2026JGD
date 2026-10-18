@@ -15,7 +15,8 @@ extends System
 ##      （指向矿机的带不算出料口：会原路送回矿机自身，见 _inlets）。
 ##   ④ 水网：每 tick 从「有电开工且对接口有管」的水泵沿管道无向 BFS 重算供水集合
 ##      （watered），并给有对接管的泵按 1 水/秒排缓冲（见 _water_network）；
-##      某建筑「有水→无水」且旁边确有管道 → 发 world.water_lost 一次（见 _maybe_pipe_hint）；
+##      某建筑「有水→无水」且旁边确有管道 → 按能确定的原因分档发 world.water_lost 一次
+##      （见 _maybe_pipe_hint：没有管指向本格才算方向问题，否则中性文案）；
 ##   ⑤ 缓冲清理：销毁实体的残留缓冲/节拍归零。
 ##
 ## 规格取值（策划 2026-10-18）：带速 2.0 格/秒、最小间距 0.25 格、每格容量 4 块、
@@ -380,10 +381,12 @@ func _water_network(world, dt: float) -> void:
 	_drain_pumps(world, pump_ids, dt)
 
 
-## 断水提示（产品裁定 ①「无声失败」）：真→假 + 旁边确有管道 ⇒ 管道方向没指向该建筑，
-## 发 world.water_lost 让表现层提示「管道方向需指向建筑」。
+## 断水提示（产品裁定 ①「无声失败」）：真→假 + 旁边确有管道才发，并按**能确定的原因**分档
+## （final-review NEW-3：断电 / 泵停 / 上游拆管同样满足「有管没水」，不能一律说方向错）：
+##   · 相邻管**没有一格**指向本格 ⇒ WATER_LOST_DIRECTION（方向确实是可改的一环）；
+##   · 有管指向本格却没水 ⇒ WATER_LOST_UNSUPPLIED（水源侧问题，中性文案，不点名原因）。
 ## **边沿触发**：只在翻转这一 tick 发（不读电平，滞留断水态不会 10Hz 连发）；
-## 恢复供水后 prev 变真，下次断水自然算新边沿，不需要额外标记。
+## 恢复供水后 prev 变真，下次断水自然算新边沿，不需要额外标记（重复刷屏由回执队列去重兜住）。
 ## 泵自身不发：泵端不判方向（见 _adjacent_pipes），提示会误导。
 func _maybe_pipe_hint(world, id: int, now: bool, was: bool) -> void:
 	if now or not was:
@@ -391,9 +394,23 @@ func _maybe_pipe_hint(world, id: int, now: bool, was: bool) -> void:
 	var prod = world.get_component(id, &"Production")
 	if prod != null and prod.recipe_id == RECIPE_PUMP:
 		return
-	if _adjacent_pipes(world, id).is_empty():
+	var gp = world.get_component(id, &"GridPosition")
+	if gp == null:
 		return
-	world.water_lost.emit(id)
+	var pipes: Array = _adjacent_pipes(world, id)
+	if pipes.is_empty():
+		return
+	world.water_lost.emit(id, _water_lost_reason(world, gp.cell, pipes))
+
+
+## 断水原因档位：只有当**没有任何相邻管指向本格**时才断言「方向需指向建筑」。
+## 有管指向本格却仍无水 ⇒ 不是方向问题（断电/泵停/上游拆管），走中性档。
+func _water_lost_reason(world, cell: Vector2i, pipes: Array) -> String:
+	for p in pipes:
+		var pc = world.grid.get_cell(p)
+		if pc != null and p + pc.line_dir == cell:
+			return World.WATER_LOST_UNSUPPLIED
+	return World.WATER_LOST_DIRECTION
 
 
 ## 「当周期能扣电开工」：已经扣过电在产（active）或池里够 1 电（能开下一次）。
