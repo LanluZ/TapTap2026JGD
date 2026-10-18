@@ -3,6 +3,9 @@ extends RefCounted
 ## 关卡世界组装（架构文档 §5 固定顺序 11 系统）：
 ## tests/smoke.gd 与 Game 节点（scripts/game.gd）共用，避免两处清单漂移。
 
+## headless `-s` 下新脚本的 class_name 尚未进全局类缓存，按项目约定用 preload 引用。
+const LogisticsScript = preload("res://scripts/systems/logistics_system.gd")
+
 
 static func build_world(config: GameConfig, level_id: StringName = &"level_1") -> World:
 	var state := GameState.new()
@@ -29,6 +32,7 @@ static func build_world(config: GameConfig, level_id: StringName = &"level_1") -
 	world.path = ring
 	world.grid = grid
 	world.add_system(CommandSystem.new()) # 1
+	world.add_system(LogisticsScript.new()) # 1.5 物流模拟（任务 3：紧随指令，见 logistics_system.gd）
 	world.add_system(WaveSystem.new()) # 2
 	world.add_system(MovementSystem.new()) # 3
 	world.add_system(GridSystem.new()) # 4

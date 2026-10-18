@@ -15,12 +15,16 @@ signal command_rejected(reason: String)
 ## 线路变更（物流数据层）：放置/拆除管道·传送带后逐格通知。
 ## kind: &"pipe" / &"belt" = 放置；&"" = 该格线路被拆除。
 signal line_changed(cell: Vector2i, kind: StringName)
+## 矿块交付（传送带端头对接建筑）：entity_id = 接收方实体。
+## 任务 3 只发信号；任务 6 在此之后实装弹药/库存填充。
+signal ore_delivered(entity_id: int)
 
 ## —— 游戏层挂载点（由关卡 bootstrap 注入）——
 var config: RefCounted = null # GameConfig
 var state: RefCounted = null # GameState
 var path: RefCounted = null # RingPath
 var grid: RefCounted = null # GridMapData
+var logistics: RefCounted = null # LogisticsSystem（由它自己 setup 时回填，供后续任务查询）
 
 ## 指令队列（§1：玩家操作统一进 CommandQueue，下一逻辑帧开始时执行）。
 ## UI 层 push_command 写入；CommandSystem（#1）在 tick 开始时取走。
@@ -129,6 +133,14 @@ func mask_of(id: int) -> int:
 
 func entity_ids() -> Array:
 	return _alive.keys()
+
+
+## 矿块交付 stub（任务 3）：传送带端头对接建筑时由 LogisticsSystem 调用。
+## 本任务只发 world.ore_delivered 并按「接收成功」返回 true；任务 6 在此实装弹药填充
+## （届时建筑弹药满应返回 false，让块留在端头等待）。
+func deliver_ore(entity_id: int) -> bool:
+	ore_delivered.emit(entity_id)
+	return true
 
 
 # ---------------------------------------------------------------- 指令队列

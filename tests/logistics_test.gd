@@ -14,6 +14,7 @@ var _finished: bool = false
 var _config = null
 var _rejects: Array = [] # 当前世界的 command_rejected 原因
 var _line_events: Array = [] # [cell, kind] 二元数组记录
+var _deliveries: Array = [] # ore_delivered 的 entity_id 记录（任务 3 交付 stub）
 
 
 func _init() -> void:
@@ -41,9 +42,80 @@ func _new_world():
 	var w = BootstrapScript.build_world(_config, &"level_1")
 	_rejects = []
 	_line_events = []
+	_deliveries = []
 	w.command_rejected.connect(func(r): _rejects.append(str(r)))
 	w.line_changed.connect(func(c, k): _line_events.append([c, k]))
+	w.ore_delivered.connect(func(e): _deliveries.append(int(e)))
 	return w
+
+
+# ---------------------------------------------------------------- 任务 3 测试辅助
+
+## LogisticsSystem 查询入口（与后续任务同一入口：world.get_system("LogisticsSystem")）。
+func _logi(world):
+	return world.get_system("LogisticsSystem")
+
+
+## 覆写某格的块位（模拟已上带/已注入的矿块）。
+func _set_items(world, cell: Vector2i, arr: Array) -> void:
+	var c = world.grid.get_cell(cell)
+	c.belt_items.clear()
+	for v in arr:
+		c.belt_items.append(float(v))
+
+
+## 读某格的块位副本（Array[float] → 普通 Array，便于打印/比较）。
+func _items(world, cell: Vector2i) -> Array:
+	var out: Array = []
+	var c = world.grid.get_cell(cell)
+	if c == null:
+		return out
+	for v in c.belt_items:
+		out.append(float(v))
+	return out
+
+
+func _ticks(world, n: int, dt: float = 0.1) -> void:
+	for i in n:
+		world.tick(dt)
+
+
+## 位置数组逐项近似比较（固定顺序，不排序）。
+func _approx(arr: Array, expected: Array) -> bool:
+	if arr.size() != expected.size():
+		return false
+	for i in arr.size():
+		if absf(float(arr[i]) - float(expected[i])) > 0.002:
+			return false
+	return true
+
+
+## 同格相邻块的最小间距（空/单块返回 1.0）。
+func _min_gap(arr: Array) -> float:
+	if arr.size() < 2:
+		return 1.0
+	var sorted: Array = arr.duplicate()
+	sorted.sort()
+	var m: float = 1.0
+	for i in range(1, sorted.size()):
+		m = minf(m, float(sorted[i]) - float(sorted[i - 1]))
+	return m
+
+
+## 开局资源补给（测试放置非免费蓝图用；免费蓝图不受影响）。
+func _grant(world) -> void:
+	for rid in ["parts", "power", "water", "ore", "special_material"]:
+		world.state.add(StringName(rid), 200)
+
+
+## 放置工厂并返回实体 id（0 = 失败）。
+func _place_factory_at(world, blueprint: String, cell: Vector2i) -> int:
+	world.push_command({"type": "place_factory", "blueprint_id": blueprint, "cell": [cell.x, cell.y]})
+	world.tick(DT)
+	var c = world.grid.get_cell(cell)
+	if c == null:
+		return 0
+	return int(c.occupant)
 
 
 ## 推入一条 place_line 指令并跑一逻辑帧，返回本次新增的拒绝数。
@@ -227,5 +299,192 @@ func _run() -> int:
 	_ok(_line_events.size() == 1, "重复格拆除只发一次 line_changed（实际 %d）" % _line_events.size())
 	_ok(w8.grid.get_cell(Vector2i(4, 6)).line_kind == &"", "重复格拆除后线路已清除")
 
+	print("======== 传送带离散矿块模拟（任务 3）========")
+	var probe = _new_world()
+	if _logi(probe) == null:
+		_checks += 1
+		_failures += 1
+		printerr("  [FAIL] LogisticsSystem 未注册（world.get_system 查不到），T9~T16 全部跳过")
+	else:
+		_t9_advance()
+		_t10_transfer()
+		_t11_drop()
+		_t12_jam()
+		_t13_cross()
+		_t14_merge()
+		_t15_inject()
+		_t16_deliver()
+
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return _failures
+
+
+# ================================================================ 任务 3：传送带模拟
+
+func _t9_advance() -> void:
+	print("== T9: 直线推进（带速 2 格/秒）==")
+	var w = _new_world()
+	_ok(_place(w, "belt", [[2, 6]], [1, 0]) == 0, "T9: 单格 belt [2,6] dir(1,0) 铺设")
+	_set_items(w, Vector2i(2, 6), [0.0])
+	w.tick(0.1)
+	_ok(_approx(_items(w, Vector2i(2, 6)), [0.2]),
+		"T9: dt=0.1 推进 0.2 格（实际 %s）" % str(_items(w, Vector2i(2, 6))))
+	w.tick(0.1)
+	_ok(_approx(_items(w, Vector2i(2, 6)), [0.4]),
+		"T9: 再 dt=0.1 到 0.4（实际 %s）" % str(_items(w, Vector2i(2, 6))))
+	w.tick(0.2)
+	_ok(_approx(_items(w, Vector2i(2, 6)), [0.8]),
+		"T9: dt=0.2 到 0.8（实际 %s）" % str(_items(w, Vector2i(2, 6))))
+	w.tick(0.1)
+	_ok(_items(w, Vector2i(2, 6)).is_empty(),
+		"T9: 推到 1.0 且出口无线路 → 掉落消失（实际 %s）" % str(_items(w, Vector2i(2, 6))))
+
+
+func _t10_transfer() -> void:
+	print("== T10: 跨格转移（同向链插入点 0.0）==")
+	var w = _new_world()
+	_ok(_place(w, "belt", [[2, 6], [3, 6]], [1, 0]) == 0, "T10: 同向两格链铺设")
+	_set_items(w, Vector2i(2, 6), [0.9])
+	w.tick(0.1)
+	_ok(_items(w, Vector2i(2, 6)).is_empty(), "T10: 转移后源格清空")
+	_ok(_approx(_items(w, Vector2i(3, 6)), [0.0]),
+		"T10: 同向 → 插入点 0.0（实际 %s）" % str(_items(w, Vector2i(3, 6))))
+	w.tick(0.1)
+	_ok(_approx(_items(w, Vector2i(3, 6)), [0.2]),
+		"T10: 下一 tick 从插入点继续推进（实际 %s）" % str(_items(w, Vector2i(3, 6))))
+
+
+func _t11_drop() -> void:
+	print("== T11: 悬空 / 管道格出口 → 掉落 ==")
+	var w = _new_world()
+	_ok(_place(w, "belt", [[2, 6]], [1, 0]) == 0, "T11: 单格 belt [2,6]")
+	_set_items(w, Vector2i(2, 6), [1.0])
+	w.tick(DT)
+	_ok(_items(w, Vector2i(2, 6)).is_empty(), "T11: 出口为空地 → 块消失")
+	_ok(_deliveries.is_empty(), "T11: 空地出口不触发交付（实际 %s）" % str(_deliveries))
+	_ok(_place(w, "pipe", [[3, 6]], [1, 0]) == 0, "T11: 出口格铺 pipe")
+	_set_items(w, Vector2i(2, 6), [1.0])
+	w.tick(DT)
+	_ok(_items(w, Vector2i(2, 6)).is_empty(), "T11: 管道格出口 → 块消失（矿不串管道）")
+	_ok(_deliveries.is_empty(), "T11: 管道格出口不触发交付")
+
+
+func _t12_jam() -> void:
+	print("== T12: 前堵后排队（间距 0.25 / 每格容量 4 / 满格等待）==")
+	var w = _new_world()
+	var a := Vector2i(2, 6)
+	var b := Vector2i(3, 6)
+	_ok(_place(w, "belt", [a], [1, 0]) == 0, "T12: [2,6] dir(1,0)")
+	_ok(_place(w, "belt", [b], [-1, 0]) == 0, "T12: [3,6] dir(-1,0)（对头，互为出口、互塞满）")
+	_set_items(w, a, [0.0, 0.25, 0.5, 1.0])
+	_set_items(w, b, [0.0, 0.25, 0.5, 1.0])
+	_ticks(w, 3)
+	_ok(_approx(_items(w, a), [0.25, 0.5, 0.75, 1.0]),
+		"T12: 前块堵死 → 后块压到 0.25 间距停下（实际 %s）" % str(_items(w, a)))
+	_ok(_approx(_items(w, b), [0.25, 0.5, 0.75, 1.0]),
+		"T12: 对向格同理（实际 %s）" % str(_items(w, b)))
+	_ok(_items(w, a).size() <= 4 and _items(w, b).size() <= 4,
+		"T12: 每格容量上限 4（实际 %d / %d）" % [_items(w, a).size(), _items(w, b).size()])
+	_ok(_items(w, a).size() + _items(w, b).size() == 8, "T12: 满格等待不丢块（合计 8）")
+	_ok(_min_gap(_items(w, a)) >= 0.25 - 0.002, "T12: 同格最小间距 ≥ 0.25（实际 %.3f）" % _min_gap(_items(w, a)))
+	_ticks(w, 10)
+	_ok(_approx(_items(w, a), [0.25, 0.5, 0.75, 1.0]) and _approx(_items(w, b), [0.25, 0.5, 0.75, 1.0]),
+		"T12: 堵死状态 10 tick 内稳定（不抖动、不越界）")
+
+
+func _t13_cross() -> void:
+	print("== T13: 侧向并入（方向不一致 → 插入点 0.5）==")
+	var w = _new_world()
+	_ok(_place(w, "belt", [[2, 6]], [1, 0]) == 0, "T13: 来源格 [2,6] dir(1,0)")
+	_ok(_place(w, "belt", [[3, 6]], [0, 1]) == 0, "T13: 目标格 [3,6] dir(0,1)")
+	_set_items(w, Vector2i(2, 6), [1.0])
+	w.tick(DT)
+	_ok(_approx(_items(w, Vector2i(3, 6)), [0.5]),
+		"T13: 侧向并入落在 0.5（实际 %s）" % str(_items(w, Vector2i(3, 6))))
+
+
+func _t14_merge() -> void:
+	print("== T14: 合流 round-robin（两来源共用一个落点 0.5）==")
+	var w = _new_world()
+	var j := Vector2i(3, 6)
+	var up := Vector2i(3, 5)
+	var down := Vector2i(3, 7)
+	_ok(_place(w, "belt", [j], [1, 0]) == 0, "T14: 汇入口 [3,6] dir(1,0)")
+	_ok(_place(w, "belt", [up], [0, 1]) == 0, "T14: 上源 [3,5] dir(0,1) → 汇入口")
+	_ok(_place(w, "belt", [down], [0, -1]) == 0, "T14: 下源 [3,7] dir(0,-1) → 汇入口")
+	var seq: Array = []
+	var both := false
+	for i in 24:
+		for cell in [up, down]:
+			if _items(w, cell).is_empty():
+				_set_items(w, cell, [1.0])
+		w.tick(DT)
+		var won := ""
+		if _items(w, up).is_empty():
+			won = "up"
+		if _items(w, down).is_empty():
+			if won.is_empty():
+				won = "down"
+			else:
+				both = true
+		if not won.is_empty():
+			seq.append(won)
+	_ok(seq.size() >= 4, "T14: 两来源轮流送块（成功 %d 次：%s）" % [seq.size(), str(seq)])
+	_ok(not both, "T14: 同一 tick 不超过一个来源插入 0.5 落点（无并发穿透）")
+	var alternating := true
+	for i in range(1, seq.size()):
+		if seq[i] == seq[i - 1]:
+			alternating = false
+	_ok(alternating, "T14: round-robin 交替（上/下严格交替：%s）" % str(seq))
+	_ok(_items(w, j).size() <= 4, "T14: 汇入口每格 ≤ 4 块（实际 %d）" % _items(w, j).size())
+
+
+func _t15_inject() -> void:
+	print("== T15: 矿机本地缓冲 → 相邻带起点注入（≤2 块/秒）==")
+	var w = _new_world()
+	_grant(w)
+	var miner: int = _place_factory_at(w, "miner", Vector2i(4, 3))
+	_ok(miner != 0, "T15: 矿机落位 [4,3]（实体 %d）" % miner)
+	_ok(_place(w, "belt", [[4, 2]], [0, -1]) == 0, "T15: 输出带 [4,2] dir(0,-1)——起点 0.0 贴矿机")
+	var lg = _logi(w)
+	lg.add_buffer(miner, 99)
+	_ok(lg.buffer_of(miner) == 4, "T15: 本地缓冲容量 4（请求 99，实际 %d）" % lg.buffer_of(miner))
+	_ticks(w, 10) # 1.0 秒
+	_ok(lg.buffer_of(miner) == 2, "T15: ≤2 块/秒 —— 1.0 秒注入 2 块（缓冲 4→%d）" % lg.buffer_of(miner))
+	_ok(_approx(_items(w, Vector2i(4, 2)), [0.0]),
+		"T15: 注入点为带起点 0.0（实际 %s）" % str(_items(w, Vector2i(4, 2))))
+
+	# 垂直相邻（既不是起点也不是终点的对接方向）→ 不注入
+	var w2 = _new_world()
+	_grant(w2)
+	var m2: int = _place_factory_at(w2, "miner", Vector2i(4, 3))
+	_ok(_place(w2, "belt", [[4, 2]], [1, 0]) == 0, "T15: 垂直带 [4,2] dir(1,0)")
+	var lg2 = _logi(w2)
+	lg2.add_buffer(m2, 2)
+	_ticks(w2, 10)
+	_ok(lg2.buffer_of(m2) == 2 and _items(w2, Vector2i(4, 2)).is_empty(),
+		"T15: 垂直相邻的带不接收注入（缓冲仍 %d）" % lg2.buffer_of(m2))
+
+	# 终点对接（dir 指向矿机）：简报字面规则同样注入
+	var w3 = _new_world()
+	_grant(w3)
+	var m3: int = _place_factory_at(w3, "miner", Vector2i(4, 3))
+	_ok(_place(w3, "belt", [[4, 4]], [0, -1]) == 0, "T15: 终点对接带 [4,4] dir(0,-1)")
+	var lg3 = _logi(w3)
+	lg3.add_buffer(m3, 2)
+	_ticks(w3, 6)
+	_ok(lg3.buffer_of(m3) == 1, "T15: dir 指向矿机的相邻带也注入（缓冲 2→%d）" % lg3.buffer_of(m3))
+
+
+func _t16_deliver() -> void:
+	print("== T16: 端头对接建筑 → world.deliver_ore（stub）==")
+	var w = _new_world()
+	var gen: int = _place_factory_at(w, "generator", Vector2i(3, 6))
+	_ok(gen != 0, "T16: 建筑落位 [3,6]（实体 %d）" % gen)
+	_ok(_place(w, "belt", [[2, 6]], [1, 0]) == 0, "T16: 端头带 [2,6] dir(1,0) 指向建筑")
+	_set_items(w, Vector2i(2, 6), [1.0])
+	w.tick(DT)
+	_ok(_deliveries.size() == 1 and int(_deliveries[0]) == gen,
+		"T16: 对接建筑交付一次且携带实体 id（实际 %s）" % str(_deliveries))
+	_ok(_items(w, Vector2i(2, 6)).is_empty(), "T16: 交付后块从端头移除")
+	_ok(w.deliver_ore(gen), "T16: world.deliver_ore(entity_id) 返回 true（任务 6 前的 stub）")
