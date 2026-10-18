@@ -248,7 +248,7 @@ func _connect_signals() -> void:
 
 # ---------------------------------------------------------------- 公开 API
 
-## 资源条数值注入：{"parts","special","power","water","ore"} -> 数值
+## 资源条数值注入：{"parts","special","power"} -> 数值（与 hud.gd 的 RESOURCE_IDS 一致）
 func set_resources(resources: Dictionary) -> void:
 	_prepare()
 	_external_data = true
@@ -378,9 +378,9 @@ func get_line_tool() -> String:
 	return _line_tool
 
 
-## 交互仲裁唯一入口（三按钮互斥 / 画线层鼠标接管 / 与卡牌选中互斥）：
+## 交互仲裁唯一入口（三按钮互斥 / 画线层鼠标接管 / 与卡牌选中·融合模式互斥）：
 ##   选中工具 → 只有该工具按钮按下；LineOverlay 以 MOUSE_FILTER_STOP 吞掉场地点击，
-##              同时清空卡牌选中并关掉卡牌放置预览（否则两套格子点击会抢同一个格）；
+##              同时清空卡牌选中、关掉卡牌放置预览、退出融合模式（否则两套格子点击会抢同一个格）；
 ##   取消工具 → 归还鼠标与格子点击给卡牌流程。
 func _apply_line_tool(tool: String) -> void:
 	_line_tool = tool
@@ -392,6 +392,10 @@ func _apply_line_tool(tool: String) -> void:
 		else:
 			_line_overlay.activate(tool)
 	if not tool.is_empty():
+		if _fusion_enabled and _fusion_toggle != null:
+			# 互斥：工具接管格子点击 → 融合必须真正退出。只弹开关不写 _fusion_enabled
+			# 会留下「开关亮着但格子点击没有消费方」的静默失效；走 toggled(false) 一并复位。
+			_fusion_toggle.button_pressed = false
 		if _overlay != null:
 			_overlay.deactivate()
 		if _hand != null and _hand.get_selected_index() >= 0:
@@ -412,7 +416,7 @@ func get_hand_max() -> int:
 ## 演示假数据（仅 UI 自展示用，全部可被上层 setter 覆盖）
 func load_mock_data() -> void:
 	_prepare()
-	set_resources({"parts": 246, "special": 3, "power": 38, "water": 12, "ore": 67})
+	set_resources({"parts": 246, "special": 3, "power": 38})
 	set_hand_max(7)
 	set_hand([
 		{"id": "mock_slow_tile", "name": "减速带", "kind": "tile", "icon": "🛣"},

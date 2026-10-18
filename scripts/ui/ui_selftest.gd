@@ -357,6 +357,28 @@ func _run() -> void:
 		ui.select_line_tool("belt")
 		_check(not ui.is_placing() and ui.get_selected_card().is_empty(), "选工具 → 卡牌选择清空（格子点击归工具）")
 		ui.select_line_tool("")
+		# 工具与融合互斥（融合亮着却被工具接管 → 格子点击无消费方，静默失效）
+		var fusion_toggle = ui._fusion_toggle
+		_check(fusion_toggle != null, "融合开关已构建（互斥断言用）")
+		if fusion_toggle != null:
+			fusion_toggle.button_pressed = true
+			_check(ui.is_fusion_mode(), "开融合 → is_fusion_mode()==true")
+			ui.select_line_tool("pipe")
+			_check(not ui.is_fusion_mode() and not fusion_toggle.button_pressed,
+				"工具激活 → 融合模式退出（is_fusion_mode()==false 且开关弹起）")
+			_check(ui.get_line_tool() == "pipe" and line_layer.visible,
+				"融合被工具顶掉后画线层仍接管格子点击")
+			ui.select_line_tool("")
+		# 左键松开落在网格外：不提交，且拖拽态/预览复位（否则预览线跟着鼠标）
+		ui.select_line_tool("belt")
+		line_records.clear()
+		line_layer._gui_input(_click_event(MOUSE_BUTTON_LEFT, line_layer.cell_rect(Vector2i(1, 0)).get_center()))
+		var release_out := _click_event(MOUSE_BUTTON_LEFT, Vector2(4000, 4000))
+		release_out.pressed = false
+		line_layer._gui_input(release_out)
+		_check(line_records.is_empty(), "松手落在网格外 → 不提交指令（实际 %d 条）" % line_records.size())
+		_check(not bool(line_layer._dragging), "松手落在网格外 → 拖拽态复位（预览不再跟随鼠标）")
+		ui.select_line_tool("")
 
 	_finish()
 

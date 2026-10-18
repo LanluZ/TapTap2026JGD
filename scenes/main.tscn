@@ -11,7 +11,7 @@
 [ext_resource type="Script" uid="uid://b3u0rlnhtgu7f" path="res://scripts/ui/card_library.gd" id="s_library"]
 [ext_resource type="Script" uid="uid://dayf32eecrp5e" path="res://scripts/ui/main_ui.gd" id="s_main"]
 [ext_resource type="Script" uid="uid://big5ui3o8t8uj" path="res://scripts/ui/placement_preview.gd" id="s_overlay"]
-[ext_resource type="Script" path="res://scripts/ui/line_draw_overlay.gd" id="s_line"]
+[ext_resource type="Script" uid="uid://l5u4m5h2sg0x" path="res://scripts/ui/line_draw_overlay.gd" id="s_line"]
 [ext_resource type="Script" uid="uid://bpnqsr80k7kae" path="res://scripts/ui/receipt_list.gd" id="s_receipts"]
 [ext_resource type="Texture2D" uid="uid://cbblamtewav8i" path="res://art/ui/tinted/button_hover.png" id="tx_btn_h"]
 [ext_resource type="Texture2D" uid="uid://b5npigxp4p4q8" path="res://art/ui/tinted/button_normal.png" id="tx_btn_n"]

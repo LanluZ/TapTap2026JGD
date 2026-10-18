@@ -106,16 +106,29 @@ func _gui_input(event: InputEvent) -> void:
 		if mb.button_index != MOUSE_BUTTON_LEFT:
 			return
 		var cell := cell_at(mb.position)
-		if not _all_cells.has(cell):
-			return # 网格外：只吞掉，不提交（不伪造坐标）
 		if mb.pressed:
+			if not _all_cells.has(cell):
+				accept_event()
+				return # 网格外按下：只吞掉，不记锚点（不伪造坐标）
 			_dragging = true
 			_anchor = cell
 			_cursor = cell
 			queue_redraw()
-		elif _dragging:
-			_cursor = cell
-			_commit()
+			accept_event()
+			return
+		# 松开：任何路径都先复位拖拽态与预览，再决定是否提交。
+		# （松手点落不到网格时提前 return 会把预览线留给鼠标跟踪，直到下次按下/Esc）
+		if not _dragging:
+			return
+		if not _all_cells.has(cell):
+			_dragging = false
+			_anchor = Vector2i(-1, -1)
+			_cursor = Vector2i(-1, -1)
+			queue_redraw()
+			accept_event()
+			return
+		_cursor = cell
+		_commit()
 		accept_event()
 	elif event is InputEventMouseMotion and _dragging:
 		var cell := cell_at((event as InputEventMouseMotion).position)
