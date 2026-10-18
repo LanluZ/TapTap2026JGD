@@ -198,5 +198,34 @@ func _run() -> int:
 	w7.tick(DT)
 	_ok(w7.grid.get_cell(Vector2i(9, 8)).occupant != 0, "拆除线路后同格可放工厂（格完全释放）")
 
+	print("== T8: 协议原文形态（[[x,y]] / [dx,dy]）与双向互斥 ==")
+	var w8 = _new_world()
+	var gs8 = w8.get_system("GridSystem")
+	_ok(gs8.can_place_line(w8, [[2, 5], [3, 5]], "pipe", [1, 0]) == "",
+		"can_place_line 直接接受协议形态 [[x,y]] / [dx,dy]（UI 拖拽提示不再误判非法）")
+	_ok(gs8.can_place_line(w8, [Vector2(2.0, 5.0)], "pipe", Vector2(1, 0)) == "",
+		"can_place_line 接受 Vector2 形态")
+	_ok(gs8.can_place_line(w8, [[2, 5], [7]], "pipe", [1, 0]).find("非坐标") != -1,
+		"非法元素（长度不足的数组）被拒绝且原因说明「非坐标」")
+	_ok(gs8.can_place_line(w8, [[2, 5], [3, 5]], "pipe", [1, 1]) != "", "数组形态的对角 dir 仍被拒绝")
+	_ok(_place(w8, "pipe", [[4, 6], [5, 6]], [0, 1]) == 0, "协议 [[x,y]] 形态 place_line 端到端成功")
+	_ok(w8.grid.get_cell(Vector2i(4, 6)).line_kind == &"pipe"
+		and w8.grid.get_cell(Vector2i(4, 6)).line_dir == Vector2i(0, 1), "端到端写入 kind/dir 正确")
+	_ok(_place(w8, "pipe", [[6, 6], [6, 6]], [1, 0]) == 1, "含重复格的 place_line 仍被拒绝")
+	_ok(w8.grid.get_cell(Vector2i(6, 6)).line_kind == &"", "重复格被拒后 [6,6] 无线路")
+	# 反向互斥：已有工厂的格上 place_line 被拒（is_buildable 双向契约的另一半）
+	w8.push_command({"type": "place_factory", "blueprint_id": "generator", "cell": [4, 2]})
+	w8.tick(DT)
+	_ok(w8.grid.get_cell(Vector2i(4, 2)).occupant != 0, "发电机占位 [4,2]")
+	_ok(gs8.can_place_line(w8, [[4, 2]], "pipe", [1, 0]).find("占用") != -1,
+		"已有工厂的格 can_place_line 拒绝且原因说明「占用」")
+	_ok(_place(w8, "pipe", [[4, 2]], [1, 0]) == 1, "已有工厂的格 place_line 指令被拒")
+	_ok(w8.grid.get_cell(Vector2i(4, 2)).line_kind == &"", "拒绝后工厂格上无线路")
+	# 重复格拆除：去重后只拆一次、只发一次 line_changed
+	_line_events.clear()
+	_ok(_remove(w8, [[4, 6], [4, 6]]) == 0, "重复格 remove_line 指令被接受（去重）")
+	_ok(_line_events.size() == 1, "重复格拆除只发一次 line_changed（实际 %d）" % _line_events.size())
+	_ok(w8.grid.get_cell(Vector2i(4, 6)).line_kind == &"", "重复格拆除后线路已清除")
+
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return _failures

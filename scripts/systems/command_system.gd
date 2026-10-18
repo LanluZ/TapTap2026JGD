@@ -205,6 +205,7 @@ func _place_line(world, kind: String, cells, dir_v) -> bool:
 
 
 ## 拆除线路：格上有线才允许；清空线字段与块位，发 line_changed(cell, &"")。
+## 重复格去重后处理：同一格只拆一次、只发一次信号（与 place_line 的 seen 校验对称）。
 func _remove_line(world, cells) -> bool:
 	if _grid_system == null:
 		_reject(world, "GridSystem 未注册")
@@ -213,7 +214,11 @@ func _remove_line(world, cells) -> bool:
 	if not reason.is_empty():
 		_reject(world, reason)
 		return false
+	var seen: Dictionary = {}
 	for cell in cells:
+		if seen.has(cell):
+			continue
+		seen[cell] = true
 		world.grid.remove_line(cell)
 		world.line_changed.emit(cell, &"")
 	return true
@@ -224,12 +229,13 @@ func _cell_of(d: Dictionary):
 	return _cell_value(d.get("cell", null))
 
 
-## cells 参数归一化：[[x, y]...] → Array[Vector2i]；非数组、空数组或含非法元素返回 null。
+## cells 参数归一化：[[x, y]...] → 强类型 Array[Vector2i]；非数组、空数组或含非法元素返回 null。
+## 返回的数组直接喂给 GridSystem.can_place_line / can_remove_line（它们只吃 Vector2i 元素）。
 func _cells_of(d: Dictionary):
 	var v = d.get("cells", null)
 	if not (v is Array) or (v as Array).is_empty():
 		return null
-	var out: Array = []
+	var out: Array[Vector2i] = []
 	for item in v:
 		var c = _cell_value(item)
 		if c == null:

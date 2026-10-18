@@ -22,21 +22,24 @@ func can_place_tile(world, cell: Vector2i) -> bool:
 ## 线路放置校验（管道/传送带）：返回空串 = 合法，否则为拒绝原因（UI 可直接显示）。
 ## 规则（策划案 · 放置规则）：只放 buildable 格、无工厂占用、无已有线；kind 必须是
 ## pipe/belt，dir 必须是四向单位向量，cells 不得为空或含重复格。逐格校验，任一失败整条拒绝。
+## 入参兼容指令协议原文形态：cells 元素可为 Vector2i / Vector2 / [x, y]，dir 可为
+## Vector2i / Vector2 / [dx, dy]。UI 拖拽可直接抛协议数据，不必先自行归一化。
 func can_place_line(world, cells, kind, dir_v) -> String:
 	if world == null or world.grid == null:
 		return "网格未初始化"
 	var k := StringName(kind)
 	if k != &"pipe" and k != &"belt":
 		return "未知线路类型 '%s'（只支持 pipe/belt）" % str(kind)
-	if dir_v == null or not _is_axis_dir(dir_v):
+	if not _is_axis_dir(dir_v):
 		return "线路方向必须是四向单位向量 [dx,dy]: %s" % str(dir_v)
 	var list = cells
 	if not (list is Array) or (list as Array).is_empty():
 		return "place_line 缺少 cells"
 	var seen: Dictionary = {}
-	for cell in list:
-		if not (cell is Vector2i):
-			return "cells 含非坐标元素: %s" % str(cell)
+	for raw in list:
+		var cell = _as_cell(raw)
+		if cell == null:
+			return "cells 含非坐标元素: %s" % str(raw)
 		if seen.has(cell):
 			return "cells 含重复格: %s" % str(cell)
 		seen[cell] = true
@@ -46,16 +49,17 @@ func can_place_line(world, cells, kind, dir_v) -> String:
 	return ""
 
 
-## 线路拆除校验：格存在且该格有线路。
+## 线路拆除校验：格存在且该格有线路。cells 元素形态同 can_place_line；重复格合法（拆除侧去重）。
 func can_remove_line(world, cells) -> String:
 	if world == null or world.grid == null:
 		return "网格未初始化"
 	var list = cells
 	if not (list is Array) or (list as Array).is_empty():
 		return "remove_line 缺少 cells"
-	for cell in list:
-		if not (cell is Vector2i):
-			return "cells 含非坐标元素: %s" % str(cell)
+	for raw in list:
+		var cell = _as_cell(raw)
+		if cell == null:
+			return "cells 含非坐标元素: %s" % str(raw)
 		var c = world.grid.get_cell(cell)
 		if c == null:
 			return "格子不存在: %s" % str(cell)
@@ -78,10 +82,23 @@ func _line_cell_reason(world, cell: Vector2i) -> String:
 	return ""
 
 
+## 四向单位向量判定：接受 Vector2i / Vector2 / [dx, dy]（指令协议与 UI 共用形态）。
 func _is_axis_dir(v) -> bool:
+	var d = _as_cell(v)
+	return d != null and absi(d.x) + absi(d.y) == 1
+
+
+## 坐标/方向归一化：Vector2i / Vector2 / [x, y] → Vector2i；非法返回 null。
+## 与 CommandSystem._cell_value 同构（指令层仍保留自己的入队归一，合并留终审分诊）。
+func _as_cell(v):
 	if v is Vector2i:
-		return absi(v.x) + absi(v.y) == 1
-	return false
+		return v
+	if v is Vector2:
+		return Vector2i(int(v.x), int(v.y))
+	if v is Array and v.size() >= 2 \
+			and (v[0] is int or v[0] is float) and (v[1] is int or v[1] is float):
+		return Vector2i(int(v[0]), int(v[1]))
+	return null
 
 
 func tick(world, _dt: float) -> void:

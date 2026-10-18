@@ -56,7 +56,11 @@ func set_buildable(c: Vector2i) -> void:
 
 
 ## 工厂放置合法性（数据层；指令校验入口在 GridSystem.can_build）。
-## 一格式一物：有线路的格也不能再放工厂（与「线上不放工厂」对称）。
+## 【双向互斥契约】工厂与线路（管道/传送带）不共格，两个方向都成立：
+##   ① 线路不放工厂格 —— GridSystem.can_place_line 校验 occupant == 0；
+##   ② 工厂不压线路格 —— 本函数要求 not cell.has_line()。
+## 来源：物流规格 2026-10-18（一格式一物）。下游（任务 3/6/7 UI、策划案）按双向理解，
+## 不要按单向规则写文案或测试；若策划允许「线从建筑下方穿过」，须先改本条。
 func is_buildable(c: Vector2i) -> bool:
 	var cell: Cell = get_cell(c)
 	return cell != null and cell.buildable and cell.occupant == 0 and not cell.has_line()
