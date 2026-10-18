@@ -59,7 +59,7 @@ var buffers: Dictionary = {}
 ## 任务 6 消费入口是 world.is_watered(id)（等价于本字典的值，缺键 = false）。
 var watered: Dictionary = {}
 
-## 泵对接口判定结果：entity_id -> bool（本 tick 是否有「dir 指向该泵」的相邻 pipe）。
+## 泵对接口判定结果：entity_id -> bool（本 tick 相邻格是否有 pipe，**不看 line_dir**）。
 ## 任务 5 停产判据与排水判据共用这一份结果（不要各自重算几何）。
 var _pump_piped: Dictionary = {}
 
@@ -145,7 +145,10 @@ func watered_map() -> Dictionary:
 	return watered
 
 
-## 泵对接口：本 tick 是否有「相邻格 pipe 且 line_dir 指向该泵」的管（= 可排水 / 可播种）。
+## 泵对接口：本 tick 相邻格是否有 pipe（= 可排水 / 可播种）。
+## 泵端**不查 line_dir**（设计裁定①）：一条 place_line 指令把一个 dir 写给整条 cells，
+## 若泵端也要求「管指向泵」，从泵拖出的直管贴泵段必然背向泵 → 永不播种/排水。
+## 方向判定只用于受料端（建筑接水，见 _touched_by_pipe）。
 ## 任务 5 的「无对接 → 缓冲积到 4 停产」判据与本任务的排水判据共用。
 func pump_connected(entity_id: int) -> bool:
 	return bool(_pump_piped.get(entity_id, false))
@@ -311,11 +314,12 @@ func _inlets(world, entity_id: int) -> Array:
 
 ## 每 tick 全量重算（规格：无向 BFS，网格 ≤ 20×10 不做脏标记优化）：
 ##   种子 = 有 Production 且 recipe_id == pump_water、能扣电开工（active 或 can_afford{power:1}）、
-##          且相邻格有「line_dir 指向该泵」的 pipe 的水泵；
-##   扩散 = 从种子泵的对接口格出发，沿相邻 pipe 格无向连通（不看 dir，管道内部无向）；
+##          且**相邻格有 pipe（不看 line_dir）**的水泵；
+##   扩散 = 从种子泵的相邻 pipe 格出发，沿相邻 pipe 格无向连通（不看 dir，管道内部无向）；
 ##   判定 = 建筑相邻格有 pipe、该 pipe 的 dir 指向建筑、且该 pipe 格在扩散集合内 → 有水。
-## 对接语义（规格 §2 固化）：「线 dir 指向建筑」只用于受料端——泵的对接口同样要求
-## 管指向泵；方向背对的管既不当种子也不供水（见 T21）。
+## 对接语义（设计裁定①，规格 §2）：「线 dir 指向建筑」只用于受料端；泵端不查方向——
+## 相邻有管即算对接口（播种 / 排水 / 任务 5 停产判据均同）。理由：place_line 把一个 dir
+## 写给整条 cells，从泵拖出的直管贴泵段必然背向泵，泵端查方向会让直管两端互斥。见 T24。
 func _water_network(world, dt: float) -> void:
 	watered = {}
 	_pump_piped = {}
@@ -329,7 +333,7 @@ func _water_network(world, dt: float) -> void:
 		if prod == null or prod.recipe_id != RECIPE_PUMP:
 			continue
 		pump_ids.append(id)
-		var links: Array = _pipe_links(world, id)
+		var links: Array = _adjacent_pipes(world, id)
 		_pump_piped[id] = not links.is_empty()
 		if links.is_empty():
 			continue
@@ -411,9 +415,10 @@ func _touched_by_pipe(world, cell: Vector2i, reach: Dictionary) -> bool:
 	return false
 
 
-## 与实体相邻、且 **line_dir 指向该实体** 的 pipe 格（升序，结果确定性）。
-## 与 _inlets 的「背向注入」正好相反：这是受料端语义（管把水送到该格）。
-func _pipe_links(world, entity_id: int) -> Array:
+## 与实体相邻的 pipe 格（只判 line_kind，**不看 line_dir**；升序，结果确定性）。
+## 这是**泵端**语义：泵只管把水/缓冲往管网推，方向由受料端建筑判定（_touched_by_pipe），
+## 泵端查方向会让「一条 place_line 一个 dir 写全格」的直管两端互斥（裁定①）。
+func _adjacent_pipes(world, entity_id: int) -> Array:
 	var gp = world.get_component(entity_id, &"GridPosition")
 	if gp == null:
 		return []
@@ -424,8 +429,7 @@ func _pipe_links(world, entity_id: int) -> Array:
 		var pc = world.grid.get_cell(p)
 		if pc == null or pc.line_kind != KIND_PIPE:
 			continue
-		if p + pc.line_dir == cell:
-			out.append(p)
+		out.append(p)
 	out.sort_custom(_cell_less)
 	return out
 

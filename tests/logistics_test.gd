@@ -321,6 +321,7 @@ func _run() -> int:
 		_t21_water_direction()
 		_t22_pump_drain()
 		_t23_water_truth_table()
+		_t24_drag_end_to_end()
 
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return _failures
@@ -610,17 +611,18 @@ func _t20_water_multi_pump() -> void:
 
 
 func _t21_water_direction() -> void:
-	print("== T21: 方向背对不算对接 ==")
-	# (a) 泵侧管背离泵：不播种 → 整网无水
+	print("== T21: 泵端不查方向、受料端查方向 ==")
+	# (a) 泵侧管背离泵：泵端不看 dir（裁定①）→ 仍算对接口、仍播种 → 建筑有水。
+	# 这正是「一条 place_line 把一个 dir 写给整条 cells」的真实拖拽几何（T24 端到端覆盖）。
 	var w = _new_world()
 	_grant(w)
 	var lg = _logi(w)
 	var pump: int = _place_factory_at(w, "pump", Vector2i(4, 3))
 	var asm: int = _place_factory_at(w, "assembler", Vector2i(8, 3))
 	_ok(_place(w, "pipe", [[5, 3], [6, 3], [7, 3]], [1, 0]) == 0,
-		"T21: 管链 [5,3..7,3] dir(1,0)——[5,3] 背离泵，[7,3] 指向建筑")
-	_ok(not lg.pump_connected(pump), "T21: 背离泵的管不算泵的对接口（不播种）")
-	_ok(not _w(w, asm), "T21: 无种子 → 建筑无水（纵使末端管指向它）")
+		"T21: 管链 [5,3..7,3] 全条 dir(1,0)——[5,3] 背向泵，[7,3] 指向建筑")
+	_ok(lg.pump_connected(pump), "T21: 背离泵的管仍算泵的对接口（泵端不查 line_dir）")
+	_ok(_w(w, asm), "T21: 泵端照常播种 → 建筑有水（不再「无种子 → 全网无水」）")
 	# (b) 建筑侧管背离建筑：不供水
 	var w2 = _new_world()
 	_grant(w2)
@@ -679,15 +681,16 @@ func _t22_pump_drain() -> void:
 	_ok(lg2.buffer_of(pump2) == 4, "T22: 无对接 3 秒仍积在 4（实际 %d）" % lg2.buffer_of(pump2))
 	_ok(lg2.buffer_full(pump2), "T22: 缓冲满 → buffer_full（任务 5 停产判据）")
 
-	# (c) 背对泵的管：不算对接，不排水
+	# (c) 背对泵的管：泵端不看方向 → 仍算对接，照常排水
 	var w3 = _new_world()
 	_grant(w3)
 	var lg3 = _logi(w3)
 	var pump3: int = _place_factory_at(w3, "pump", Vector2i(4, 3))
 	_ok(_place(w3, "pipe", [[5, 3]], [1, 0]) == 0, "T22: 背离泵的管 [5,3] dir(1,0)")
+	_ok(lg3.pump_connected(pump3), "T22: 背离泵的管也判为有对接管（泵端不查方向）")
 	lg3.add_buffer(pump3, 99)
-	_ticks(w3, 20)
-	_ok(lg3.buffer_of(pump3) == 4, "T22: 方向背对 → 不排水（缓冲仍 %d）" % lg3.buffer_of(pump3))
+	_ticks(w3, 20) # 2.0 秒 = 2 个排水周期
+	_ok(lg3.buffer_of(pump3) == 2, "T22: 方向背对也排水（2.0 秒 4→%d）" % lg3.buffer_of(pump3))
 
 
 func _t23_water_truth_table() -> void:
@@ -713,4 +716,32 @@ func _t23_water_truth_table() -> void:
 	var prod = w.get_component(turret, &"Attack")
 	_ok(prod != null and prod.hydro == &"hydro_love", "T23: 炮塔 hydro 字段为 hydro_love（任务 6 输入）")
 	_ok(w.get_component(pump, &"Production").hydro == &"hydro_none", "T23: 泵 hydro 字段为 hydro_none")
+
+
+func _t24_drag_end_to_end() -> void:
+	print("== T24: 一条 place_line 直拖（泵→炮塔，全条同 dir）端到端 ==")
+	# 玩家可见形态（K1 回归）：从泵格往炮塔方向拖一条直管，CommandSystem 的 _place_line
+	# 把**同一个 dir 写给整条 cells**。修复前贴泵段背向泵 → 不播种、不排水：
+	# 全网无水（炮塔 is_watered 恒 false）+ 泵缓冲永久卡 4（任务 5 接线后永久停产）。
+	var w = _new_world()
+	_grant(w)
+	var lg = _logi(w)
+	var pump: int = _place_factory_at(w, "pump", Vector2i(4, 3))
+	var turret: int = _place_factory_at(w, "gun_turret", Vector2i(8, 3))
+	_ok(pump != 0 and turret != 0, "T24: 泵 [4,3] 与炮塔 [8,3] 落位")
+	_ok(_place(w, "pipe", [[5, 3], [6, 3], [7, 3]], [1, 0]) == 0,
+		"T24: 一条拖拽指令写三格、全条 dir(1,0)（= 真实拖拽，贴泵段 [5,3] 背向泵）")
+	_ok(lg.pump_connected(pump), "T24: 贴泵段背向泵仍算对接（泵端不查方向）")
+	_ok(_w(w, turret), "T24: 炮塔 is_watered=true —— 直拖即可供水（K1 的玩家可见形态）")
+	lg.add_buffer(pump, 99)
+	_ok(lg.buffer_of(pump) == 4, "T24: 泵缓冲置满 4（实际 %d）" % lg.buffer_of(pump))
+	_ticks(w, 20) # 2.0 秒 = 2 个排水周期
+	_ok(lg.buffer_of(pump) == 2, "T24: 直拖后泵在排水（2.0 秒 4→%d）" % lg.buffer_of(pump))
+	_ok(not lg.buffer_full(pump), "T24: 缓冲未满 → 任务 5「无对接停产」判据不会误判")
+	_ticks(w, 30) # 排水到底
+	_ok(lg.buffer_of(pump) == 0 and _w(w, turret),
+		"T24: 排空后管网仍供水（缓冲 %d，炮塔有水=%s）" % [lg.buffer_of(pump), str(_w(w, turret))])
+	# 拆掉贴泵段 → 断链：泵失对接、炮塔断水（同一条指令几何下的反向验证）
+	_ok(_remove(w, [[5, 3]]) == 0, "T24: 拆掉贴泵段 [5,3]")
+	_ok(not lg.pump_connected(pump) and not _w(w, turret), "T24: 拆泵侧管 → 泵脱网且炮塔断水")
 
