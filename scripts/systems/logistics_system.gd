@@ -11,7 +11,8 @@ extends System
 ##   ② 转移：位置到 1.0 的块按目标格规则处理——同 kind belt 插入（同向 0.0 / 异向 0.5，
 ##      落点 0.25 格内有块或容量满则等待）；对接建筑 → world.deliver_ore；其余（空地/
 ##      管道格/无出口）→ 块消失（掉落）；
-##   ③ 注入：矿机本地缓冲有矿时，向「与矿机对接的 belt」起点 0.0 注入，≤2 块/秒。
+##   ③ 注入：矿机本地缓冲有矿时，向「带起点 0.0 贴矿机、方向背向矿机」的 belt 注入，≤2 块/秒
+##      （指向矿机的带不算出料口：会原路送回矿机自身，见 _inlets）。
 ##
 ## 规格取值（策划 2026-10-18）：带速 2.0 格/秒、最小间距 0.25 格、每格容量 4 块、
 ## 缓冲容量 4、注入 ≤2 块/秒。
@@ -233,14 +234,19 @@ func _inject(world, dt: float) -> void:
 				take_buffer(id, 1)
 				injected = true
 				break
-		_inject_timer[id] = t - INJECT_INTERVAL if injected else INJECT_INTERVAL
+		if injected:
+			_inject_timer[id] = 0.0 # 成功即清零：不保留 t - INJECT_INTERVAL 的 dt 残值
+		else:
+			_inject_timer[id] = INJECT_INTERVAL # 落点被占：节拍已走满，下 tick 立即重试
 
 
-## 与实体相邻、且输送轴与该建筑对接的 belt 格（升序，结果确定性）。
-## 两种对接方向都算注入口：
-##   · 带起点贴建筑（本格 + dir == 建筑格）：矿块从建筑旁上带，正常玩法路径；
-##   · 带终点贴建筑（本格 - dir == 建筑格）：简报字面「belt dir 指向矿机」的形态。
-## 垂直相邻（既非起点也非终点）不算对接。
+## 与实体相邻、且**带起点（0.0 侧）贴该建筑、输送方向背向建筑**的 belt 格（升序，结果确定性）。
+## 几何（正典，唯一注入口）：本格 - bc.line_dir == 建筑格 ⇒ 带格位于「建筑格 + dir」，
+## 带起点 0.0 正贴建筑，矿从建筑旁上带后朝 1.0 背离建筑走。
+## 「带终点贴建筑」（本格 + bc.line_dir == 建筑格，即 dir 指向建筑）**不是**注入口：
+## 注入 0.0 后矿 0.5 秒就走到 1.0，目标格正是注入者自身 → world.deliver_ore(自己)，
+## 构成矿机自馈回路（设计裁定禁止）。交付方向由 ② 的 target = cell + line_dir 落到建筑格负责，
+## 注入侧只认背向形态。垂直相邻（既非起点也非终点）同样不算对接。
 func _inlets(world, entity_id: int) -> Array:
 	var gp = world.get_component(entity_id, &"GridPosition")
 	if gp == null:
@@ -252,7 +258,7 @@ func _inlets(world, entity_id: int) -> Array:
 		var bc = world.grid.get_cell(b)
 		if bc == null or bc.line_kind != KIND_BELT:
 			continue
-		if b - bc.line_dir == cell or b + bc.line_dir == cell:
+		if b - bc.line_dir == cell:
 			out.append(b)
 	out.sort_custom(_cell_less)
 	return out

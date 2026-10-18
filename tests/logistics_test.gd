@@ -314,6 +314,7 @@ func _run() -> int:
 		_t14_merge()
 		_t15_inject()
 		_t16_deliver()
+		_t17_inject_rate()
 
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return _failures
@@ -465,15 +466,20 @@ func _t15_inject() -> void:
 	_ok(lg2.buffer_of(m2) == 2 and _items(w2, Vector2i(4, 2)).is_empty(),
 		"T15: 垂直相邻的带不接收注入（缓冲仍 %d）" % lg2.buffer_of(m2))
 
-	# 终点对接（dir 指向矿机）：简报字面规则同样注入
+	# 「指向矿机」形态（带终点 1.0 贴矿机）：设计裁定禁止——矿机出料正典只有「带背向矿机」。
+	# 若在此注入，矿走完 0.5 秒正好回到矿机格 → deliver_ore(矿机自己)，构成自馈回路。
+	# 故断言不注入、且观察 ≥10 tick（最早回送发生在注入后 tick5，只跑 6 tick 看不见）。
 	var w3 = _new_world()
 	_grant(w3)
 	var m3: int = _place_factory_at(w3, "miner", Vector2i(4, 3))
-	_ok(_place(w3, "belt", [[4, 4]], [0, -1]) == 0, "T15: 终点对接带 [4,4] dir(0,-1)")
+	_ok(_place(w3, "belt", [[4, 4]], [0, -1]) == 0, "T15: 指向矿机的带 [4,4] dir(0,-1)")
 	var lg3 = _logi(w3)
 	lg3.add_buffer(m3, 2)
-	_ticks(w3, 6)
-	_ok(lg3.buffer_of(m3) == 1, "T15: dir 指向矿机的相邻带也注入（缓冲 2→%d）" % lg3.buffer_of(m3))
+	_ticks(w3, 12) # 1.2 秒 = 2.4 个注入周期，覆盖完整往返
+	_ok(lg3.buffer_of(m3) == 2, "T15: 指向矿机的带不注入（缓冲仍 %d）" % lg3.buffer_of(m3))
+	_ok(_items(w3, Vector2i(4, 4)).is_empty(),
+		"T15: 12 tick 无自馈——指向矿机的带始终为空（实际 %s）" % str(_items(w3, Vector2i(4, 4))))
+	_ok(_deliveries.is_empty(), "T15: 不产生「矿机把矿送给自己」的交付（实际 %s）" % str(_deliveries))
 
 
 func _t16_deliver() -> void:
@@ -488,3 +494,42 @@ func _t16_deliver() -> void:
 		"T16: 对接建筑交付一次且携带实体 id（实际 %s）" % str(_deliveries))
 	_ok(_items(w, Vector2i(2, 6)).is_empty(), "T16: 交付后块从端头移除")
 	_ok(w.deliver_ore(gen), "T16: world.deliver_ore(entity_id) 返回 true（任务 6 前的 stub）")
+
+
+func _t17_inject_rate() -> void:
+	print("== T17: 注入节拍无 dt 残留——堵转疏通后速率仍 ≤2 块/秒 ==")
+	var w = _new_world()
+	_grant(w)
+	var miner: int = _place_factory_at(w, "miner", Vector2i(4, 3))
+	var belt := Vector2i(4, 2)
+	_ok(_place(w, "belt", [belt], [0, -1]) == 0, "T17: 输出带 [4,2] dir(0,-1)——起点 0.0 贴矿机")
+	var lg = _logi(w)
+	lg.add_buffer(miner, 4)
+	# 堵转：下游堵塞 → 注入落点被 4 块塞满（容量满），每次注入都失败，节拍被钉在等待重试
+	for i in 6:
+		lg.add_buffer(miner, 4)
+		_set_items(w, belt, [0.0, 0.25, 0.5, 0.75])
+		w.tick(DT)
+	_ok(lg.buffer_of(miner) == 4, "T17: 堵转 6 tick 一块未注入（缓冲仍 %d）" % lg.buffer_of(miner))
+	# 疏通：清空落点，注入立即恢复；记录每次成功注入所在的 tick
+	_set_items(w, belt, [])
+	var inject_ticks: Array = []
+	var ticks: int = 21
+	for i in ticks:
+		lg.add_buffer(miner, 4) # 模拟生产端持续供矿，绑定缓冲不干扰节拍
+		w.tick(DT)
+		var items := _items(w, belt)
+		if not items.is_empty() and float(items[0]) < 0.001:
+			inject_ticks.append(i + 1)
+	print("    T17: 疏通后注入发生在 tick %s（dt=%.2f）" % [str(inject_ticks), DT])
+	_ok(inject_ticks.size() >= 4, "T17: 疏通后注入持续恢复（%d 次）" % inject_ticks.size())
+	# 最小间隔：节拍残留 dt 会让相邻两次注入只隔 0.4s（4 tick）
+	var min_gap: float = 999.0
+	for i in range(1, inject_ticks.size()):
+		min_gap = minf(min_gap, float(int(inject_ticks[i]) - int(inject_ticks[i - 1])) * DT)
+	_ok(min_gap >= 0.5 - 0.001, "T17: 相邻两次注入间隔 ≥ 0.5s（实测最小 %.2fs）" % min_gap)
+	# 平均速率：总块数 / 总时间（首末注入之间）
+	var span: float = float(int(inject_ticks[inject_ticks.size() - 1]) - int(inject_ticks[0])) * DT
+	var rate: float = float(inject_ticks.size() - 1) / span
+	_ok(rate <= 2.0 + 0.001,
+		"T17: 平均速率 ≤2 块/秒（%d 块 / %.2fs = %.3f 块/秒）" % [inject_ticks.size() - 1, span, rate])
