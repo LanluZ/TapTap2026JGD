@@ -19,6 +19,71 @@ func can_place_tile(world, cell: Vector2i) -> bool:
 	return c != null and c.occupant == 0 and not c.buildable
 
 
+## 线路放置校验（管道/传送带）：返回空串 = 合法，否则为拒绝原因（UI 可直接显示）。
+## 规则（策划案 · 放置规则）：只放 buildable 格、无工厂占用、无已有线；kind 必须是
+## pipe/belt，dir 必须是四向单位向量，cells 不得为空或含重复格。逐格校验，任一失败整条拒绝。
+func can_place_line(world, cells, kind, dir_v) -> String:
+	if world == null or world.grid == null:
+		return "网格未初始化"
+	var k := StringName(kind)
+	if k != &"pipe" and k != &"belt":
+		return "未知线路类型 '%s'（只支持 pipe/belt）" % str(kind)
+	if dir_v == null or not _is_axis_dir(dir_v):
+		return "线路方向必须是四向单位向量 [dx,dy]: %s" % str(dir_v)
+	var list = cells
+	if not (list is Array) or (list as Array).is_empty():
+		return "place_line 缺少 cells"
+	var seen: Dictionary = {}
+	for cell in list:
+		if not (cell is Vector2i):
+			return "cells 含非坐标元素: %s" % str(cell)
+		if seen.has(cell):
+			return "cells 含重复格: %s" % str(cell)
+		seen[cell] = true
+		var reason := _line_cell_reason(world, cell)
+		if not reason.is_empty():
+			return reason
+	return ""
+
+
+## 线路拆除校验：格存在且该格有线路。
+func can_remove_line(world, cells) -> String:
+	if world == null or world.grid == null:
+		return "网格未初始化"
+	var list = cells
+	if not (list is Array) or (list as Array).is_empty():
+		return "remove_line 缺少 cells"
+	for cell in list:
+		if not (cell is Vector2i):
+			return "cells 含非坐标元素: %s" % str(cell)
+		var c = world.grid.get_cell(cell)
+		if c == null:
+			return "格子不存在: %s" % str(cell)
+		if not c.has_line():
+			return "格子上没有线路: %s" % str(cell)
+	return ""
+
+
+## 单格线路放置前置条件（存在 ∧ buildable ∧ 无工厂占用 ∧ 无已有线）。
+func _line_cell_reason(world, cell: Vector2i) -> String:
+	var c = world.grid.get_cell(cell)
+	if c == null:
+		return "格子不存在: %s" % str(cell)
+	if not c.buildable:
+		return "格子不可建造（非关卡标注的 buildable 格）: %s" % str(cell)
+	if c.occupant != 0:
+		return "格子被工厂占用: %s" % str(cell)
+	if c.has_line():
+		return "格子已有线路（%s）: %s" % [String(c.line_kind), str(cell)]
+	return ""
+
+
+func _is_axis_dir(v) -> bool:
+	if v is Vector2i:
+		return absi(v.x) + absi(v.y) == 1
+	return false
+
+
 func tick(world, _dt: float) -> void:
 	if world.grid == null:
 		return

@@ -8,6 +8,8 @@ extends System
 ##   {"type": "place_factory", "blueprint_id": String, "cell": [x, y] 或 Vector2i}
 ##   {"type": "place_tile",    "tile_type": String, "cell": [x, y] 或 Vector2i}
 ##   {"type": "fuse",          "a": int, "b": int, "seed": int（可选）}  # DNA 融合
+##   {"type": "place_line",    "kind": "pipe"|"belt", "cells": [[x, y]...], "dir": [dx, dy]}
+##   {"type": "remove_line",   "cells": [[x, y]...]}
 ## 失败一律发 world.command_rejected(reason)：不改世界、不扣费（已扣则回滚）。
 
 const GenomeScript = preload("res://scripts/dna/genome.gd")
@@ -43,6 +45,10 @@ func _apply(world, cmd) -> void:
 			_place_tile(world, str(d.get("tile_type", "")), _cell_of(d))
 		"fuse":
 			_fuse(world, int(d.get("a", 0)), int(d.get("b", 0)), int(d.get("seed", -1)))
+		"place_line":
+			_place_line(world, str(d.get("kind", "")), _cells_of(d), _dir_of(d))
+		"remove_line":
+			_remove_line(world, _cells_of(d))
 		_:
 			_reject(world, "未知指令类型 '%s'" % str(d.get("type", "")))
 
@@ -180,9 +186,72 @@ func _place_tile(world, tile_type: String, cell) -> bool:
 	return true
 
 
+## 放置线路（管道/传送带）：GridSystem 校验 → 逐格写 Cell 线字段 → world.line_changed。
+## 免费：不扣资源、不返还（拆除同理）。校验在写之前完成，任一格不合法则整条不动。
+func _place_line(world, kind: String, cells, dir_v) -> bool:
+	if _grid_system == null:
+		_reject(world, "GridSystem 未注册")
+		return false
+	var reason: String = _grid_system.can_place_line(world, cells, kind, dir_v)
+	if not reason.is_empty():
+		_reject(world, reason)
+		return false
+	var k := StringName(kind)
+	var dir: Vector2i = dir_v
+	for cell in cells:
+		world.grid.set_line(cell, k, dir)
+		world.line_changed.emit(cell, k)
+	return true
+
+
+## 拆除线路：格上有线才允许；清空线字段与块位，发 line_changed(cell, &"")。
+func _remove_line(world, cells) -> bool:
+	if _grid_system == null:
+		_reject(world, "GridSystem 未注册")
+		return false
+	var reason: String = _grid_system.can_remove_line(world, cells)
+	if not reason.is_empty():
+		_reject(world, reason)
+		return false
+	for cell in cells:
+		world.grid.remove_line(cell)
+		world.line_changed.emit(cell, &"")
+	return true
+
+
 ## cell 参数归一化：Vector2i / Vector2 / [x, y]；非法返回 null。
 func _cell_of(d: Dictionary):
-	var v = d.get("cell", null)
+	return _cell_value(d.get("cell", null))
+
+
+## cells 参数归一化：[[x, y]...] → Array[Vector2i]；非数组、空数组或含非法元素返回 null。
+func _cells_of(d: Dictionary):
+	var v = d.get("cells", null)
+	if not (v is Array) or (v as Array).is_empty():
+		return null
+	var out: Array = []
+	for item in v:
+		var c = _cell_value(item)
+		if c == null:
+			return null
+		out.append(c)
+	return out
+
+
+func _cell_value(v):
+	if v is Vector2i:
+		return v
+	if v is Vector2:
+		return Vector2i(int(v.x), int(v.y))
+	if v is Array and v.size() >= 2 \
+			and (v[0] is int or v[0] is float) and (v[1] is int or v[1] is float):
+		return Vector2i(int(v[0]), int(v[1]))
+	return null
+
+
+## dir 参数归一化：[dx, dy] / Vector2i / Vector2 → Vector2i；非法返回 null。
+func _dir_of(d: Dictionary):
+	var v = d.get("dir", null)
 	if v is Vector2i:
 		return v
 	if v is Vector2:

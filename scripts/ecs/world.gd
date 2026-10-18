@@ -12,6 +12,9 @@ signal game_won
 signal game_lost
 signal resource_gained(resource_id: StringName, amount: int)
 signal command_rejected(reason: String)
+## 线路变更（物流数据层）：放置/拆除管道·传送带后逐格通知。
+## kind: &"pipe" / &"belt" = 放置；&"" = 该格线路被拆除。
+signal line_changed(cell: Vector2i, kind: StringName)
 
 ## —— 游戏层挂载点（由关卡 bootstrap 注入）——
 var config: RefCounted = null # GameConfig
