@@ -1,16 +1,15 @@
 extends Control
-## 关卡 HUD：资源条（零件/特殊材料/电力/水/矿）、波次进度、路径敌人数/失败上限计数。
+## 关卡 HUD：资源条（零件/特殊材料/电力）、波次进度、路径敌人数/失败上限计数。
 ## 只做展示：数据由调用方注入，本脚本不引用逻辑层任何类型。
+## 水/矿自物流系统起不再是资源池品种（泵/矿机产出入本地缓冲或管网），资源板移除两槽。
 
-const RESOURCE_IDS: Array[String] = ["parts", "special", "power", "water", "ore"]
+const RESOURCE_IDS: Array[String] = ["parts", "special", "power"]
 
 ## 槽位名（main.tscn ResourceBar 子节点名小写）→ 注册表资源图标 key
 const RES_ICON_KEYS := {
 	"parts": "parts",
 	"special": "special_material",
 	"power": "power",
-	"water": "water",
-	"ore": "ore",
 }
 const Art = preload("res://scripts/views/art_registry.gd")
 
@@ -59,7 +58,7 @@ func _collect_slots() -> void:
 			push_warning("[HUD] 资源槽位缺失：%s" % id)
 
 
-## 注入资源数值：{ "parts": int, "special": int, "power": int, "water": int, "ore": int }
+## 注入资源数值：{ "parts": int, "special": int, "power": int }
 ## 未知 id 只警告一次并忽略，不伪造显示。
 func set_resources(resources: Dictionary) -> void:
 	_resolve()

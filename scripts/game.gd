@@ -12,15 +12,14 @@ extends Node
 const BootstrapScript = preload("res://scripts/bootstrap.gd")
 const GenomeScript = preload("res://scripts/dna/genome.gd")
 const FieldLayerScript = preload("res://scripts/views/field_layer.gd")
+const LogisticsLayerScript = preload("res://scripts/views/logistics_layer.gd")
 const ArtScript = preload("res://scripts/views/art_registry.gd")
 
-## 配置 id → UI 资源条 key（策划案 §4：零件/特殊材料/电力/水/矿）
+## 配置 id → UI 资源条 key（零件/特殊材料/电力；水/矿已移出资源板，见 hud.gd）
 const UI_RESOURCE_KEYS := {
 	&"parts": "parts",
 	&"special_material": "special",
 	&"power": "power",
-	&"water": "water",
-	&"ore": "ore",
 }
 var world: World
 var config: GameConfig
@@ -72,6 +71,11 @@ func _ready() -> void:
 		_entity_layer.add_child(field)
 		_entity_layer.move_child(field, 0)
 		field.setup(world)
+		# 物流渲染层（任务 7）：管道/传送带方向箭头 + 带上的矿块，贴在场景层之上、实体之下
+		var logi := LogisticsLayerScript.new()
+		logi.name = "LogisticsLayer"
+		_entity_layer.add_child(logi)
+		logi.setup(world)
 	_grid_sys = world.get_system("GridSystem")
 	_card_sys = world.get_system("CardSystem")
 	var level: Dictionary = config.get_level(level_id)
@@ -87,6 +91,7 @@ func _ready() -> void:
 	ui.fusion_toggled.connect(_on_fusion_toggled)
 	ui.fusion_confirmed.connect(_on_fusion_confirmed)
 	ui.factory_cell_clicked.connect(_on_factory_cell_clicked)
+	ui.line_committed.connect(_on_line_committed)
 	ui.wave_toggled.connect(func(running: bool): world.state.waves_running = running)
 	ui.speed_toggled.connect(func(s: float): world.state.speed = s)
 	_init_ui()
@@ -216,6 +221,21 @@ func _on_card_played(card: Dictionary, cell: Vector2i) -> void:
 
 func _on_placement_cancelled() -> void:
 	ui.set_placement_preview([])
+
+
+## 拖拽画线松手（UI → 逻辑）：按指令协议原文形态 [[x,y]] / [dx,dy] 入队，下一逻辑帧执行。
+## 这里**不做**合法性预判：GridSystem.can_place_line 只用于预览，最终以指令层
+## command_rejected 为准（失败整条不动，回执显示原因）。
+func _on_line_committed(kind: String, cells: Array, dir: Vector2i) -> void:
+	if world == null or cells.is_empty():
+		return
+	var proto: Array = []
+	for c in cells:
+		proto.append([c.x, c.y])
+	if kind == "remove":
+		world.push_command({"type": "remove_line", "cells": proto})
+	else:
+		world.push_command({"type": "place_line", "kind": kind, "cells": proto, "dir": [dir.x, dir.y]})
 
 
 # ---------------------------------------------------------------- 融合（DNA 系统）

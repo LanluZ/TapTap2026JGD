@@ -6,6 +6,8 @@ extends SceneTree
 ## 退出码：0 = 全部通过；非 0 = 失败项数。
 
 const BootstrapScript = preload("res://scripts/bootstrap.gd")
+const LineToolScript = preload("res://scripts/ui/line_tool.gd")
+const LogisticsLayerScript = preload("res://scripts/views/logistics_layer.gd")
 const DT := 0.1
 
 var _checks: int = 0
@@ -331,6 +333,8 @@ func _run() -> int:
 		_t22_pump_drain()
 		_t23_water_truth_table()
 		_t24_drag_end_to_end()
+		_t25_drag_to_cells()
+		_t26_render_data()
 
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return _failures
@@ -772,4 +776,120 @@ func _t24_drag_end_to_end() -> void:
 	# 拆掉贴泵段 → 断链：泵失对接、炮塔断水（同一条指令几何下的反向验证）
 	_ok(_remove(w, [[5, 3]]) == 0, "T24: 拆掉贴泵段 [5,3]")
 	_ok(not lg.pump_connected(pump) and not _w(w, turret), "T24: 拆泵侧管 → 泵脱网且炮塔断水")
+
+
+# ================================================================ 任务 7：拖拽画线与渲染数据
+
+## 拖拽格集 → 指令 cells 原文形态 [[x, y]...]（协议规定形态，UI 直接抛这个）。
+func _protocol(cells: Array) -> Array:
+	var out: Array = []
+	for c in cells:
+		out.append([c.x, c.y])
+	return out
+
+
+func _cells_eq(got: Array, want: Array) -> bool:
+	if got.size() != want.size():
+		return false
+	for i in got.size():
+		if got[i] != want[i]:
+			return false
+	return true
+
+
+func _t25_drag_to_cells() -> void:
+	print("== T25: 拖拽画线 → place_line/remove_line → 格子状态（端到端）==")
+	var w = _new_world()
+	# ① 纯几何：起点格 + 终点格 → 单轴直链 + 单一 dir（协议只给整条 cells 写一个 dir）
+	var a := Vector2i(2, 5)
+	var b := Vector2i(4, 5)
+	_ok(_cells_eq(LineToolScript.line_cells(a, b), [Vector2i(2, 5), Vector2i(3, 5), Vector2i(4, 5)]),
+		"T25: 水平拖 2,5→4,5 → 三格直链（实际 %s）" % str(LineToolScript.line_cells(a, b)))
+	_ok(LineToolScript.line_dir(a, b) == Vector2i(1, 0), "T25: 向右拖 → dir (1,0)")
+	_ok(_cells_eq(LineToolScript.line_cells(b, a), [Vector2i(4, 5), Vector2i(3, 5), Vector2i(2, 5)]),
+		"T25: 反向拖的格序与拖拽方向一致")
+	_ok(LineToolScript.line_dir(b, a) == Vector2i(-1, 0),
+		"T25: 反向拖 4,5→2,5 → dir (-1,0)（R3：箭头方向必须跟随拖拽，玩家靠它自查受料端）")
+	_ok(_cells_eq(LineToolScript.line_cells(Vector2i(3, 5), Vector2i(3, 7)),
+		[Vector2i(3, 5), Vector2i(3, 6), Vector2i(3, 7)]), "T25: 垂直拖 → 三格竖链")
+	_ok(LineToolScript.line_dir(Vector2i(3, 5), Vector2i(3, 7)) == Vector2i(0, 1), "T25: 向下拖 → dir (0,1)")
+	_ok(_cells_eq(LineToolScript.line_cells(Vector2i(2, 5), Vector2i(4, 7)),
+		[Vector2i(2, 5), Vector2i(3, 5), Vector2i(4, 5)]),
+		"T25: 斜拖取主轴（|dx| ≥ |dy| 走 x），不改道")
+	_ok(LineToolScript.line_cells(Vector2i(2, 5), Vector2i(2, 5)).size() == 1, "T25: 原地点击 → 单格")
+	_ok(LineToolScript.line_dir(Vector2i(2, 5), Vector2i(2, 5)) == Vector2i.ZERO,
+		"T25: 原地点击无方向（ZERO，方向回退由 UI 决定）")
+
+	# ② 指令层落地：拖拽产物按协议原文形态入队
+	var cells: Array = LineToolScript.line_cells(a, b)
+	var dir: Vector2i = LineToolScript.line_dir(a, b)
+	_ok(_place(w, "pipe", _protocol(cells), [dir.x, dir.y]) == 0, "T25: 拖拽格集直接作为 place_line cells 被接受")
+	var all_ok := true
+	for c in cells:
+		var cell = w.grid.get_cell(c)
+		if cell.line_kind != &"pipe" or cell.line_dir != dir:
+			all_ok = false
+	_ok(all_ok, "T25: 三格 line_kind=pipe 且 line_dir 跟随拖拽方向")
+	_ok(_line_events.size() == 3, "T25: 每格一条 line_changed（实际 %d）" % _line_events.size())
+
+	# ③ 拆除拖拽：反向拖回同一行 → 整条拆掉
+	var rm: Array = LineToolScript.line_cells(b, a)
+	w.push_command({"type": "remove_line", "cells": _protocol(rm)})
+	w.tick(DT)
+	_ok(w.grid.get_cell(Vector2i(2, 5)).line_kind == &"" and w.grid.get_cell(Vector2i(4, 5)).line_kind == &"",
+		"T25: 拖拽拆除清空整条（含反向拖的格序）")
+
+	# ④ 拒绝路径：拖过路径格（非 buildable）→ 整条不动、只发一次拒绝
+	var bad: Array = LineToolScript.line_cells(Vector2i(1, 1), Vector2i(3, 1))
+	var before: int = _rejects.size()
+	w.push_command({"type": "place_line", "kind": "belt", "cells": _protocol(bad), "dir": [1, 0]})
+	w.tick(DT)
+	var untouched := true
+	for c in bad:
+		if c != Vector2i(1, 1) and w.grid.get_cell(c).line_kind != &"":
+			untouched = false
+	_ok(_rejects.size() == before + 1 and untouched, "T25: 拖过路径格 → 整条拒绝且其余格未写入")
+
+
+func _t26_render_data() -> void:
+	print("== T26: 渲染数据读取（logistics_layer 只读快照 + 矿块屏幕坐标）==")
+	var w = _new_world()
+	_place(w, "pipe", [[2, 5], [3, 5]], [1, 0])
+	_place(w, "belt", [[4, 6]], [0, 1])
+	var items: Array = LogisticsLayerScript.line_items(w)
+	_ok(items.size() == 3, "T26: 只暴露有线格（3 条线，实际 %d）" % items.size())
+	var belt_item: Dictionary = {}
+	var pipe_cells: Array = []
+	for it in items:
+		if str(it["kind"]) == "belt":
+			belt_item = it
+		elif str(it["kind"]) == "pipe":
+			pipe_cells.append(it["cell"])
+	_ok(not belt_item.is_empty() and belt_item["dir"] == Vector2i(0, 1),
+		"T26: belt 条目携带 line_dir（实际 %s）" % str(belt_item.get("dir")))
+	_ok(_cells_eq(pipe_cells, [Vector2i(2, 5), Vector2i(3, 5)]), "T26: pipe 格集正确（升序）")
+	_ok(belt_item.get("items") is Array and (belt_item["items"] as Array).is_empty(),
+		"T26: 空带 items 为空数组")
+	# 矿块屏幕坐标：入口 = 格心 - dir*半格，t 沿 dir 前进
+	var cs := 64.0
+	_ok(LogisticsLayerScript.ore_pos(Vector2i(2, 5), Vector2i(1, 0), 0.0, cs) == Vector2(2 * cs, 5 * cs + cs * 0.5),
+		"T26: dir(1,0) t=0 → 本格左边中点")
+	_ok(LogisticsLayerScript.ore_pos(Vector2i(2, 5), Vector2i(1, 0), 0.5, cs) == Vector2(2 * cs + cs * 0.5, 5 * cs + cs * 0.5),
+		"T26: dir(1,0) t=0.5 → 格心")
+	_ok(LogisticsLayerScript.ore_pos(Vector2i(2, 5), Vector2i(0, -1), 1.0, cs) == Vector2(2 * cs + cs * 0.5, 5 * cs),
+		"T26: dir(0,-1) t=1 → 本格上边中点（入口在底边）")
+	# 块位由逻辑层推进，渲染只读不写
+	var bc = w.grid.get_cell(Vector2i(4, 6))
+	bc.belt_items.append(0.75)
+	items = LogisticsLayerScript.line_items(w)
+	var got: Array = []
+	for it in items:
+		if str(it["kind"]) == "belt":
+			got = it["items"]
+	_ok(_approx(got, [0.75]), "T26: items 跟随 belt_items（实际 %s）" % str(got))
+	_ok(is_equal_approx(bc.belt_items[0], 0.75) and bc.belt_items.size() == 1,
+		"T26: 快照只读——读渲染数据不改世界")
+	# 拆线后从快照消失
+	_remove(w, [[4, 6]])
+	_ok(LogisticsLayerScript.line_items(w).size() == 2, "T26: 拆线后该格不再进渲染快照")
 

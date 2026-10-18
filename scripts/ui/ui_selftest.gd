@@ -9,6 +9,8 @@ const UI_SCRIPTS: Array[String] = [
 	"res://scripts/ui/hud.gd",
 	"res://scripts/ui/hand_area.gd",
 	"res://scripts/ui/placement_preview.gd",
+	"res://scripts/ui/line_tool.gd",
+	"res://scripts/ui/line_draw_overlay.gd",
 	"res://scripts/ui/card_library.gd",
 	"res://scripts/ui/receipt_list.gd",
 	"res://scripts/ui/main_ui.gd",
@@ -26,8 +28,10 @@ const REQUIRED_NODES: Array[String] = [
 	"HUD/TopBar/Row/ResourceBar/Parts/VBox/Value",
 	"HUD/TopBar/Row/ResourceBar/Special/VBox/Value",
 	"HUD/TopBar/Row/ResourceBar/Power/VBox/Value",
-	"HUD/TopBar/Row/ResourceBar/Water/VBox/Value",
-	"HUD/TopBar/Row/ResourceBar/Ore/VBox/Value",
+	"HUD/TopBar/Row/LineTools",
+	"HUD/TopBar/Row/LineTools/Pipe",
+	"HUD/TopBar/Row/LineTools/Belt",
+	"HUD/TopBar/Row/LineTools/Remove",
 	"HUD/TopBar/Row/WaveBox/WaveText",
 	"HUD/TopBar/Row/WaveBox/WaveBar",
 	"HUD/TopBar/Row/EnemyBox/EnemyText",
@@ -91,6 +95,19 @@ func _click_event(button_index: MouseButton, local_pos: Vector2) -> InputEventMo
 	return event
 
 
+## 模拟鼠标移动（拖拽画线的 motion 事件）。
+func _motion_event(local_pos: Vector2) -> InputEventMouseMotion:
+	var event := InputEventMouseMotion.new()
+	event.position = local_pos
+	return event
+
+
+## 模拟点击一个 toggle 按钮：Godot 点击时先翻转 button_pressed 再发 pressed。
+func _click_toggle(btn: Button) -> void:
+	btn.button_pressed = not btn.button_pressed
+	btn.pressed.emit()
+
+
 func _run() -> void:
 	# 1) 脚本可解析 / 可实例化
 	for path in UI_SCRIPTS:
@@ -130,12 +147,10 @@ func _run() -> void:
 	_check(hand.get_child_count() == 7, "auto_mock 手牌槽位 7（实际 %d）" % hand.get_child_count())
 
 	# 5) HUD 注入
-	ui.set_resources({"parts": 10, "special": 2, "power": 3, "water": 4, "ore": 5, "mystery": 99})
+	ui.set_resources({"parts": 10, "special": 2, "power": 3, "mystery": 99})
 	_check(parts_value.text == "10", "set_resources 零件=10（实际 %s）" % parts_value.text)
 	var special_value := ui.get_node("HUD/TopBar/Row/ResourceBar/Special/VBox/Value") as Label
 	_check(special_value.text == "2", "set_resources 特殊材料=2（实际 %s）" % special_value.text)
-	var ore_value := ui.get_node("HUD/TopBar/Row/ResourceBar/Ore/VBox/Value") as Label
-	_check(ore_value.text == "5", "set_resources 矿=5（实际 %s）" % ore_value.text)
 
 	ui.set_wave_info(3, 12)
 	_check(wave_text.text == "波次 3 / 12", "set_wave_info 文本（实际 %s）" % wave_text.text)
@@ -272,6 +287,76 @@ func _run() -> void:
 	_check(not dna.get_node("Box/ChainSection").visible, "DNA 空碱基链整段隐藏")
 	_check(not dna.get_node("Box/RulesSection").visible, "DNA 空规则整段隐藏")
 	dna.free()
+
+	# 14) 物流工具：资源板移除水/矿、三按钮互斥、拖拽发指令、与卡牌流程互斥
+	_check(ui.get_node_or_null("HUD/TopBar/Row/ResourceBar/Water") == null, "资源板已移除水面板")
+	_check(ui.get_node_or_null("HUD/TopBar/Row/ResourceBar/Ore") == null, "资源板已移除矿面板")
+	var res_bar := ui.get_node("HUD/TopBar/Row/ResourceBar")
+	_check(res_bar.get_child_count() == 3, "资源板只剩 3 槽（实际 %d）" % res_bar.get_child_count())
+
+	var line_records: Array = []
+	ui.line_committed.connect(func(kind: String, cells: Array, dir: Vector2i):
+		line_records.append({"kind": kind, "cells": cells, "dir": dir}))
+	var tool_bar := ui.get_node_or_null("HUD/TopBar/Row/LineTools")
+	var pipe_btn := ui.get_node_or_null("HUD/TopBar/Row/LineTools/Pipe") as Button
+	var belt_btn := ui.get_node_or_null("HUD/TopBar/Row/LineTools/Belt") as Button
+	var remove_btn := ui.get_node_or_null("HUD/TopBar/Row/LineTools/Remove") as Button
+	var line_layer := ui.get_node_or_null("LineOverlay")
+	_check(pipe_btn != null and belt_btn != null and remove_btn != null, "物流三按钮存在（铺管道/铺传送带/拆除）")
+	_check(tool_bar != null and tool_bar.get_child_count() == 3, "三按钮同属 LineTools 容器")
+	if pipe_btn != null and belt_btn != null and remove_btn != null and line_layer != null:
+		_check(pipe_btn.toggle_mode and belt_btn.toggle_mode and remove_btn.toggle_mode, "三按钮为 toggle（互斥选中态）")
+		ui.select_line_tool("pipe")
+		_check(ui.get_line_tool() == "pipe", "select_line_tool(pipe) 生效（实际 '%s'）" % ui.get_line_tool())
+		_check(pipe_btn.button_pressed and not belt_btn.button_pressed and not remove_btn.button_pressed,
+			"选中铺管道 → 三按钮互斥")
+		_check(line_layer.visible and line_layer.mouse_filter == Control.MOUSE_FILTER_STOP,
+			"工具激活 → LineOverlay 拦截鼠标（吞掉格子点击）")
+		ui.select_line_tool("belt")
+		_check(ui.get_line_tool() == "belt" and belt_btn.button_pressed and not pipe_btn.button_pressed,
+			"切到铺传送带 → 上一个按钮自动弹起")
+		var drag_cells: Array[Vector2i] = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)]
+		ui.set_grid_geometry(Vector2(20, 30), Vector2i(32, 32), drag_cells)
+		line_records.clear()
+		line_layer._gui_input(_click_event(MOUSE_BUTTON_LEFT, line_layer.cell_rect(Vector2i(0, 0)).get_center()))
+		line_layer._gui_input(_motion_event(line_layer.cell_rect(Vector2i(1, 0)).get_center()))
+		line_layer._gui_input(_motion_event(line_layer.cell_rect(Vector2i(2, 0)).get_center()))
+		var release := _click_event(MOUSE_BUTTON_LEFT, line_layer.cell_rect(Vector2i(2, 0)).get_center())
+		release.pressed = false
+		line_layer._gui_input(release)
+		_check(line_records.size() == 1, "拖拽松开 → 一次 line_committed（实际 %d）" % line_records.size())
+		if line_records.size() == 1:
+			var rec: Dictionary = line_records[0]
+			_check(str(rec["kind"]) == "belt", "指令 kind=belt（实际 %s）" % str(rec["kind"]))
+			_check((rec["cells"] as Array).size() == 3,
+				"拖 0,0→2,0 → 3 格（实际 %d）" % (rec["cells"] as Array).size())
+			_check(rec["dir"] == Vector2i(1, 0), "指令 dir=(1,0)（实际 %s）" % str(rec["dir"]))
+		ui.select_line_tool("remove")
+		line_records.clear()
+		line_layer._gui_input(_click_event(MOUSE_BUTTON_LEFT, line_layer.cell_rect(Vector2i(0, 0)).get_center()))
+		line_layer._gui_input(_motion_event(line_layer.cell_rect(Vector2i(1, 0)).get_center()))
+		var release2 := _click_event(MOUSE_BUTTON_LEFT, line_layer.cell_rect(Vector2i(1, 0)).get_center())
+		release2.pressed = false
+		line_layer._gui_input(release2)
+		_check(line_records.size() == 1 and str(line_records[0]["kind"]) == "remove"
+			and (line_records[0]["cells"] as Array).size() == 2, "拆除拖拽 → kind=remove 两格")
+		ui.select_line_tool("remove")
+		ui.select_line_tool("remove")
+		_check(ui.get_line_tool() == "remove", "select_line_tool 幂等（显式设置，不是 toggle）")
+		_click_toggle(remove_btn) # 用户再点一次同一按钮 = 弹起取消
+		_check(ui.get_line_tool() == "" and not remove_btn.button_pressed, "再点同一按钮 → 取消选中")
+		_check(not line_layer.visible, "取消工具后 LineOverlay 不再拦截鼠标")
+		# 与卡牌打出流程互斥（hand 在第 12 段已注入 1 张「卡Z」）
+		var card_btns := _hand_buttons(hand)
+		ui.select_line_tool("pipe")
+		(card_btns[0] as Button).pressed.emit()
+		_check(ui.get_line_tool() == "" and not pipe_btn.button_pressed, "选卡 → 工具自动取消（互斥）")
+		_check(ui.is_placing(), "工具取消后选卡仍进入放置预览")
+		ui.cancel_placement()
+		(card_btns[0] as Button).pressed.emit()
+		ui.select_line_tool("belt")
+		_check(not ui.is_placing() and ui.get_selected_card().is_empty(), "选工具 → 卡牌选择清空（格子点击归工具）")
+		ui.select_line_tool("")
 
 	_finish()
 

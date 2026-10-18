@@ -11,6 +11,7 @@
 [ext_resource type="Script" uid="uid://b3u0rlnhtgu7f" path="res://scripts/ui/card_library.gd" id="s_library"]
 [ext_resource type="Script" uid="uid://dayf32eecrp5e" path="res://scripts/ui/main_ui.gd" id="s_main"]
 [ext_resource type="Script" uid="uid://big5ui3o8t8uj" path="res://scripts/ui/placement_preview.gd" id="s_overlay"]
+[ext_resource type="Script" path="res://scripts/ui/line_draw_overlay.gd" id="s_line"]
 [ext_resource type="Script" uid="uid://bpnqsr80k7kae" path="res://scripts/ui/receipt_list.gd" id="s_receipts"]
 [ext_resource type="Texture2D" uid="uid://cbblamtewav8i" path="res://art/ui/tinted/button_hover.png" id="tx_btn_h"]
 [ext_resource type="Texture2D" uid="uid://b5npigxp4p4q8" path="res://art/ui/tinted/button_normal.png" id="tx_btn_n"]
@@ -158,6 +159,15 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("s_overlay")
+
+[node name="LineOverlay" type="Control" parent="." unique_id=1174826350]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("s_line")
 
 [node name="RightRail" type="VBoxContainer" parent="." unique_id=596700473]
 layout_mode = 0
@@ -375,49 +385,30 @@ theme_override_font_sizes/font_size = 16
 text = "—"
 horizontal_alignment = 1
 
-[node name="Water" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=1497490131]
-custom_minimum_size = Vector2(56, 44)
+[node name="LineTools" type="HBoxContainer" parent="HUD/TopBar/Row" unique_id=1120538774]
 layout_mode = 2
-theme_override_styles/panel = ExtResource("14_dp3eg")
+theme_override_constants/separation = 4
 
-[node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Water" unique_id=904273284]
+[node name="Pipe" type="Button" parent="HUD/TopBar/Row/LineTools" unique_id=1044127903]
+custom_minimum_size = Vector2(84, 0)
 layout_mode = 2
-theme_override_constants/separation = 2
+tooltip_text = "铺管道：在场地按住起点拖到终点松开（输送方向 = 拖拽方向）"
+toggle_mode = true
+text = "铺管道"
 
-[node name="Name" type="Label" parent="HUD/TopBar/Row/ResourceBar/Water/VBox" unique_id=830427543]
+[node name="Belt" type="Button" parent="HUD/TopBar/Row/LineTools" unique_id=1188044196]
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.62, 0.63, 0.68, 1)
-theme_override_font_sizes/font_size = 11
-text = "水"
-horizontal_alignment = 1
+tooltip_text = "铺传送带：在场地按住起点拖到终点松开（矿块朝箭头方向走）"
+toggle_mode = true
+text = "铺传送带"
 
-[node name="Value" type="Label" parent="HUD/TopBar/Row/ResourceBar/Water/VBox" unique_id=2146561513]
+[node name="Remove" type="Button" parent="HUD/TopBar/Row/LineTools" unique_id=1327456112]
+custom_minimum_size = Vector2(72, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "—"
-horizontal_alignment = 1
-
-[node name="Ore" type="PanelContainer" parent="HUD/TopBar/Row/ResourceBar" unique_id=1942927078]
-custom_minimum_size = Vector2(56, 44)
-layout_mode = 2
-theme_override_styles/panel = ExtResource("14_dp3eg")
-
-[node name="VBox" type="VBoxContainer" parent="HUD/TopBar/Row/ResourceBar/Ore" unique_id=1302262909]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="Name" type="Label" parent="HUD/TopBar/Row/ResourceBar/Ore/VBox" unique_id=1020639622]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.62, 0.63, 0.68, 1)
-theme_override_font_sizes/font_size = 11
-text = "矿"
-horizontal_alignment = 1
-
-[node name="Value" type="Label" parent="HUD/TopBar/Row/ResourceBar/Ore/VBox" unique_id=575862696]
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "—"
-horizontal_alignment = 1
+tooltip_text = "拆除管道/传送带：拖过的格子上的线路全部拆除（无返还）"
+toggle_mode = true
+text = "拆除"
 
 [node name="Spacer" type="Control" parent="HUD/TopBar/Row" unique_id=615944948]
 layout_mode = 2

@@ -6,8 +6,10 @@ extends Control
 ##             set_enemy_count / set_placement_preview / set_grid_geometry /
 ##             set_library_cards / set_library_expanded /
 ##             set_receipts / cancel_placement / get_selected_card / is_placing /
-##             get_hand / open_settings / is_settings_open / load_mock_data
-##   信号：card_selected(card)、card_played(card, cell)、placement_cancelled()
+##             get_hand / open_settings / is_settings_open / load_mock_data /
+##             select_line_tool / get_line_tool
+##   信号：card_selected(card)、card_played(card, cell)、placement_cancelled()、
+##         line_tool_selected(tool)、line_committed(kind, cells, dir)
 ##
 ## 数据全部由调用方注入；本脚本只做展示与交互状态，不引用
 ## scripts/ecs/、scripts/systems/、scripts/config/ 下任何内容。
@@ -20,10 +22,13 @@ signal fusion_confirmed(seed: int) # 融合确定（种子，0 = 随机）
 signal factory_cell_clicked(cell: Vector2i) # 融合模式下点选工厂所在格
 signal wave_toggled(running: bool) # 右上角「开始/暂停」按钮
 signal speed_toggled(speed: float) # 右上角速度按钮（1/2 倍速切换）
+signal line_tool_selected(tool: String) # 物流工具选中态变化（"" = 无工具）
+signal line_committed(kind: String, cells: Array, dir: Vector2i) # 拖拽画线松手
 
 const HudScript = preload("res://scripts/ui/hud.gd")
 const HandScript = preload("res://scripts/ui/hand_area.gd")
 const OverlayScript = preload("res://scripts/ui/placement_preview.gd")
+const LineOverlayScript = preload("res://scripts/ui/line_draw_overlay.gd")
 const LibraryScript = preload("res://scripts/ui/card_library.gd")
 const ReceiptsScript = preload("res://scripts/ui/receipt_list.gd")
 const DnaInspectorScene = preload("res://scenes/ui/dna_inspector.tscn")
@@ -56,6 +61,9 @@ var _speed_btn: Button
 var _settings: Control # scenes/ui/settings_panel.tscn 实例（main.tscn 内）
 var _wave_running := false # 与 GameState.waves_running 初值一致（默认暂停）
 var _speed := 1.0
+var _line_overlay: LineOverlayScript
+var _line_buttons: Dictionary = {} # "pipe"/"belt"/"remove" -> Button
+var _line_tool := "" # "" = 无工具；与卡牌选中互斥（见 _apply_line_tool）
 
 
 func _ready() -> void:
@@ -91,6 +99,7 @@ func _resolve_nodes() -> void:
 	_bind_settings()
 	_build_fusion_panel()
 	_build_dna_popup()
+	_bind_line_tools()
 
 
 ## 设置面板实例（main.tscn 内的 SettingsPanel）：「返回标题」由本层切场景，
@@ -102,6 +111,48 @@ func _bind_settings() -> void:
 		return
 	if not _settings.is_connected("title_requested", _on_settings_title_requested):
 		_settings.connect("title_requested", _on_settings_title_requested)
+
+
+## 物流工具（main.tscn 的 HUD/TopBar/Row/LineTools + LineOverlay）：三按钮互斥选中，
+## 选中后拖拽画线由 LineOverlay 接管（几何走同一个 set_grid_geometry）。
+## 与卡牌打出流程互斥：选工具清卡牌选中，选卡/融合清工具（仲裁收口在 _apply_line_tool）。
+func _bind_line_tools() -> void:
+	_line_overlay = get_node_or_null("LineOverlay") as LineOverlayScript
+	if _line_overlay == null:
+		push_warning("[关卡UI] main.tscn 缺少 LineOverlay（拖拽画线层）")
+	else:
+		_line_overlay.line_committed.connect(_on_line_committed)
+		_line_overlay.cancelled.connect(_on_line_cancelled)
+	var bar := get_node_or_null("HUD/TopBar/Row/LineTools")
+	if bar == null:
+		push_warning("[关卡UI] main.tscn 缺少 HUD/TopBar/Row/LineTools")
+		return
+	for entry in [["Pipe", "pipe"], ["Belt", "belt"], ["Remove", "remove"]]:
+		var node_name := String(entry[0])
+		var kind := String(entry[1])
+		var btn := bar.get_node_or_null(node_name) as Button
+		if btn == null:
+			push_warning("[关卡UI] LineTools 缺少按钮: " + node_name)
+			continue
+		btn.toggle_mode = true
+		_line_buttons[kind] = btn
+		btn.pressed.connect(_on_line_tool_pressed.bind(kind))
+
+
+## 按钮点击：toggle 已把自身状态翻好，按下 = 切到该工具，弹起 = 取消工具。
+func _on_line_tool_pressed(kind: String) -> void:
+	var btn: Button = _line_buttons.get(kind, null)
+	_apply_line_tool(kind if btn != null and btn.button_pressed else "")
+
+
+## 拖拽松手 → 上层接线层（game.gd）转成 place_line / remove_line 指令。
+func _on_line_committed(kind: String, cells: Array, dir: Vector2i) -> void:
+	line_committed.emit(kind, cells, dir)
+
+
+## 右键 / Esc 取消画线工具（LineOverlay 自己已 deactivate，这里同步按钮与状态）。
+func _on_line_cancelled() -> void:
+	_apply_line_tool("")
 
 
 ## DNA 检视弹窗（程序化构建）：内嵌 dna_inspector 预制体；关闭按钮/Esc/再右键收起。
@@ -255,6 +306,8 @@ func set_grid_geometry(origin: Vector2, cell_size: Vector2i, cells: Array) -> vo
 	_external_data = true
 	if _overlay != null:
 		_overlay.set_grid_geometry(origin, cell_size, cells)
+	if _line_overlay != null:
+		_line_overlay.set_grid_geometry(origin, cell_size, cells)
 
 
 ## 卡牌库
@@ -282,6 +335,8 @@ func set_receipts(items: Array) -> void:
 ## 程序化取消放置（等价于玩家按 Esc / 右键）
 func cancel_placement() -> void:
 	_prepare()
+	if not _line_tool.is_empty():
+		_apply_line_tool("")
 	if _hand != null:
 		_hand.clear_selection(true)
 	if _overlay != null:
@@ -307,6 +362,41 @@ func get_selected_card() -> Dictionary:
 func is_placing() -> bool:
 	_prepare()
 	return _overlay.is_active() if _overlay != null else false
+
+
+## 程序化选择物流工具（"" = 取消；pipe / belt / remove）。按钮态、画线层、卡牌互斥在此收口。
+func select_line_tool(tool: String) -> void:
+	_prepare()
+	if not ["", "pipe", "belt", "remove"].has(tool):
+		push_warning("[关卡UI] 未知物流工具: " + tool)
+		return
+	_apply_line_tool(tool)
+
+
+func get_line_tool() -> String:
+	_prepare()
+	return _line_tool
+
+
+## 交互仲裁唯一入口（三按钮互斥 / 画线层鼠标接管 / 与卡牌选中互斥）：
+##   选中工具 → 只有该工具按钮按下；LineOverlay 以 MOUSE_FILTER_STOP 吞掉场地点击，
+##              同时清空卡牌选中并关掉卡牌放置预览（否则两套格子点击会抢同一个格）；
+##   取消工具 → 归还鼠标与格子点击给卡牌流程。
+func _apply_line_tool(tool: String) -> void:
+	_line_tool = tool
+	for k in _line_buttons:
+		(_line_buttons[k] as Button).button_pressed = (k == tool)
+	if _line_overlay != null:
+		if tool.is_empty():
+			_line_overlay.deactivate()
+		else:
+			_line_overlay.activate(tool)
+	if not tool.is_empty():
+		if _overlay != null:
+			_overlay.deactivate()
+		if _hand != null and _hand.get_selected_index() >= 0:
+			_hand.clear_selection(true) # 走 selection_cleared → placement_cancelled
+	line_tool_selected.emit(tool)
 
 
 func get_hand() -> Array:
@@ -351,6 +441,8 @@ func load_mock_data() -> void:
 
 func _on_fusion_toggled(on: bool) -> void:
 	_fusion_enabled = on
+	if on and not _line_tool.is_empty():
+		_apply_line_tool("") # 互斥：融合点选与物流工具都吃格子点击，同时只能有一个
 	if _hand != null:
 		_hand.clear_selection(true) # 融合模式下不打牌
 	if _overlay != null:
@@ -381,6 +473,8 @@ func _on_speed_pressed() -> void:
 
 func _on_card_selected(card: Dictionary) -> void:
 	hide_dna()
+	if not _line_tool.is_empty():
+		_apply_line_tool("") # 互斥：选卡 = 退出物流工具，格子点击交回卡牌流程
 	if _fusion_enabled:
 		_fusion_toggle.button_pressed = false # 选卡退出融合模式
 	if _overlay != null:

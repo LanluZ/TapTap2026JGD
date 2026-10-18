@@ -22,7 +22,8 @@ signal ore_delivered(entity_id: int)
 ## reason = "full"（弹药或进料库存已满，块滞留带端）/ "no_feed"（该建筑不吃矿）。
 ## **边沿触发**（不是电平）：只在某实体的拒收状态「进入」时发一次——滞留矿块每 tick
 ## 重试交付但同因拒收不再重复发（否则 10Hz 连发，任务 7 的反馈会持续闪）。
-## 消费方按「收到 = 刚刚进入该拒收态」使用，要查电平请直接调 deliver_ore / 读组件。
+## 消费方按「收到 = 刚刚进入该拒收态」使用；要查电平请直接读 Attack.ammo /
+## ResourceBuffer 组件——**不要调 deliver_ore**：它有副作用（扣弹药、进库存、发信号）。
 signal ore_rejected(entity_id: int, reason: String)
 
 ## 弹药上限的权威来源（Attack 组件），deliver_ore 用它判「弹药满拒收」。
