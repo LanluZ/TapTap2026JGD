@@ -1,23 +1,23 @@
 [gd_scene format=3 uid="uid://dsbtq4slywayc"]
 
 [ext_resource type="Script" uid="uid://cjs307cpgiuji" path="res://scripts/views/entity_layer.gd" id="2_85g3d"]
-[ext_resource type="StyleBox" path="res://themes/ui_panel_outer.tres" id="8_jbj1t"]
+[ext_resource type="StyleBox" uid="uid://ju8efmq0xihh" path="res://themes/ui_panel_outer.tres" id="8_jbj1t"]
 [ext_resource type="Script" uid="uid://0rmkftgrr02f" path="res://scripts/game.gd" id="8_tipki"]
-[ext_resource type="StyleBox" path="res://themes/ui_panel_topbar.tres" id="13_muem4"]
-[ext_resource type="StyleBox" path="res://themes/ui_panel_inner.tres" id="14_dp3eg"]
-[ext_resource type="PackedScene" path="res://scenes/ui/settings_panel.tscn" id="ps_settings"]
+[ext_resource type="StyleBox" uid="uid://dyocl1sxj4i68" path="res://themes/ui_panel_topbar.tres" id="13_muem4"]
+[ext_resource type="StyleBox" uid="uid://ybltucvg6p2c" path="res://themes/ui_panel_inner.tres" id="14_dp3eg"]
+[ext_resource type="PackedScene" uid="uid://dsksxyjdkpjwo" path="res://scenes/ui/settings_panel.tscn" id="ps_settings"]
+[ext_resource type="Shader" uid="uid://326j34kbtcvs" path="res://shaders/bg_fog.gdshader" id="s_fog"]
 [ext_resource type="Script" uid="uid://ktohmln8ahcd" path="res://scripts/ui/hand_area.gd" id="s_hand"]
 [ext_resource type="Script" uid="uid://dbsmt7efbgp8y" path="res://scripts/ui/hud.gd" id="s_hud"]
 [ext_resource type="Script" uid="uid://b3u0rlnhtgu7f" path="res://scripts/ui/card_library.gd" id="s_library"]
+[ext_resource type="Script" uid="uid://l5u4m5h2sg0x" path="res://scripts/ui/line_draw_overlay.gd" id="s_line"]
 [ext_resource type="Script" uid="uid://dayf32eecrp5e" path="res://scripts/ui/main_ui.gd" id="s_main"]
 [ext_resource type="Script" uid="uid://big5ui3o8t8uj" path="res://scripts/ui/placement_preview.gd" id="s_overlay"]
-[ext_resource type="Script" uid="uid://l5u4m5h2sg0x" path="res://scripts/ui/line_draw_overlay.gd" id="s_line"]
 [ext_resource type="Script" uid="uid://bpnqsr80k7kae" path="res://scripts/ui/receipt_list.gd" id="s_receipts"]
-[ext_resource type="Texture2D" path="res://art/ui/tinted/pal/button_hover.png" id="tx_btn_h"]
-[ext_resource type="Texture2D" path="res://art/ui/tinted/pal/button_normal.png" id="tx_btn_n"]
-[ext_resource type="Texture2D" path="res://art/ui/tinted/pal/button_pressed.png" id="tx_btn_p"]
-[ext_resource type="Texture2D" path="res://art/ui/tinted/pal/panel_p001_double.png" id="tx_p001d"]
-[ext_resource type="Shader" path="res://shaders/bg_fog.gdshader" id="s_fog"]
+[ext_resource type="Texture2D" uid="uid://rylaqfc33bfp" path="res://art/ui/tinted/pal/button_hover.png" id="tx_btn_h"]
+[ext_resource type="Texture2D" uid="uid://dhbwbx83vevdb" path="res://art/ui/tinted/pal/button_normal.png" id="tx_btn_n"]
+[ext_resource type="Texture2D" uid="uid://hmo1egjt5hwq" path="res://art/ui/tinted/pal/button_pressed.png" id="tx_btn_p"]
+[ext_resource type="Texture2D" uid="uid://c62wo47prqb30" path="res://art/ui/tinted/pal/panel_p001_double.png" id="tx_p001d"]
 
 [sub_resource type="StyleBoxTexture" id="SBtex_btn_h"]
 content_margin_left = 12.0
@@ -84,20 +84,6 @@ Button/styles/pressed = SubResource("SBtex_btn_p")
 Panel/styles/panel = SubResource("SBtex_panel")
 PanelContainer/styles/panel = SubResource("SBtex_panel")
 
-[sub_resource type="StyleBoxFlat" id="SB_bar_bg"]
-bg_color = Color(0.184, 0.122, 0.216, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.463, 0.361, 0.518, 1)
-
-[sub_resource type="StyleBoxFlat" id="SB_bar_wave_fill"]
-bg_color = Color(0.635, 0.824, 1, 1)
-
-[sub_resource type="StyleBoxFlat" id="SB_bar_enemy_fill"]
-bg_color = Color(1, 0.686, 0.8, 1)
-
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_bg_fog"]
 shader = ExtResource("s_fog")
 shader_parameter/pixel_size = 1.5
@@ -119,6 +105,20 @@ shader_parameter/height_bias = 0.35
 shader_parameter/min_alpha = 0.03
 shader_parameter/opacity = 0.6
 shader_parameter/time_scale = 1.0
+
+[sub_resource type="StyleBoxFlat" id="SB_bar_bg"]
+bg_color = Color(0.184, 0.122, 0.216, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.463, 0.361, 0.518, 1)
+
+[sub_resource type="StyleBoxFlat" id="SB_bar_wave_fill"]
+bg_color = Color(0.635, 0.824, 1, 1)
+
+[sub_resource type="StyleBoxFlat" id="SB_bar_enemy_fill"]
+bg_color = Color(1, 0.686, 0.8, 1)
 
 [node name="Main" type="Control" unique_id=1819869611]
 layout_mode = 3
@@ -161,7 +161,7 @@ mouse_filter = 2
 script = ExtResource("s_overlay")
 
 [node name="LineOverlay" type="Control" parent="." unique_id=1174826350]
-layout_mode = 0
+anchors_preset = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
@@ -175,7 +175,7 @@ anchor_left = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -308.0
-offset_top = 68.0
+offset_top = 101.0
 offset_right = -8.0
 offset_bottom = -8.0
 grow_horizontal = 0
@@ -207,7 +207,7 @@ size_flags_horizontal = 3
 
 [node name="Count" type="Label" parent="RightRail/CardLibrary/VBox/Head" unique_id=2130166239]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.847, 0.820, 0.863, 1)
+theme_override_colors/font_color = Color(0.847, 0.82, 0.863, 1)
 theme_override_font_sizes/font_size = 12
 text = "0"
 
@@ -285,7 +285,7 @@ size_flags_horizontal = 3
 
 [node name="Count" type="Label" parent="HandPanel/VBox/Head" unique_id=634720336]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.847, 0.820, 0.863, 1)
+theme_override_colors/font_color = Color(0.847, 0.82, 0.863, 1)
 theme_override_font_sizes/font_size = 12
 text = "0 / 7"
 
@@ -330,7 +330,7 @@ theme_override_constants/separation = 2
 
 [node name="Name" type="Label" parent="HUD/TopBar/Row/ResourceBar/Parts/VBox" unique_id=1335612038]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.847, 0.820, 0.863, 1)
+theme_override_colors/font_color = Color(0.847, 0.82, 0.863, 1)
 theme_override_font_sizes/font_size = 11
 text = "零件"
 horizontal_alignment = 1
@@ -352,7 +352,7 @@ theme_override_constants/separation = 2
 
 [node name="Name" type="Label" parent="HUD/TopBar/Row/ResourceBar/Special/VBox" unique_id=346747809]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.847, 0.820, 0.863, 1)
+theme_override_colors/font_color = Color(0.847, 0.82, 0.863, 1)
 theme_override_font_sizes/font_size = 11
 text = "材料"
 horizontal_alignment = 1
@@ -374,7 +374,7 @@ theme_override_constants/separation = 2
 
 [node name="Name" type="Label" parent="HUD/TopBar/Row/ResourceBar/Power/VBox" unique_id=1334025627]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.847, 0.820, 0.863, 1)
+theme_override_colors/font_color = Color(0.847, 0.82, 0.863, 1)
 theme_override_font_sizes/font_size = 11
 text = "电力"
 horizontal_alignment = 1
