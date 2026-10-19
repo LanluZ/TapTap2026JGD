@@ -9,11 +9,20 @@ const SCANLINE_SHADER := preload("res://shaders/crt_scanline.gdshader")
 ## 叠在其它 CanvasLayer（dna_inspector 等默认 1）之上，保证滤镜在整屏最上层。
 const OVERLAY_LAYER := 100
 
-## 视觉参数（中等强度：每 4 像素一条、暗线宽 2 像素、不透明度 0.35）。
+## 视觉参数（中等强度：每 5 像素一条、暗线宽 2 像素、不透明度 0.25）。
 ## 想在代码里临时调，改 _material.set_shader_parameter(...) 即可。
 const LINE_SPACING := 5.0
 const LINE_WIDTH := 2.0
 const LINE_ALPHA := 0.25
+
+## 鱼眼（桶形畸变）强度：0 = 关闭，0.02~0.05 轻微弯曲，0.3 以上明显。
+const FISHEYE := 0.04
+
+## CRT 黑边：画面四周一圈黑框（显像管外壳）。
+## BORDER_SIZE = 黑边宽度（像素，0 = 去掉黑边）/ RADIUS = 内框圆角半径 / SOFTNESS = 内侧羽化。
+const BORDER_SIZE := 12.0
+const BORDER_RADIUS := 56.0
+const BORDER_SOFTNESS := 12.0
 
 var _rect: ColorRect
 var _material: ShaderMaterial
@@ -33,6 +42,10 @@ func _build_rect() -> void:
 	_material.set_shader_parameter("line_spacing", LINE_SPACING)
 	_material.set_shader_parameter("line_width", LINE_WIDTH)
 	_material.set_shader_parameter("line_alpha", LINE_ALPHA)
+	_material.set_shader_parameter("fisheye", FISHEYE)
+	_material.set_shader_parameter("border_size", BORDER_SIZE)
+	_material.set_shader_parameter("border_radius", BORDER_RADIUS)
+	_material.set_shader_parameter("border_softness", BORDER_SOFTNESS)
 
 	_rect = ColorRect.new()
 	_rect.name = "ScanlineRect"
@@ -58,6 +71,9 @@ func _fit_viewport() -> void:
 		return
 	_rect.position = Vector2.ZERO
 	_rect.size = vp.get_visible_rect().size
+	# 黑边按逻辑像素算，shader 需要知道视口尺寸（不能依赖 SCREEN_PIXEL_SIZE）
+	if _material != null:
+		_material.set_shader_parameter("screen_size", _rect.size)
 
 
 ## 运行时开关（后续接设置面板用）：false 时整层隐藏，不产生绘制开销。
@@ -68,3 +84,21 @@ func set_scanlines_enabled(enabled: bool) -> void:
 func set_line_alpha(alpha: float) -> void:
 	if _material != null:
 		_material.set_shader_parameter("line_alpha", clampf(alpha, 0.0, 1.0))
+
+
+## 鱼眼强度：0 = 关闭（画面不弯），0.08 轻微，0.3 以上明显。
+func set_fisheye(strength: float) -> void:
+	if _material != null:
+		_material.set_shader_parameter("fisheye", clampf(strength, 0.0, 1.0))
+
+
+## 黑边宽度（像素）：0 = 去掉黑边、画面重新铺满整屏。
+func set_border_size(px: float) -> void:
+	if _material != null:
+		_material.set_shader_parameter("border_size", maxf(px, 0.0))
+
+
+## 黑边内框圆角半径（像素）：0 = 直角，越大越圆。
+func set_border_radius(px: float) -> void:
+	if _material != null:
+		_material.set_shader_parameter("border_radius", maxf(px, 0.0))

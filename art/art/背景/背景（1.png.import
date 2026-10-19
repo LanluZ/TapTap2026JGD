@@ -2,19 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dereaw7mi5ibi"
-path="res://.godot/imported/sphere_3.png-663ad25ba41bf7c9aa72d3f3bc2522d9.ctex"
+uid="uid://ca0c8cqd6eg81"
+path="res://.godot/imported/背景（1.png-4039b5e7662c2e49a5ceed93b351366d.ctex"
 metadata={
 "vram_texture": false
-}
-generator_parameters={
-"md5": "a3c094d5f5404cd94fd5aff19598a50d"
 }
 
 [deps]
 
-source_file="res://models/sphere_3.png"
-dest_files=["res://.godot/imported/sphere_3.png-663ad25ba41bf7c9aa72d3f3bc2522d9.ctex"]
+source_file="res://art/art/背景/背景（1.png"
+dest_files=["res://.godot/imported/背景（1.png-4039b5e7662c2e49a5ceed93b351366d.ctex"]
 
 [params]
 
@@ -26,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

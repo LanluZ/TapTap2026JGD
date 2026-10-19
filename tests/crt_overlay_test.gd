@@ -1,7 +1,8 @@
 extends SceneTree
-## headless 验证全局 CRT 扫描线滤镜（autoload CrtOverlay）：
+## headless 验证全局 CRT 滤镜（autoload CrtOverlay）：
 ## 注册项、CanvasLayer 层级、全屏 ColorRect 尺寸/位置、mouse_filter=IGNORE（不吞输入）、
-## shader 材质与视觉参数（4px 周期 / 2px 暗线 / 0.35 不透明度）、运行时开关。
+## shader 材质与视觉参数（5px 周期 / 2px 暗线 / 0.25 不透明度 / 鱼眼 0.08 / 黑边 24+圆角 56）、
+## 运行时开关与强度调节。
 ##
 ## 运行：
 ##   godot --headless --path <项目目录> -s res://tests/crt_overlay_test.gd
@@ -79,9 +80,13 @@ func _run() -> int:
 		return _summary()
 	var expected_shader: Shader = load("res://shaders/crt_scanline.gdshader")
 	_ok(mat.shader == expected_shader, "shader == shaders/crt_scanline.gdshader")
-	_ok(is_equal_approx(float(mat.get_shader_parameter("line_spacing")), 4.0), "line_spacing == 4.0")
-	_ok(is_equal_approx(float(mat.get_shader_parameter("line_width")), 2.0), "line_width == 2.0")
-	_ok(is_equal_approx(float(mat.get_shader_parameter("line_alpha")), 0.35), "line_alpha == 0.35")
+	_ok(is_equal_approx(float(mat.get_shader_parameter("line_spacing")), script.LINE_SPACING), "line_spacing == 常量 LINE_SPACING")
+	_ok(is_equal_approx(float(mat.get_shader_parameter("line_width")), script.LINE_WIDTH), "line_width == 常量 LINE_WIDTH")
+	_ok(is_equal_approx(float(mat.get_shader_parameter("line_alpha")), script.LINE_ALPHA), "line_alpha == 常量 LINE_ALPHA")
+	_ok(is_equal_approx(float(mat.get_shader_parameter("fisheye")), script.FISHEYE), "fisheye == 常量 FISHEYE")
+	_ok(is_equal_approx(float(mat.get_shader_parameter("border_size")), script.BORDER_SIZE), "border_size == 常量 BORDER_SIZE")
+	_ok(is_equal_approx(float(mat.get_shader_parameter("border_radius")), script.BORDER_RADIUS), "border_radius == 常量 BORDER_RADIUS")
+	_ok(is_equal_approx(float(mat.get_shader_parameter("border_softness")), script.BORDER_SOFTNESS), "border_softness == 常量 BORDER_SOFTNESS")
 
 	# 5) 运行时开关 / 强度调节（后续接设置面板的入口）
 	overlay.set_scanlines_enabled(false)
@@ -92,6 +97,20 @@ func _run() -> int:
 	_ok(is_equal_approx(float(mat.get_shader_parameter("line_alpha")), 0.5), "set_line_alpha(0.5) 生效")
 	overlay.set_line_alpha(2.0)
 	_ok(is_equal_approx(float(mat.get_shader_parameter("line_alpha")), 1.0), "set_line_alpha 超界被钳到 1.0")
+
+	# 6) 鱼眼 / 黑边调节入口
+	overlay.set_fisheye(0.4)
+	_ok(is_equal_approx(float(mat.get_shader_parameter("fisheye")), 0.4), "set_fisheye(0.4) 生效")
+	overlay.set_fisheye(-1.0)
+	_ok(is_equal_approx(float(mat.get_shader_parameter("fisheye")), 0.0), "set_fisheye 负值被钳到 0.0（关闭）")
+	overlay.set_border_size(60.0)
+	_ok(is_equal_approx(float(mat.get_shader_parameter("border_size")), 60.0), "set_border_size(60) 生效")
+	overlay.set_border_size(-8.0)
+	_ok(is_equal_approx(float(mat.get_shader_parameter("border_size")), 0.0), "set_border_size 负值被钳到 0.0（无黑边）")
+	overlay.set_border_radius(120.0)
+	_ok(is_equal_approx(float(mat.get_shader_parameter("border_radius")), 120.0), "set_border_radius(120) 生效")
+	overlay.set_border_radius(-1.0)
+	_ok(is_equal_approx(float(mat.get_shader_parameter("border_radius")), 0.0), "set_border_radius 负值被钳到 0.0（直角）")
 
 	overlay.free()
 	return _summary()

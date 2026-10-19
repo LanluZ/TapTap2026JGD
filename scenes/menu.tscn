@@ -2,67 +2,43 @@
 
 [ext_resource type="Script" uid="uid://wjnlxk3gxd2n" path="res://scripts/animated_button.gd" id="1_btn"]
 [ext_resource type="Script" uid="uid://by2t35sq2pprw" path="res://scripts/menu_camera.gd" id="2_cam"]
-[ext_resource type="Shader" uid="uid://dxor3cx2oous3" path="res://shaders/toon_sphere.gdshader" id="3_toon"]
+[ext_resource type="Texture2D" uid="uid://ca0c8cqd6eg81" path="res://art/art/背景/背景（1.png" id="3_13sgg"]
 [ext_resource type="Theme" uid="uid://d01bo340bjnmn" path="res://themes/menu_theme.tres" id="4_4ytvr"]
-[ext_resource type="Shader" uid="uid://c1rkgnykfakm8" path="res://shaders/sphere_outline.gdshader" id="4_outline"]
-[ext_resource type="ArrayMesh" uid="uid://coej2ksrj64ks" path="res://models/sphere.obj" id="5_ball"]
-[ext_resource type="Texture2D" uid="uid://b5m255jjytmoo" path="res://models/sphere_0.png" id="6_albedo"]
+[ext_resource type="Texture2D" uid="uid://bcqw338a2cnep" path="res://art/art/背景/背景（2.png" id="4_i6lef"]
+[ext_resource type="Texture2D" uid="uid://cekq4uxobtn4g" path="res://art/art/背景/背景（3.png" id="5_70i5f"]
+[ext_resource type="Texture2D" uid="uid://dh4le6dhod04c" path="res://art/art/背景/logo.png" id="8_i6lef"]
+[ext_resource type="Shader" uid="uid://d23vjojk7l86d" path="res://shaders/logo_gloss_dissolve.gdshader" id="9_gloss"]
+[ext_resource type="Shader" uid="uid://vwhcqle20wmi" path="res://shaders/bg_wave_ripple.gdshader" id="10_ripple"]
 
-[sub_resource type="Environment" id="Env_menu"]
-background_mode = 1
-background_color = Color(1, 1, 1, 1)
-ambient_light_source = 2
-ambient_light_color = Color(1, 1, 1, 1)
-ambient_light_energy = 0.3
+[sub_resource type="ShaderMaterial" id="Mat_bg_ripple"]
+shader = ExtResource("10_ripple")
+shader_parameter/ripple_cycle = 3.8290001581275
+shader_parameter/ripple_gap = 10.000000475
+shader_parameter/ripple_amp = 0.00400000019
+shader_parameter/ripple_width = 0.10000000335296999
+shader_parameter/ripple_bands = 2.5
+shader_parameter/ripple_wobble = 1.6
+shader_parameter/ripple_edge = 0.03
+shader_parameter/ripple_phase = 0.0
 
-[sub_resource type="ShaderMaterial" id="Mat_sphere"]
-render_priority = 0
-shader = ExtResource("3_toon")
+[sub_resource type="ShaderMaterial" id="Mat_logo"]
+shader = ExtResource("9_gloss")
 shader_parameter/base_color = Color(1, 1, 1, 1)
-shader_parameter/shadow_color = Color(0.48, 0.17, 0.3, 1)
-shader_parameter/highlight_color = Color(1, 0.83, 0.55, 1)
-shader_parameter/spec_color = Color(1, 0.96, 0.88, 1)
-shader_parameter/rim_color = Color(1, 0.62, 0.42, 1)
-shader_parameter/albedo_tex = ExtResource("6_albedo")
-shader_parameter/light_dir = Vector3(-0.5, 0.7, 0.5)
-shader_parameter/shadow_threshold = 0.15
-shader_parameter/highlight_threshold = 0.8
-shader_parameter/band_softness = 0.03
-shader_parameter/spec_size = 0.06
-shader_parameter/spec_strength = 0.9
-shader_parameter/rim_threshold = 0.62
-shader_parameter/rim_strength = 0.45
+shader_parameter/gloss_color = Color(1, 0.9, 0.72, 1)
+shader_parameter/gloss_strength = 0.55
+shader_parameter/gloss_width = 0.2
+shader_parameter/gloss_cycle = 7.0
+shader_parameter/gloss_pause = 0.4
+shader_parameter/gloss_shade = 0.16
+shader_parameter/dissolve_amount = 0.0650000030875
+shader_parameter/dissolve_breath = 0.05
+shader_parameter/dissolve_scale = 9.0
+shader_parameter/dissolve_boil = 0.0
+shader_parameter/burn_color = Color(0.99591345, 0.5544711, 0, 1)
+shader_parameter/burn_strength = 1.00800004788
 
-[sub_resource type="ShaderMaterial" id="Mat_outline"]
-render_priority = 0
-shader = ExtResource("4_outline")
-shader_parameter/width = 0.0134
-shader_parameter/outline_color = Color(0.2, 0.07, 0.06, 1)
-
-[node name="Menu" type="Node3D" unique_id=756593625]
+[node name="Node2D" type="Node2D" unique_id=756593625]
 script = ExtResource("2_cam")
-
-[node name="Camera3D" type="Camera3D" parent="." unique_id=553773638]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
-
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1735395323]
-transform = Transform3D(0.8660254, 0.35355338, -0.35355338, 0, 0.70710677, 0.70710677, 0.5, -0.6123724, 0.6123724, 0, 0, 0)
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=156558889]
-environment = SubResource("Env_menu")
-
-[node name="SpherePivot" type="Node3D" parent="." unique_id=1317236432]
-transform = Transform3D(1.374965, 0.034038514, 0.20102935, 0, 1.370493, -0.23205341, -0.20389071, 0.2295434, 1.355669, 0.5792761, 0, 0)
-
-[node name="Sphere" type="MeshInstance3D" parent="SpherePivot" unique_id=2113718827]
-transform = Transform3D(2.619419, 0, 0, 0, 2.619419, 0, 0, 0, 2.619419, -0.0013359, -1.3667724, -0.0057811)
-mesh = ExtResource("5_ball")
-surface_material_override/0 = SubResource("Mat_sphere")
-
-[node name="SphereOutline" type="MeshInstance3D" parent="SpherePivot" unique_id=1336039887]
-transform = Transform3D(2.619419, 0, 0, 0, 2.619419, 0, 0, 0, 2.619419, -0.0013359, -1.3667724, -0.0057811)
-mesh = ExtResource("5_ball")
-surface_material_override/0 = SubResource("Mat_outline")
 
 [node name="UI" type="Control" parent="." unique_id=645905373]
 layout_mode = 3
@@ -73,17 +49,43 @@ grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("4_4ytvr")
 
+[node name="背景1" type="Sprite2D" parent="UI" unique_id=2094061284]
+material = SubResource("Mat_bg_ripple")
+position = Vector2(800, 440.00003)
+scale = Vector2(0.85, 0.93333334)
+texture = ExtResource("3_13sgg")
+
+[node name="背景2" type="Sprite2D" parent="UI" unique_id=2061649613]
+position = Vector2(804, 440)
+scale = Vector2(0.8791667, 0.93333334)
+texture = ExtResource("4_i6lef")
+
+[node name="背景3" type="Sprite2D" parent="UI" unique_id=1128982430]
+position = Vector2(792.0001, 440)
+scale = Vector2(0.9333333, 0.9333333)
+texture = ExtResource("5_70i5f")
+
+[node name="Logo" type="Sprite2D" parent="UI" unique_id=2100704228]
+modulate = Color(0.973535, 0.9735351, 0.9735349, 1)
+material = SubResource("Mat_logo")
+position = Vector2(824, 216)
+scale = Vector2(0.99999994, 0.99999994)
+texture = ExtResource("8_i6lef")
+
 [node name="CenterContainer" type="CenterContainer" parent="UI" unique_id=240445098]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 32.0
-offset_right = -1056.0
+offset_left = 1064.0
+offset_top = 472.0
+offset_right = 1380.0
+offset_bottom = 736.0
 grow_horizontal = 2
 grow_vertical = 2
 
 [node name="MenuPanel" type="PanelContainer" parent="UI/CenterContainer" unique_id=369159146]
+self_modulate = Color(1, 1, 1, 0.5058824)
 layout_mode = 2
 
 [node name="VBox" type="VBoxContainer" parent="UI/CenterContainer/MenuPanel" unique_id=333585256]
@@ -91,8 +93,8 @@ layout_mode = 2
 theme_override_constants/separation = 20
 
 [node name="Title" type="Label" parent="UI/CenterContainer/MenuPanel/VBox" unique_id=361512892]
+visible = false
 layout_mode = 2
-text = "主菜单"
 horizontal_alignment = 1
 
 [node name="StartButton" type="Button" parent="UI/CenterContainer/MenuPanel/VBox" unique_id=2147478049]
