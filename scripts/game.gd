@@ -28,6 +28,8 @@ var _entity_layer: Node2D
 
 var _grid_sys: GridSystem
 var _card_sys: CardSystem
+var _wave_sys: WaveSystem
+var _last_announced_wave := -1
 var _receipts: Array = []
 var _last_hand_ids: Array = []
 var _last_res: Dictionary = {}
@@ -49,16 +51,15 @@ func _ready() -> void:
 		root.remove_meta("pending_level_id")
 	config = GameConfig.load_all()
 	if config == null:
-		_push_receipt("!", "配置加载失败，无法开始关卡")
-		set_physics_process(false)
+		set_physics_process(false) # 错误详情已 push_error（GameConfig.load_all）
 		return
 	if not config.levels.has(level_id):
-		_push_receipt("!", "未定义关卡: " + String(level_id))
+		push_error("未定义关卡: " + String(level_id))
 		set_physics_process(false)
 		return
 	world = BootstrapScript.build_world(config, level_id)
 	if world == null:
-		_push_receipt("!", "关卡世界构建失败: " + String(level_id))
+		push_error("关卡世界构建失败: " + String(level_id))
 		set_physics_process(false)
 		return
 	world.state.waves_running = false # 开局默认暂停，等 UI「开始」按钮（与 main_ui 初值同步）
@@ -78,6 +79,7 @@ func _ready() -> void:
 		logi.setup(world)
 	_grid_sys = world.get_system("GridSystem")
 	_card_sys = world.get_system("CardSystem")
+	_wave_sys = world.get_system("WaveSystem")
 	var level: Dictionary = config.get_level(level_id)
 	_enemy_cap = int(level["enemy_cap"])
 	# 开局资源（§19.5 Mindustry 式核心库存）：关卡可选字段 start_resources
@@ -95,7 +97,6 @@ func _ready() -> void:
 	ui.wave_toggled.connect(func(running: bool): world.state.waves_running = running)
 	ui.speed_toggled.connect(func(s: float): world.state.speed = s)
 	_init_ui()
-	_push_receipt("·", "关卡「%s」开始：撑过 %d 波" % [level.get("name", level_id), _wave_total])
 
 
 func _physics_process(delta: float) -> void:
@@ -116,6 +117,7 @@ func _init_ui() -> void:
 	call_deferred("_fit_field_to_viewport") # 首帧锚点布局未定，下一拍重算一次
 	ui.set_hand_max(_card_sys.deck.hand_max)
 	ui.set_wave_info(0, _wave_total)
+	ui.set_receipts([]) # 清演示战报；真实条目从波次预告/击杀掉落开始
 	ui.set_library_cards(_pool_ui_cards())
 	_sync_res()
 	_sync_hand()
@@ -200,6 +202,10 @@ func _sync_hud() -> void:
 	if world.state.waves_survived != _last_wave:
 		_last_wave = world.state.waves_survived
 		ui.set_wave_info(_last_wave, _wave_total)
+	# 波次预告：换波（含玩家按开始启动第 0 波）时推一次该波敌人构成
+	if world.state.waves_running and _wave_sys != null and _last_announced_wave != _wave_sys.current_wave:
+		_last_announced_wave = _wave_sys.current_wave
+		_push_wave_preview()
 
 
 # ---------------------------------------------------------------- 注入方向：UI → 逻辑
@@ -214,8 +220,7 @@ func _on_card_selected(card: Dictionary) -> void:
 func _on_card_played(card: Dictionary, cell: Vector2i) -> void:
 	var idx := _hand_index_of(str(card.get("id", "")))
 	if idx < 0:
-		_push_receipt("!", "手牌中找不到卡: %s（可能已被打出）" % str(card.get("id", "")))
-		return
+		return # 可能已被打出；不进战报（只留波次预告与击杀掉落）
 	world.push_command({"type": "play_card", "card_index": idx, "cell": cell})
 
 
@@ -277,7 +282,6 @@ func _on_factory_cell_clicked(cell: Vector2i) -> void:
 	var c = world.grid.get_cell(cell)
 	var eid: int = c.occupant if c != null else 0
 	if eid == 0 or not world.has_component(eid, &"Factory"):
-		_push_receipt("!", "格子 %s 上没有可融合的工厂" % str(cell))
 		return
 	var idx := _fusion_sel.find(cell)
 	if idx >= 0:
@@ -292,7 +296,6 @@ func _on_factory_cell_clicked(cell: Vector2i) -> void:
 
 func _on_fusion_confirmed(seed: int) -> void:
 	if _fusion_sel.size() != 2:
-		_push_receipt("!", "先点选 2 个已放置的工厂再确定（已选 %d）" % _fusion_sel.size())
 		return
 	var ids: Array = []
 	for cell in _fusion_sel:
@@ -301,7 +304,6 @@ func _on_fusion_confirmed(seed: int) -> void:
 	world.push_command({ "type": "fuse", "a": ids[0], "b": ids[1], "seed": seed })
 	_fusion_sel.clear()
 	ui.set_fusion_selection(0)
-	_push_receipt("", "减数分裂启动（种子 %d）……子代卡将入手" % seed)
 
 
 ## 融合模式下把工厂所在格注入放置预览层高亮；集合变化才重注入，避免每帧重绘。
@@ -321,38 +323,44 @@ func _sync_fusion_preview(force: bool = false) -> void:
 # ---------------------------------------------------------------- 世界信号 → 回执
 
 func _connect_world() -> void:
-	world.command_rejected.connect(func(reason: String): _push_receipt("✗", reason))
-	# 断水提示（产品裁定 ①）：按 reason 取文案（方向 / 中性），语义单一来源在 world.gd；
-	# 去重键带实体+档位 ⇒ 断电抖动反复进入同一断水态时，未出队前不重复入队（NEW-3 刷屏）。
-	world.water_lost.connect(_on_water_lost)
-	world.wave_completed.connect(func(_i: int):
-		_push_receipt("波", "第 %d 波完成" % world.state.waves_survived))
-	world.game_won.connect(func():
-		_over = true
-		_push_receipt("★", "胜利！撑过 %d 波" % world.state.waves_survived))
-	world.game_lost.connect(func():
-		_over = true
-		_push_receipt("", "失败：路径敌人达到上限 %d" % _enemy_cap))
+	# 战报只显示两类战斗消息（产品口径）：波次预告（第X波的敌人构成）+ 击杀掉落。
+	# 其余回执（关卡开始/波完成/胜负/拒收/断水/融合提示）不再进战报；
+	# 世界信号本身都还在（拒收/断水提示等需要时可另接表现层）。
+	world.entity_died.connect(_on_entity_died)
+	world.game_won.connect(func(): _over = true)
+	world.game_lost.connect(func(): _over = true)
 	get_viewport().size_changed.connect(_fit_field_to_viewport)
 
 
-## 断水提示接线（NEW-3）：reason 决定文案（方向 / 中性），去重键 = 实体 + 档位
-## ⇒ 断电抖动反复进入同一断水态时，同一条提示未出 8 条窗口前不再重复入队。
-func _on_water_lost(eid: int, reason: String) -> void:
-	_push_receipt("!", World.water_hint_text(reason), "water:%d:%s" % [eid, reason])
+## 波次预告：开跑（waves_running 首次为真）与每次换波时，把该波敌人构成推进战报。
+## 轮询而非信号：WaveSystem 没有 wave_started 边沿，且第 0 波要等玩家按「开始」才真开始。
+func _push_wave_preview() -> void:
+	if _wave_sys == null:
+		return
+	var parts: Array = []
+	for g in _wave_sys.groups:
+		var def: Dictionary = config.get_enemy(StringName(str(g["enemy"])))
+		parts.append("%s×%d" % [str(def.get("name", g["enemy"])), int(g["count"])])
+	_push_receipt("波", "第 %d 波：%s" % [_wave_sys.current_wave + 1, "、".join(parts)])
 
 
-func _push_receipt(icon: String, text: String, dedupe_key: String = "") -> void:
-	# 去重（NEW-3）：同一条「实体+文案」仍在列（未被踢出 8 条窗口）时不再堆同一条，
-	# 否则断电抖动之类的反复边沿会把 ✗ 拒收等有效信息挤出队列。dedupe_key 为空 = 不去重。
-	if dedupe_key != "":
-		for item in _receipts:
-			if str(item.get("dedupe", "")) == dedupe_key:
-				return
-	var entry := {"icon": icon, "text": text}
-	if dedupe_key != "":
-		entry["dedupe"] = dedupe_key
-	_receipts.push_front(entry)
+## 击杀掉落：entity_died 同步发出、destroy 尚未执行，组件此刻仍可读。
+## 只报敌人——工厂等其他带血实体的死亡不进战报。
+func _on_entity_died(id: int) -> void:
+	var en = world.get_component(id, &"Enemy")
+	if en == null:
+		return
+	var edef: Dictionary = config.get_enemy(en.etype)
+	var ename := str(edef.get("name", en.etype))
+	if en.loot_id != &"":
+		var rdef: Dictionary = config.get_resource(en.loot_id)
+		_push_receipt("击", "击败了%s 掉落%s×%d" % [ename, str(rdef.get("name", en.loot_id)), en.loot_amount])
+	else:
+		_push_receipt("击", "击败了%s" % ename)
+
+
+func _push_receipt(icon: String, text: String) -> void:
+	_receipts.push_front({"icon": icon, "text": text})
 	if _receipts.size() > 8:
 		_receipts.resize(8)
 	if ui != null and ui.has_method("set_receipts"):

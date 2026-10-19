@@ -999,41 +999,8 @@ func _power_cut(world, pump_id: int) -> void:
 		prod.progress = 0.0
 
 
-## 回执去重（NEW-3 刷屏）：断电抖动反复进入同一断水态 → 同实体同文案只留 1 条。
-## 走真实接线 game._on_water_lost（不是复制一份逻辑）。
-func _t27_water_hint_dedupe() -> void:
-	print("== T27d: 断水回执去重（断电抖动不刷屏）==")
-	var w = _new_world()
-	_grant(w)
-	var pump: int = _place_factory_at(w, "pump", Vector2i(2, 5))
-	var bld: int = _place_factory_at(w, "generator", Vector2i(5, 5))
-	_freeze_production(w, bld) # 同上：不让建筑自补电
-	_ok(_place(w, "pipe", [[3, 5], [4, 5]], [1, 0]) == 0 and w.is_watered(bld),
-		"T27d: 前置：泵 → 管 → 建筑 已接水")
-	var g = GameScript.new()
-	w.water_lost.connect(g._on_water_lost)
-	# 抖动 3 轮：断电（断水沿）→ 来电（复水）。每轮都是新的真→假沿。
-	for i in 3:
-		_power_cut(w, pump)
-		w.tick(DT)
-		w.state.resources[&"power"] = 200
-		w.tick(DT)
-	var water_receipts: int = 0
-	for r in g._receipts:
-		if str(r.get("dedupe", "")) == "water:%d:%s" % [bld, World.WATER_LOST_UNSUPPLIED]:
-			water_receipts += 1
-	_ok(water_receipts == 1, "T27d: 断电抖动 3 次 → 只 1 条断水回执（实际 %d，队列 %d）"
-		% [water_receipts, g._receipts.size()])
-	_ok(g._receipts.size() == 1, "T27d: 队列没被同款提示刷满（实际 %d 条）" % g._receipts.size())
-	# 不同实体 / 不同档位 = 不同的键，仍照常入队
-	g._push_receipt("!", World.water_hint_text(World.WATER_LOST_UNSUPPLIED),
-		"water:%d:%s" % [bld + 100, World.WATER_LOST_UNSUPPLIED])
-	_ok(g._receipts.size() == 2, "T27d: 另一实体同文案照常入队（实际 %d 条）" % g._receipts.size())
-	# 无键调用不去重（其他回执行为不变）
-	g._push_receipt("✗", "同一句")
-	g._push_receipt("✗", "同一句")
-	_ok(g._receipts.size() == 4, "T27d: 无去重键的回执行为不变（实际 %d 条）" % g._receipts.size())
-	g.free()
+## T27d（退役）：断水回执去重随战报口径改动一并移除——战报现在只显示
+## 「第X波：敌人构成」与「击败了xxx 掉落xxx」两类，game 层不再消费 water_lost。
 
 
 ## 裁定 ②：拆除只拆有线格（接线层过滤）——拖拽扫过的空格不再让整条被拒。
@@ -1087,7 +1054,6 @@ func _t27_corner_hint() -> void:
 
 func _t27_product_rulings() -> void:
 	_t27_water_hint()
-	_t27_water_hint_dedupe()
 	_t27_remove_filter()
 	_t27_corner_hint()
 
