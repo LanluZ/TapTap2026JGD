@@ -14,9 +14,9 @@ var _sprites: Dictionary = {} # entity_id -> Node2D（AnimatedSprite2D / Sprite2
 ## 敌人血量条（§1.2③ 表现层同步）：挂敌人精灵子节点——位置随精灵动、销毁随精灵走，零额外同步。
 ## 尺寸取精灵 get_rect() 局部坐标（48px 贴图/占位图通吃），随精灵 scale 缩放＝条宽自动对齐体型，免按类型配偏移。
 class HpBar extends Node2D:
-	const COLOR_BG := Color(0.09, 0.09, 0.1, 1.0) # 同 UiStyle.COLOR_BAR_BG
-	const COLOR_FULL := Color(0.32, 0.85, 0.35) # 满血绿
-	const COLOR_EMPTY := Color(0.9, 0.22, 0.18) # 残血红
+	const COLOR_BG := Color(0.184, 0.122, 0.216, 1.0) # 同 UiStyle.COLOR_BAR_BG
+	const COLOR_FULL := Color(0.635, 0.824, 1.0) # 满血 Sky Blue
+	const COLOR_EMPTY := Color(1.0, 0.686, 0.8) # 残血 Blush Pop
 
 	var world
 	var entity_id: int = 0

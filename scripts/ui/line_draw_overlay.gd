@@ -20,9 +20,9 @@ const KIND_BELT := "belt"
 const KIND_REMOVE := "remove"
 const KINDS := [KIND_PIPE, KIND_BELT, KIND_REMOVE]
 
-const COLOR_PIPE := Color(0.45, 0.68, 0.95, 1.0)
-const COLOR_BELT := Color(0.95, 0.7, 0.3, 1.0)
-const COLOR_REMOVE := Color(0.92, 0.32, 0.28, 1.0)
+const COLOR_PIPE := Color(0.635, 0.824, 1.0, 1.0)   # Sky Blue
+const COLOR_BELT := Color(0.804, 0.706, 0.859, 1.0) # Pink Orchid
+const COLOR_REMOVE := Color(1.0, 0.686, 0.8, 1.0)   # Blush Pop
 
 var _origin: Vector2 = Vector2.ZERO
 var _cell_size: Vector2i = Vector2i(48, 48)

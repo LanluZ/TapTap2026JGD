@@ -3,16 +3,18 @@ extends RefCounted
 ## 仅供 scripts/ui/ 内部使用，不依赖任何逻辑层类型。
 ## 用法：const UiStyle = preload("res://scripts/ui/ui_style.gd")
 
-const COLOR_PANEL := Color(0.17, 0.17, 0.19, 1.0)
-const COLOR_PANEL_DARK := Color(0.12, 0.12, 0.14, 1.0)
-const COLOR_BORDER := Color(0.4, 0.4, 0.46, 1.0)
-const COLOR_BORDER_SOFT := Color(0.28, 0.28, 0.33, 1.0)
-const COLOR_CARD := Color(0.24, 0.24, 0.27, 1.0)
-const COLOR_CARD_HOVER := Color(0.3, 0.3, 0.35, 1.0)
-const COLOR_CARD_SELECTED := Color(0.3, 0.25, 0.17, 1.0)
-const COLOR_ACCENT := Color(0.88, 0.57, 0.24, 1.0)
-const COLOR_TEXT_DIM := Color(0.62, 0.63, 0.68, 1.0)
-const COLOR_BAR_BG := Color(0.09, 0.09, 0.1, 1.0)
+## 色板：Pink Orchid #cdb4db / Pastel Petal #ffc8dd / Blush Pop #ffafcc / Icy Blue #bde0fe / Sky Blue #a2d2ff
+## 底/面板为同色相压暗阶（保证文字对比度 ≥5:1），饱和粉蓝只做强调与高亮。
+const COLOR_PANEL := Color(0.322, 0.224, 0.376, 1.0) # #523960
+const COLOR_PANEL_DARK := Color(0.263, 0.180, 0.310, 1.0) # #432e4f
+const COLOR_BORDER := Color(0.580, 0.482, 0.639, 1.0) # #947ba3
+const COLOR_BORDER_SOFT := Color(0.463, 0.361, 0.518, 1.0) # #765c84
+const COLOR_CARD := Color(0.384, 0.275, 0.447, 1.0) # #624672
+const COLOR_CARD_HOVER := Color(0.427, 0.310, 0.490, 1.0) # #6d4f7d
+const COLOR_CARD_SELECTED := Color(0.447, 0.231, 0.310, 1.0) # #723b4f
+const COLOR_ACCENT := Color(1.000, 0.686, 0.800, 1.0) # #ffafcc Blush Pop
+const COLOR_TEXT_DIM := Color(0.847, 0.820, 0.863, 1.0) # #d8d1dc
+const COLOR_BAR_BG := Color(0.184, 0.122, 0.216, 1.0) # #2f1f37
 
 
 static func flat(bg: Color, border: Color, margin: float, border_width: int) -> StyleBoxFlat:

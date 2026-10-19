@@ -14,12 +14,12 @@ const MOCK_GRID := Vector2i(16, 8)
 ## mock 环形路径的外接矩形（格坐标）：路径 = 该矩形边框
 const MOCK_PATH_RECT := Rect2i(3, 1, 10, 6)
 
-const COLOR_GRID_LINE := Color(0.45, 0.5, 0.45, 0.45)
-const COLOR_VALID_FILL := Color(0.4, 0.7, 0.35, 0.18)
-const COLOR_VALID_LINE := Color(0.5, 0.85, 0.45, 0.9)
-const COLOR_BLOCKED_FILL := Color(0.7, 0.25, 0.2, 0.18)
-const COLOR_BLOCKED_LINE := Color(0.8, 0.3, 0.25, 0.85)
-const COLOR_HOVER := Color(0.95, 0.65, 0.25, 1.0)
+const COLOR_GRID_LINE := Color(0.580, 0.482, 0.639, 0.35)  # 色板 BORDER
+const COLOR_VALID_FILL := Color(0.741, 0.878, 0.996, 0.18)  # Icy Blue
+const COLOR_VALID_LINE := Color(0.741, 0.878, 0.996, 0.95)
+const COLOR_BLOCKED_FILL := Color(1.0, 0.686, 0.8, 0.18)   # Blush Pop
+const COLOR_BLOCKED_LINE := Color(1.0, 0.686, 0.8, 0.85)
+const COLOR_HOVER := Color(1.0, 0.784, 0.867, 1.0)         # Pastel Petal
 
 var _origin: Vector2 = MOCK_ORIGIN
 var _cell_size: Vector2i = MOCK_CELL_SIZE
