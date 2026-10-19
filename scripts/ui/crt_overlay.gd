@@ -11,7 +11,7 @@ const OVERLAY_LAYER := 100
 
 ## 视觉参数（中等强度：每 4 像素一条、暗线宽 2 像素、不透明度 0.35）。
 ## 想在代码里临时调，改 _material.set_shader_parameter(...) 即可。
-const LINE_SPACING := 4.0
+const LINE_SPACING := 5.0
 const LINE_WIDTH := 2.0
 const LINE_ALPHA := 0.25
 
