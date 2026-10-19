@@ -124,20 +124,31 @@ func _run() -> int:
 	_ok(pf2c.distance > 270.0,
 		"飞行怪在减速带上保持满速（distance=%.1f，满速应约 280）" % pf2c.distance)
 
-	print("== T3: 波次完成判定 → 撑过 N 波胜利 ==")
+	print("== T3: 波次完成判定 → 撑过 N 波胜利（清场后才判胜） ==")
 	var w3 := _make_world(config)
 	var wave_events: Array = []
 	var won_events: Array = []
 	w3.wave_completed.connect(func(w): wave_events.append(w))
 	w3.game_won.connect(func(): won_events.append(true))
 	var ticks3 := 0
-	while w3.state.is_playing() and ticks3 < 1500:
+	# 产品裁定：撑过目标波数不立刻判胜，等场上敌人清空才判胜（wave_system.objective_met）
+	while w3.state.waves_survived < 3 and ticks3 < 1500:
 		w3.tick(DT)
 		ticks3 += 1
 	_ok(wave_events.size() >= 1, "至少完成 1 波（wave_completed 次数=%d）" % wave_events.size())
 	_ok(w3.state.waves_survived == wave_events.size(), "waves_survived 与信号一致（%d）" % w3.state.waves_survived)
-	_ok(w3.state.status == GameState.STATUS_WON, "3 波全部走完判胜（status=%s，用时 %d tick）" % [w3.state.status, ticks3])
-	_ok(won_events.size() == 1, "game_won 信号恰好 1 次")
+	var alive3 := 0
+	for eid in w3.query(&"Enemy"):
+		if w3.is_alive(eid):
+			alive3 += 1
+	_ok(w3.state.is_playing() and alive3 > 0,
+		"3 波走完但场上还有敌人 → 仍 playing（status=%s，敌 %d，用时 %d tick）" % [w3.state.status, alive3, ticks3])
+	for eid in w3.query(&"Enemy").keys():
+		if w3.is_alive(eid):
+			w3.destroy_entity(eid)
+	w3.tick(DT)
+	_ok(w3.state.status == GameState.STATUS_WON and won_events.size() == 1,
+		"清空场上敌人 → 判胜且 game_won 恰好 1 次（status=%s，信号 %d）" % [w3.state.status, won_events.size()])
 
 	print("== T4: 敌人数超上限判败 ==")
 	var w4 := _make_world(config)

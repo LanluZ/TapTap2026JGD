@@ -327,9 +327,32 @@ func _connect_world() -> void:
 	# 其余回执（关卡开始/波完成/胜负/拒收/断水/融合提示）不再进战报；
 	# 世界信号本身都还在（拒收/断水提示等需要时可另接表现层）。
 	world.entity_died.connect(_on_entity_died)
-	world.game_won.connect(func(): _over = true)
-	world.game_lost.connect(func(): _over = true)
+	world.game_won.connect(_on_game_won)
+	world.game_lost.connect(_on_game_lost)
 	get_viewport().size_changed.connect(_fit_field_to_viewport)
+
+
+## 胜负结算（表现层）：UI 只收展示数据，判定规则全在 WaveSystem。
+func _on_game_won() -> void:
+	_over = true
+	_show_result(true)
+
+
+func _on_game_lost() -> void:
+	_over = true
+	_show_result(false)
+
+
+func _show_result(won: bool) -> void:
+	if ui == null or not ui.has_method("show_result"):
+		return
+	ui.cancel_placement() # 收尾放置态，免得结算面板下还留着格子高亮
+	ui.show_result(won, {
+		"level_id": String(level_id),
+		"waves_survived": world.state.waves_survived,
+		"wave_total": _wave_total,
+		"enemy_cap": _enemy_cap,
+	})
 
 
 ## 波次预告：开跑（waves_running 首次为真）与每次换波时，把该波敌人构成推进战报。

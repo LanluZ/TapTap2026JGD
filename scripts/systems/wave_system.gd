@@ -38,6 +38,9 @@ var wave_resolved: Dictionary = {} # 本波已结算 id 集合（死亡或已计
 var groups: Array = [] # 本波刷怪组 [{enemy, count, interval, next, spawned}]
 var all_spawned: bool = false
 var waves_survived: int = 0
+## 目标已达成（撑过目标波数），但还没判胜：产品裁定「等场上敌人全部走完/清空才算赢」。
+## 置真后不再结算波次（防重复发 per_wave 返还与重复计波），由 tick 在 alive==0 时判胜。
+var objective_met: bool = false
 
 
 func setup(world) -> void:
@@ -77,6 +80,10 @@ func tick(world, dt: float) -> void:
 		playing = false
 	if playing:
 		_update_wave_progress(world)
+		# 目标已达成 → 等场上敌人清空才判胜（产品裁定：撑过波数不立刻结束）
+		if objective_met and alive == 0:
+			state.status = GameState.STATUS_WON
+			world.game_won.emit()
 
 
 func _reset_wave() -> void:
@@ -111,6 +118,9 @@ func _advance_spawning(world, dt: float) -> void:
 
 
 func _update_wave_progress(world) -> void:
+	# 目标达成后不再结算：否则每帧都会重复计波 / 重复发地块 per_wave 返还
+	if objective_met:
+		return
 	# 结算：死亡或 laps_done ≥ 1 都算“走完一圈”（§5 波次定义 + 说明）
 	for id in wave_spawned:
 		if wave_resolved.has(id):
@@ -140,8 +150,8 @@ func _update_wave_progress(world) -> void:
 	world.state.waves_survived = waves_survived
 	world.wave_completed.emit(current_wave)
 	if objective != null and objective.is_met(waves_survived):
-		world.state.status = GameState.STATUS_WON
-		world.game_won.emit()
+		# 不立刻判胜：产品裁定「等场上敌人全部走完/清空」——由 tick 在 alive==0 时置 WON
+		objective_met = true
 		return
 	current_wave += 1
 	if current_wave >= (level["waves"] as Array).size():

@@ -110,10 +110,14 @@ static func color_of(allele: String) -> Color:
 func _process(_dt: float) -> void:
 	if world == null or _barrel == null or not world.is_alive(entity_id):
 		return
-	# 炮管朝向射程内最近敌人；无敌情时默认朝上（规则在 TargetingSystem #7）
-	var origin := global_position
-	var best := origin + Vector2(0.0, -1.0)
-	var best_d := _attack_range
+	# 炮管朝向射程内最近敌人；无敌情时默认朝上（规则在 TargetingSystem #7）。
+	# 全程在**逻辑坐标**里算：本节点是 EntityLayer（含缩放/平移）的子节点，global_position
+	# 是屏幕空间，与敌人坐标不同源，混用会让距离与朝向一起错（曾致炮管朝上/下不转）。
+	var origin = EntityLocator.position(world, entity_id)
+	if origin == null:
+		return
+	var best: Vector2 = origin + Vector2(0.0, -1.0)
+	var best_d: float = _attack_range
 	for id in world.query(&"PathFollower"):
 		var ep = EntityLocator.position(world, id)
 		if ep == null:
@@ -122,7 +126,9 @@ func _process(_dt: float) -> void:
 		if d <= best_d:
 			best_d = d
 			best = ep
-	_barrel.look_at(best)
+	var aim: Vector2 = best - origin
+	if aim.length() > 0.001:
+		_barrel.rotation = aim.angle()
 
 
 func _draw() -> void:

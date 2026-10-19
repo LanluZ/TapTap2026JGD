@@ -66,10 +66,25 @@ func _process(_dt: float) -> void:
 	for id in world.entity_ids():
 		if not _sprites.has(id):
 			_spawn(id)
+	var anim_speed := _anim_speed()
 	for id in _sprites:
+		var node: Node2D = _sprites[id] as Node2D
 		var pos = EntityLocator.position(world, id)
 		if pos != null:
-			(_sprites[id] as Node2D).position = pos
+			node.position = pos
+		# 帧动画跟游戏时间走：2 倍速 ×2；暂停/结算冻结时 0（speed_scale=0 停帧且保留进度）
+		if node is AnimatedSprite2D:
+			(node as AnimatedSprite2D).speed_scale = anim_speed
+
+
+## 敌人帧动画的时间倍率：逻辑层未在跑（暂停按钮 / 胜负结算）→ 0，否则 = 玩家当前倍速。
+func _anim_speed() -> float:
+	var st = world.state
+	if st == null:
+		return 1.0
+	if not st.is_playing() or not st.waves_running:
+		return 0.0
+	return float(st.speed)
 
 
 func _spawn(id: int) -> void:

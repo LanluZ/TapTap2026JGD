@@ -7,7 +7,7 @@ extends Control
 ##             set_library_cards / set_library_expanded /
 ##             set_receipts / cancel_placement / get_selected_card / is_placing /
 ##             get_hand / open_settings / is_settings_open / load_mock_data /
-##             select_line_tool / get_line_tool
+##             select_line_tool / get_line_tool / show_result
 ##   信号：card_selected(card)、card_played(card, cell)、placement_cancelled()、
 ##         line_tool_selected(tool)、line_committed(kind, cells, dir)
 ##
@@ -26,6 +26,7 @@ signal line_tool_selected(tool: String) # 物流工具选中态变化（"" = 无
 signal line_committed(kind: String, cells: Array, dir: Vector2i) # 拖拽画线松手
 
 const HudScript = preload("res://scripts/ui/hud.gd")
+const UiStyle = preload("res://scripts/ui/ui_style.gd")
 const HandScript = preload("res://scripts/ui/hand_area.gd")
 const OverlayScript = preload("res://scripts/ui/placement_preview.gd")
 const LineOverlayScript = preload("res://scripts/ui/line_draw_overlay.gd")
@@ -64,6 +65,8 @@ var _speed := 1.0
 var _line_overlay: LineOverlayScript
 var _line_buttons: Dictionary = {} # "pipe"/"belt"/"remove" -> Button
 var _line_tool := "" # "" = 无工具；与卡牌选中互斥（见 _apply_line_tool）
+var _result_panel: Control = null # 胜负结算面板（程序化构建，见 show_result）
+var _result_data: Dictionary = {}
 
 
 func _ready() -> void:
@@ -525,6 +528,109 @@ func open_settings() -> void:
 
 func is_settings_open() -> bool:
 	return _settings != null and _settings.visible
+
+
+# ---------------------------------------------------------------- 胜负结算
+
+## 胜负结算面板（逻辑层在 game_won / game_lost 后调用）：
+## data = {level_id, waves_survived, wave_total, enemy_cap}，只用于文案与「重新开始」的关卡回填。
+## 幂等：重复调用只更新文案，不重复建节点。程序化构建，不改 main.tscn。
+func show_result(won: bool, data: Dictionary = {}) -> void:
+	_prepare()
+	_result_data = data.duplicate()
+	cancel_placement()
+	hide_dna()
+	if _result_panel == null:
+		_build_result_panel()
+	var title: Label = _result_panel.get_node_or_null("Center/Panel/Margin/VBox/Title") as Label
+	var sub: Label = _result_panel.get_node_or_null("Center/Panel/Margin/VBox/Subtitle") as Label
+	if title != null:
+		title.text = "关卡胜利" if won else "关卡失败"
+		title.add_theme_color_override("font_color",
+			UiStyle.COLOR_ACCENT if won else Color(1.0, 0.42, 0.52))
+	if sub != null:
+		sub.text = _result_subtitle(won)
+	_result_panel.visible = true
+
+
+func _result_subtitle(won: bool) -> String:
+	if won:
+		return "已撑过 %d / %d 波，场上敌人已清空" % [
+			int(_result_data.get("waves_survived", 0)), int(_result_data.get("wave_total", 0))]
+	return "同时在场敌人超过上限 %d" % int(_result_data.get("enemy_cap", 0))
+
+
+## 结算遮罩：暗底 + 居中面板（标题/说明/两个按钮）。名称固定为 ResultOverlay，供自检断言。
+func _build_result_panel() -> void:
+	_result_panel = Control.new()
+	_result_panel.name = "ResultOverlay"
+	_result_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_result_panel.mouse_filter = Control.MOUSE_FILTER_STOP # 吞掉场地点击，结算后不再落卡
+	var dim := ColorRect.new()
+	dim.color = Color(0.09, 0.06, 0.11, 0.72)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_result_panel.add_child(dim)
+	var center := CenterContainer.new()
+	center.name = "Center"
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_result_panel.add_child(center)
+	var panel := PanelContainer.new()
+	panel.name = "Panel"
+	panel.add_theme_stylebox_override("panel", UiStyle.panel())
+	center.add_child(panel)
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 24)
+	panel.add_child(margin)
+	var vbox := VBoxContainer.new()
+	vbox.name = "VBox"
+	vbox.add_theme_constant_override("separation", 14)
+	margin.add_child(vbox)
+	var title := Label.new()
+	title.name = "Title"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 40)
+	title.add_theme_color_override("font_color", UiStyle.COLOR_ACCENT)
+	vbox.add_child(title)
+	var sub := Label.new()
+	sub.name = "Subtitle"
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.add_theme_color_override("font_color", UiStyle.COLOR_TEXT_DIM)
+	vbox.add_child(sub)
+	var row := HBoxContainer.new()
+	row.name = "Buttons"
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	vbox.add_child(row)
+	var restart := Button.new()
+	restart.name = "Restart"
+	restart.text = "重新开始"
+	restart.custom_minimum_size = Vector2(140, 44)
+	restart.pressed.connect(_on_result_restart)
+	row.add_child(restart)
+	var to_title := Button.new()
+	to_title.name = "ToTitle"
+	to_title.text = "返回标题"
+	to_title.custom_minimum_size = Vector2(140, 44)
+	to_title.pressed.connect(_on_result_to_title)
+	row.add_child(to_title)
+	add_child(_result_panel)
+	_result_panel.visible = false
+
+
+## 重新开始：关卡 id 经 root meta 回填（Game._ready 会取走），否则重载会退回默认关卡。
+func _on_result_restart() -> void:
+	var lid := str(_result_data.get("level_id", ""))
+	if not lid.is_empty():
+		get_tree().root.set_meta("pending_level_id", lid)
+	get_tree().reload_current_scene()
+
+
+func _on_result_to_title() -> void:
+	get_tree().change_scene_to_file("res://scenes/menu.tscn")
 
 
 ## 「返回标题」：面板关闭已解除暂停，这里只负责切场景

@@ -47,6 +47,12 @@ const TILES := {
 	"path": ROOT + "地块/groud.png", # 路径格
 	"buildable": ROOT + "地块/lawn.png", # 可建造格
 	"slow": ROOT + "地块/panel.png", # 减速带（tile_types.id → 同名贴图，未收录的地块类型不绘制）
+	# 冰面（两块减速带邻接合成物）：暂无专属素材，复用减速带贴图 + 淡蓝着色区分（FIELD_TINT）
+	"ice_field": ROOT + "地块/panel.png",
+}
+## 地块着色（复用贴图的临时区分手段）：未收录的 tile_type 不着色。
+const TILE_TINT := {
+	"ice_field": Color(0.62, 0.85, 1.0),
 }
 
 # ---------------------------------------------------------------- 资源图标（data/resources.json，HUD 资源条）

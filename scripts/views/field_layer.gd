@@ -55,4 +55,5 @@ func _draw() -> void:
 		if cell.tile_type != &"":
 			var ttex: Texture2D = _tex_path.get(str(cell.tile_type), null)
 			if ttex != null:
-				draw_texture_rect(ttex, rect, false)
+				var tint: Color = Art.TILE_TINT.get(str(cell.tile_type), Color(1, 1, 1, 1))
+				draw_texture_rect(ttex, rect, false, tint)
