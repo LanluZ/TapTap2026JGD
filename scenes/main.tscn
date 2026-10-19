@@ -6,6 +6,7 @@
 [ext_resource type="StyleBox" uid="uid://dyocl1sxj4i68" path="res://themes/ui_panel_topbar.tres" id="13_muem4"]
 [ext_resource type="StyleBox" uid="uid://ybltucvg6p2c" path="res://themes/ui_panel_inner.tres" id="14_dp3eg"]
 [ext_resource type="PackedScene" uid="uid://dsksxyjdkpjwo" path="res://scenes/ui/settings_panel.tscn" id="ps_settings"]
+[ext_resource type="Script" uid="uid://wjnlxk3gxd2n" path="res://scripts/animated_button.gd" id="s_btnfx"]
 [ext_resource type="Shader" uid="uid://326j34kbtcvs" path="res://shaders/bg_fog.gdshader" id="s_fog"]
 [ext_resource type="Script" uid="uid://ktohmln8ahcd" path="res://scripts/ui/hand_area.gd" id="s_hand"]
 [ext_resource type="Script" uid="uid://dbsmt7efbgp8y" path="res://scripts/ui/hud.gd" id="s_hud"]
@@ -215,6 +216,7 @@ text = "0"
 custom_minimum_size = Vector2(56, 26)
 layout_mode = 2
 text = "收起"
+script = ExtResource("s_btnfx")
 
 [node name="Body" type="ScrollContainer" parent="RightRail/CardLibrary/VBox" unique_id=312686981]
 custom_minimum_size = Vector2(0, 80)
@@ -395,6 +397,7 @@ layout_mode = 2
 tooltip_text = "铺管道：在场地按住起点拖到终点松开（输送方向 = 拖拽方向）"
 toggle_mode = true
 text = "铺管道"
+script = ExtResource("s_btnfx")
 
 [node name="Belt" type="Button" parent="HUD/TopBar/Row/LineTools" unique_id=1188044196]
 custom_minimum_size = Vector2(100, 0)
@@ -402,6 +405,7 @@ layout_mode = 2
 tooltip_text = "铺传送带：在场地按住起点拖到终点松开（矿块朝箭头方向走）"
 toggle_mode = true
 text = "铺传送带"
+script = ExtResource("s_btnfx")
 
 [node name="Remove" type="Button" parent="HUD/TopBar/Row/LineTools" unique_id=1327456112]
 custom_minimum_size = Vector2(72, 0)
@@ -409,6 +413,7 @@ layout_mode = 2
 tooltip_text = "拆除管道/传送带：拖过的格子上的线路全部拆除（无返还）"
 toggle_mode = true
 text = "拆除"
+script = ExtResource("s_btnfx")
 
 [node name="Spacer" type="Control" parent="HUD/TopBar/Row" unique_id=615944948]
 layout_mode = 2
@@ -453,12 +458,14 @@ custom_minimum_size = Vector2(88, 0)
 layout_mode = 2
 tooltip_text = "按下开始/暂停波次（默认暂停）"
 text = "▶ 开始"
+script = ExtResource("s_btnfx")
 
 [node name="SpeedBtn" type="Button" parent="HUD/TopBar/Row" unique_id=1398858300]
 custom_minimum_size = Vector2(76, 0)
 layout_mode = 2
 tooltip_text = "点击切换 1倍速 / 2倍速"
 text = "1倍速"
+script = ExtResource("s_btnfx")
 
 [node name="SettingsPanel" parent="." unique_id=1002040087 instance=ExtResource("ps_settings")]
 layout_mode = 1

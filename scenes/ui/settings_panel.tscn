@@ -1,10 +1,11 @@
 [gd_scene format=3 uid="uid://dsksxyjdkpjwo"]
 
 [ext_resource type="Script" uid="uid://l8bqyxxurey7" path="res://scripts/ui/settings_panel.gd" id="1_script"]
-[ext_resource type="StyleBox" path="res://themes/ui_panel_outer.tres" id="2_bbxxw"]
-[ext_resource type="Texture2D" path="res://art/ui/tinted/pal/button_hover.png" id="tx_btn_h"]
-[ext_resource type="Texture2D" path="res://art/ui/tinted/pal/button_normal.png" id="tx_btn_n"]
-[ext_resource type="Texture2D" path="res://art/ui/tinted/pal/button_pressed.png" id="tx_btn_p"]
+[ext_resource type="StyleBox" uid="uid://ju8efmq0xihh" path="res://themes/ui_panel_outer.tres" id="2_bbxxw"]
+[ext_resource type="Script" uid="uid://wjnlxk3gxd2n" path="res://scripts/animated_button.gd" id="6_ea4bf"]
+[ext_resource type="Texture2D" uid="uid://rylaqfc33bfp" path="res://art/ui/tinted/pal/button_hover.png" id="tx_btn_h"]
+[ext_resource type="Texture2D" uid="uid://dhbwbx83vevdb" path="res://art/ui/tinted/pal/button_normal.png" id="tx_btn_n"]
+[ext_resource type="Texture2D" uid="uid://hmo1egjt5hwq" path="res://art/ui/tinted/pal/button_pressed.png" id="tx_btn_p"]
 
 [sub_resource type="StyleBoxTexture" id="SB_btn_n"]
 content_margin_left = 12.0
@@ -96,7 +97,7 @@ theme_override_constants/separation = 8
 [node name="Placeholder" type="Label" parent="Center/Panel/VBox/Content" unique_id=1795647659]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_colors/font_color = Color(0.847, 0.820, 0.863, 1)
+theme_override_colors/font_color = Color(0.847, 0.82, 0.863, 1)
 theme_override_font_sizes/font_size = 14
 text = "设置项待接入"
 horizontal_alignment = 1
@@ -114,6 +115,7 @@ theme_override_styles/normal = SubResource("SB_btn_n")
 theme_override_styles/pressed = SubResource("SB_btn_p")
 theme_override_styles/hover = SubResource("SB_btn_h")
 text = "返回游戏"
+script = ExtResource("6_ea4bf")
 
 [node name="TitleButton" type="Button" parent="Center/Panel/VBox/Buttons" unique_id=35860533]
 custom_minimum_size = Vector2(170, 46)
@@ -122,10 +124,11 @@ theme_override_styles/normal = SubResource("SB_btn_n")
 theme_override_styles/pressed = SubResource("SB_btn_p")
 theme_override_styles/hover = SubResource("SB_btn_h")
 text = "返回标题"
+script = ExtResource("6_ea4bf")
 
 [node name="Hint" type="Label" parent="Center/Panel/VBox" unique_id=1101719877]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.847, 0.820, 0.863, 1)
+theme_override_colors/font_color = Color(0.847, 0.82, 0.863, 1)
 theme_override_font_sizes/font_size = 12
 text = "ESC 返回游戏"
 horizontal_alignment = 1
