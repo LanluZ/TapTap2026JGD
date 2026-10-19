@@ -8,6 +8,7 @@ extends SceneTree
 const BootstrapScript = preload("res://scripts/bootstrap.gd")
 const LineToolScript = preload("res://scripts/ui/line_tool.gd")
 const LogisticsLayerScript = preload("res://scripts/views/logistics_layer.gd")
+const Art = preload("res://scripts/views/art_registry.gd")
 ## 接线层（game.gd）：取静态纯函数 cells_with_line 测「拆除只拆有线格」的过滤（裁定 ②），
 ## 并裸实例化 GameScript.new()（不加载 main.tscn）测断水回执去重（NEW-3）；
 ## 完整场景仍是 ui_selftest 的事。
@@ -342,6 +343,7 @@ func _run() -> int:
 		_t25_drag_to_cells()
 		_t26_render_data()
 		_t27_product_rulings()
+		_t28_corner_join()
 
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return _failures
@@ -1088,3 +1090,85 @@ func _t27_product_rulings() -> void:
 	_t27_water_hint_dedupe()
 	_t27_remove_filter()
 	_t27_corner_hint()
+
+
+# ================================================================ T28 拐弯拼接（渲染接线几何）
+
+## 逐格画「入口边 → 出口边」会让拐弯处断开：带/管在格边中点相接，
+## 而拐角格的上游方向与自身 line_dir 不一致。T28 锁死渲染层的接线判据：
+##   ① belt 上游 = 邻居 N 满足 N + N.dir == 本格（与 LogisticsSystem 的 target 同公式）；
+##   ② 相邻格在边中点精确重合（edge_point(A,+d) == edge_point(A+d,-d)）；
+##   ③ 拐弯格块位 path_pos：t=0 入边中点、0.5 格心（= CROSS_DIR_POS）、1 出口边中点；
+##   ④ 管道 links 无向、与 line_dir 无关（L/T/十字都能拼上）。
+func _t28_corner_join() -> void:
+	print("== T28: 拐弯拼接（渲染接线几何）==")
+	var w = _new_world()
+	var cs := 64.0
+	# 横段 (2,2)→(4,2) dir 右；纵段 (5,2)→(5,4) dir 下 —— (4,2) 的出口正好落进 (5,2)
+	_ok(_place(w, "belt", [[2, 2], [3, 2], [4, 2]], [1, 0]) == 0, "T28: 铺横段 3 格带")
+	_ok(_place(w, "belt", [[5, 2], [5, 3], [5, 4]], [0, 1]) == 0, "T28: 铺纵段 3 格带")
+	var turn := Vector2i(5, 2)
+	_ok(_same_dirs(LogisticsLayerScript.in_dirs(w, turn), [Vector2i(-1, 0)]),
+		"T28: 拐角格上游 = 左侧（实际 %s）" % str(LogisticsLayerScript.in_dirs(w, turn)))
+	_ok(_same_dirs(LogisticsLayerScript.in_dirs(w, Vector2i(3, 2)), [Vector2i(-1, 0)]),
+		"T28: 直线中段上游只有左侧（右侧邻格指向别处，不算上游，实际 %s）"
+		% str(LogisticsLayerScript.in_dirs(w, Vector2i(3, 2))))
+	_ok(LogisticsLayerScript.in_dirs(w, Vector2i(2, 2)).is_empty(), "T28: 起点格 in_dirs 为空")
+	# ② 拼接点：前格出口 == 后格入边（同一个世界坐标，视觉无裂缝）
+	var a_out: Vector2 = LogisticsLayerScript.edge_point(Vector2i(4, 2), Vector2i(1, 0), cs)
+	var b_in: Vector2 = LogisticsLayerScript.edge_point(turn, Vector2i(-1, 0), cs)
+	_ok(a_out == b_in, "T28: 前格出口点 == 拐角格左侧入点（%s / %s）" % [str(a_out), str(b_in)])
+	# ③ 拐弯块位三点 + 跨格不跳位
+	var center: Vector2 = LogisticsLayerScript.edge_point(turn, Vector2i.ZERO, cs)
+	_ok(LogisticsLayerScript.path_pos(turn, Vector2i(0, 1), Vector2i(-1, 0), 0.0, cs) == b_in,
+		"T28: 拐弯 t=0 → 入边中点")
+	_ok(LogisticsLayerScript.path_pos(turn, Vector2i(0, 1), Vector2i(-1, 0), 0.5, cs) == center,
+		"T28: 拐弯 t=0.5 → 格心（= CROSS_DIR_POS 落点）")
+	_ok(LogisticsLayerScript.path_pos(turn, Vector2i(0, 1), Vector2i(-1, 0), 1.0, cs)
+		== LogisticsLayerScript.edge_point(turn, Vector2i(0, 1), cs), "T28: 拐弯 t=1 → 出口边中点")
+	var before: Vector2 = LogisticsLayerScript.path_pos(turn, Vector2i(0, 1), Vector2i(-1, 0), 0.49, cs)
+	var after: Vector2 = LogisticsLayerScript.path_pos(turn, Vector2i(0, 1), Vector2i(-1, 0), 0.51, cs)
+	_ok(before.distance_to(center) < 2.0 and after.distance_to(center) < 2.0,
+		"T28: 拐弯处块位连续（拐点两侧都贴着格心）")
+	# 直线退化：path_pos(in_dir=-dir) 与 ore_pos 逐字相同（T26 契约不破）
+	var same := true
+	for t in [0.0, 0.25, 0.5, 0.75, 1.0]:
+		if LogisticsLayerScript.path_pos(Vector2i(3, 2), Vector2i(1, 0), Vector2i(-1, 0), float(t), cs) \
+			!= LogisticsLayerScript.ore_pos(Vector2i(3, 2), Vector2i(1, 0), float(t), cs):
+			same = false
+	_ok(same, "T28: 直线格 path_pos == ore_pos（旧契约不变）")
+	# ④ 管道：links 双向且与 line_dir 无关（两格都写 dir 右，仍互相连通）
+	_ok(_place(w, "pipe", [[8, 5]], [1, 0]) == 0, "T28: 铺管 (8,5) dir 右")
+	_ok(_place(w, "pipe", [[8, 6]], [1, 0]) == 0, "T28: 铺管 (8,6) dir 右（方向与邻接无关）")
+	_ok(_same_dirs(LogisticsLayerScript.pipe_links(w, Vector2i(8, 5)), [Vector2i(0, 1)]),
+		"T28: 上管 links 指向下邻（实际 %s）" % str(LogisticsLayerScript.pipe_links(w, Vector2i(8, 5))))
+	_ok(_same_dirs(LogisticsLayerScript.pipe_links(w, Vector2i(8, 6)), [Vector2i(0, -1)]),
+		"T28: 下管 links 指向上邻（双向闭合）")
+	_ok(LogisticsLayerScript.pipe_links(w, Vector2i(2, 2)).is_empty(),
+		"T28: 相邻有带但无管 → 管道不串到传送带上")
+	# 孤立管：无 links（渲染画管桩）
+	_ok(_place(w, "pipe", [[12, 8]], [1, 0]) == 0, "T28: 铺孤立管")
+	_ok(LogisticsLayerScript.pipe_links(w, Vector2i(12, 8)).is_empty(), "T28: 孤立管 links 为空")
+	# 快照字段：line_items 携带 in_dirs / links（渲染层唯一入口）
+	var snap: Dictionary = {}
+	for it in LogisticsLayerScript.line_items(w):
+		if it["cell"] == turn:
+			snap = it
+	_ok(not snap.is_empty() and _same_dirs(snap.get("in_dirs", []), [Vector2i(-1, 0)]),
+		"T28: 快照携带拐角格的 in_dirs")
+	_ok(_same_dirs(snap.get("links", []), [Vector2i(0, 1), Vector2i(-1, 0)]),
+		"T28: 快照 links = 出口 + 上游（实际 %s）" % str(snap.get("links")))
+	# 矿块图标与 HUD 资源栏同源：路径写错要立刻红（渲染层靠它画块）
+	_ok(Art.tex(str(Art.RES_ICON.get("ore", ""))) != null, "T28: 矿块图标 ore.png 可加载")
+	_ok(LogisticsLayerScript.ORE_W_RATIO > 0.0 and LogisticsLayerScript.ORE_W_RATIO < LogisticsLayerScript.BELT_W_RATIO,
+		"T28: 矿块图标小于带面宽度（不溢出带边）")
+
+
+## 方向数组比较（顺序敏感：NEIGHBORS 固定序，渲染确定性依赖它）。
+func _same_dirs(got: Array, want: Array) -> bool:
+	if got.size() != want.size():
+		return false
+	for i in got.size():
+		if got[i] != want[i]:
+			return false
+	return true
