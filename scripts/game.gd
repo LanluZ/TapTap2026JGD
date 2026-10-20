@@ -36,7 +36,7 @@ var _receipts: Array = []
 var _last_hand_ids: Array = []
 var _last_res: Dictionary = {}
 var _last_wave: int = -1
-var _enemy_cap: int = 0
+var _last_cap_key := "" # 敌人上限购买按钮推送去重键 "cap|price|can_afford"
 var _wave_total: int = 0
 var _over := false
 var _fusion_on := false
@@ -50,6 +50,7 @@ var _valid_cells: Dictionary = {} # 选中卡的可放格（Vector2i -> true）�
 
 
 func _ready() -> void:
+	Bgm.play_battle() # 进关卡切战斗曲（回菜单时由 menu_camera.gd 切回 title）
 	ui = get_parent()
 	# 选关：菜单把关卡 id 写在 root meta（menu_camera.gd），这里取走并清除
 	var root := get_tree().root
@@ -95,7 +96,7 @@ func _ready() -> void:
 	_card_sys = world.get_system("CardSystem")
 	_wave_sys = world.get_system("WaveSystem")
 	var level: Dictionary = config.get_level(level_id)
-	_enemy_cap = int(level["enemy_cap"])
+	world.state.enemy_cap = int(level["enemy_cap"]) # 上限权威源（可用电力购买提升，见 _on_buy_enemy_cap）
 	# 开局资源（§19.5 Mindustry 式核心库存）：关卡可选字段 start_resources
 	for rid in level.get("start_resources", {}):
 		world.state.add(StringName(str(rid)), int(level["start_resources"][rid]))
@@ -110,6 +111,7 @@ func _ready() -> void:
 	ui.line_committed.connect(_on_line_committed)
 	ui.wave_toggled.connect(func(running: bool): world.state.waves_running = running)
 	ui.speed_toggled.connect(func(s: float): world.state.speed = s)
+	ui.enemy_cap_buy_requested.connect(_on_buy_enemy_cap)
 	_init_ui()
 
 
@@ -157,6 +159,7 @@ func _init_ui() -> void:
 	_sync_res()
 	_sync_hand()
 	_sync_hud()
+	_sync_cap_offer()
 	_sync_fusion() # 融合条初始态注入（Game 先于 Main._ready，auto_mock 随后让位）
 
 
@@ -208,6 +211,7 @@ func _sync_ui() -> void:
 	_sync_res()
 	_sync_hand()
 	_sync_hud()
+	_sync_cap_offer()
 	_sync_fusion()
 	_sync_fusion_preview()
 
@@ -246,7 +250,7 @@ func _sync_hand() -> void:
 
 
 func _sync_hud() -> void:
-	ui.set_enemy_count(world.state.enemies_on_path, _enemy_cap)
+	ui.set_enemy_count(world.state.enemies_on_path, world.state.enemy_cap)
 	if world.state.waves_survived != _last_wave:
 		_last_wave = world.state.waves_survived
 		ui.set_wave_info(_last_wave, _wave_total)
@@ -256,7 +260,33 @@ func _sync_hud() -> void:
 		_push_wave_preview()
 
 
+## 敌人上限购买按钮：只推「本次电费 / 是否买得起」（文案自带「上限+2」）。
+## 电力每帧都在变，用 price|affordable 二元键去重，只在真变化时重刷。
+func _sync_cap_offer() -> void:
+	var st = world.state
+	if st == null:
+		return
+	var price: int = GameState.enemy_cap_price(st.enemy_cap_buys)
+	var affordable: bool = st.get_amount(&"power") >= price
+	var key := "%d|%s" % [price, str(affordable)]
+	if key == _last_cap_key:
+		return
+	_last_cap_key = key
+	ui.set_enemy_cap_offer(price, affordable)
+
+
 # ---------------------------------------------------------------- 注入方向：UI → 逻辑
+
+
+## 点击右侧栏「敌人上限」按钮：扣电买 +2 个同时在场名额（价格 round(ln(e+次数×3))）。
+## 成交/买不起都由 GameState.buy_enemy_cap 判定，这里只补音效与按钮刷新。
+func _on_buy_enemy_cap() -> void:
+	if world == null or world.state == null or _over or not world.state.is_playing():
+		return
+	if not world.state.buy_enemy_cap():
+		SfxScript.play_if_exists("操作失败、警告")
+	_sync_cap_offer()
+
 
 ## 选中卡牌 → 计算该卡的可放格集合，交给放置预览层高亮；工厂卡同时装配放置幽灵
 func _on_card_selected(card: Dictionary) -> void:
@@ -463,7 +493,7 @@ func _show_result(won: bool) -> void:
 		"level_id": String(level_id),
 		"waves_survived": world.state.waves_survived,
 		"wave_total": _wave_total,
-		"enemy_cap": _enemy_cap,
+		"enemy_cap": world.state.enemy_cap,
 	})
 
 

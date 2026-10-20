@@ -8,6 +8,9 @@ extends Node2D
 ## 显示「每圈多少秒」用的敌人速度（史莱姆 90px/s，enemies.json）
 const LAP_SPEED := 90.0
 
+## 选关界面预制体：轮播预览三张地图（res://art/maps/），选完发 level_chosen。
+const LEVEL_SELECT := preload("res://scenes/ui/level_select.tscn")
+
 ## Logo 缓慢浮动：上下 10px + 轻微摇摆（±2.5°），两个周期错开，避免看起来像机械升降。
 ## 光泽扫过与破损消融在 shaders/logo_gloss_dissolve.gdshader 里，这里只动位置/角度。
 const LOGO_BOB_PX := 10
@@ -33,13 +36,14 @@ const PARALLAX_LAYERS := [
 @onready var _quit_btn: Button = $UI/CenterContainer/MenuPanel/VBox/QuitButton
 
 var _time := 0.0
-var _picker: Control = null
+var _picker: Node = null
 var _logo_base := Vector2.ZERO
 var _bg_nodes: Array[Sprite2D] = []
 var _bg_base: Array[Vector2] = []
 var _parallax := Vector2.ZERO
 
 func _ready() -> void:
+	Bgm.play_title() # 菜单/选关用 title 曲（关卡内由 game.gd 切战斗曲）
 	_start_btn.pressed.connect(_on_start_pressed)
 	_quit_btn.pressed.connect(_on_quit_pressed)
 	if _logo != null:
@@ -56,43 +60,11 @@ func _on_start_pressed() -> void:
 	if config == null or config.levels.is_empty():
 		_go(&"level_1") # 配置异常时退回默认关卡，错误已由加载器打印
 		return
-	_picker = _build_picker(config)
+	_picker = LEVEL_SELECT.instantiate()
 	_ui.add_child(_picker)
-
-
-## 地图选择面板：关卡名 / 波数 / 每圈时长 / 建造格数全部从配置算，不手写。
-func _build_picker(config) -> Control:
-	var overlay := ColorRect.new()
-	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
-	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.add_child(center)
-	var panel := PanelContainer.new()
-	center.add_child(panel)
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 12)
-	panel.add_child(vb)
-	var title := Label.new()
-	title.text = "选择地图"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vb.add_child(title)
-	var ids: Array = config.levels.keys()
-	# StringName 的 < 比较是内部指针序，sort() 排出来是乱序（实测倒序）→ 必须按 id 字符串排。
-	ids.sort_custom(func(a, b): return str(a) < str(b))
-	for i in ids.size():
-		var lid = ids[i]
-		var b := Button.new()
-		b.custom_minimum_size = Vector2(420, 56)
-		b.text = str(i)
-		b.pressed.connect(_go.bind(lid))
-		vb.add_child(b)
-	var back := Button.new()
-	back.text = "返回"
-	back.custom_minimum_size = Vector2(420, 44)
-	back.pressed.connect(_close_picker)
-	vb.add_child(back)
-	return overlay
+	_picker.level_chosen.connect(_go)
+	_picker.closed.connect(_close_picker)
+	_picker.setup(config)
 
 
 func _close_picker() -> void:

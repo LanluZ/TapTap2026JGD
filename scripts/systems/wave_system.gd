@@ -74,7 +74,9 @@ func tick(world, dt: float) -> void:
 		if world.is_alive(id):
 			alive += 1
 	state.enemies_on_path = alive
-	if playing and alive > int(level["enemy_cap"]):
+	# 上限权威源 = GameState.enemy_cap（电力可购买提升）；未接线（0）时回退关卡配置
+	var cap: int = state.enemy_cap if state.enemy_cap > 0 else int(level["enemy_cap"])
+	if playing and alive > cap:
 		state.status = GameState.STATUS_LOST
 		world.game_lost.emit()
 		playing = false

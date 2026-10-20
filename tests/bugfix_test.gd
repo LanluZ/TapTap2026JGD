@@ -39,17 +39,21 @@ func _init() -> void:
 	_test_anim_speed()
 	_test_win_waits_for_clear()
 	_test_command_applied_signal()
-	var packed = load("res://scenes/main.tscn")
-	_ok(packed is PackedScene, "main.tscn 可加载")
-	if packed is PackedScene:
-		_ui = (packed as PackedScene).instantiate()
-		root.add_child(_ui)
 
 
 ## 场景里的 Game/UI 的 _ready 要等首个逻辑帧才跑（_init 里 add_child 不触发），
 ## 所以结算面板断言放在第一帧之后。
+## main.tscn 也要等 autoload 注册后再 load：_init 阶段 SceneTransition 等全局名还不存在，
+## 那时 load 会让 main_ui.gd 编译失败（Identifier not found: SceneTransition）。
 func _process(_dt: float) -> bool:
-	if _ui != null and _frames >= 1:
+	if _ui == null:
+		var packed = load("res://scenes/main.tscn")
+		_ok(packed is PackedScene, "main.tscn 可加载")
+		if packed is PackedScene:
+			_ui = (packed as PackedScene).instantiate()
+			root.add_child(_ui)
+		return false
+	if _frames >= 1:
 		_test_result_panel(_ui)
 		_ui = null
 		print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
@@ -227,6 +231,10 @@ func _test_win_waits_for_clear() -> void:
 	_ok(wave_sys != null, "WaveSystem 已注册")
 	if wave_sys == null:
 		return
+	# 本测只验证「达标后不清场不判胜」的语义，与关卡实际波数（levels.json 可调，当前 50）解耦
+	# 失败线同理解耦：本测不击杀，前 3 波累积数随难度曲线变化，不能拿真实 cap 判负
+	world.state.enemy_cap = 999
+	wave_sys.objective = WaveSystem.SurviveWavesObjective.new(3)
 	var ticks := 0
 	while int(world.state.waves_survived) < 3 and ticks < 6000:
 		world.tick(0.25)

@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://0rmkftgrr02f" path="res://scripts/game.gd" id="8_tipki"]
 [ext_resource type="StyleBox" uid="uid://dyocl1sxj4i68" path="res://themes/ui_panel_topbar.tres" id="13_muem4"]
 [ext_resource type="StyleBox" uid="uid://ybltucvg6p2c" path="res://themes/ui_panel_inner.tres" id="14_dp3eg"]
+[ext_resource type="Theme" uid="uid://d3ms6qrxi038" path="res://themes/ui_btn_capbuy.tres" id="18_gqmmt"]
 [ext_resource type="PackedScene" uid="uid://dsksxyjdkpjwo" path="res://scenes/ui/settings_panel.tscn" id="ps_settings"]
 [ext_resource type="Script" uid="uid://wjnlxk3gxd2n" path="res://scripts/animated_button.gd" id="s_btnfx"]
 [ext_resource type="Shader" uid="uid://326j34kbtcvs" path="res://shaders/bg_fog.gdshader" id="s_fog"]
@@ -453,6 +454,15 @@ layout_mode = 2
 theme_override_styles/background = SubResource("SB_bar_bg")
 theme_override_styles/fill = SubResource("SB_bar_enemy_fill")
 show_percentage = false
+
+[node name="EnemyCapBuy" type="Button" parent="HUD/TopBar/Row" unique_id=1731654321]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+tooltip_text = "用电力提高路径允许的同时在场敌人数上限（每次 +2，价格随购买次数上涨）"
+theme = ExtResource("18_gqmmt")
+disabled = true
+text = "上限+2 | 1电"
+script = ExtResource("s_btnfx")
 
 [node name="StartBtn" type="Button" parent="HUD/TopBar/Row" unique_id=1561123005]
 custom_minimum_size = Vector2(88, 0)

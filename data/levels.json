@@ -643,7 +643,7 @@
 			],
 			"objective": {
 				"type": "survive_waves",
-				"waves": 3
+				"waves": 50
 			},
 			"waves": [
 				{
@@ -651,7 +651,7 @@
 						{
 							"enemy": "slime",
 							"count": 9,
-							"interval": 0.5,
+							"interval": 0.45,
 							"delay": 0.0
 						}
 					]
@@ -659,9 +659,15 @@
 				{
 					"spawns": [
 						{
+							"enemy": "slime",
+							"count": 7,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
 							"enemy": "bat",
-							"count": 9,
-							"interval": 0.7,
+							"count": 6,
+							"interval": 0.3,
 							"delay": 0.5
 						}
 					]
@@ -670,15 +676,911 @@
 					"spawns": [
 						{
 							"enemy": "slime",
-							"count": 6,
-							"interval": 0.6,
+							"count": 8,
+							"interval": 0.45,
 							"delay": 0.0
 						},
+						{
+							"enemy": "bat",
+							"count": 7,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 10,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "bat",
+							"count": 8,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 11,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "bat",
+							"count": 9,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 18,
+							"interval": 0.45,
+							"delay": 0.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 13,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "bat",
+							"count": 11,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 15,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "bat",
+							"count": 12,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 16,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "bat",
+							"count": 13,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime_king",
+							"count": 2,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 4,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 3,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 27,
+							"interval": 0.45,
+							"delay": 0.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 19,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "bat",
+							"count": 17,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 21,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "bat",
+							"count": 16,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 24,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "bat",
+							"count": 14,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 28,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "bat",
+							"count": 12,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 37,
+							"interval": 0.45,
+							"delay": 0.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 33,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "bat",
+							"count": 9,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 36,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "bat",
+							"count": 7,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 39,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "bat",
+							"count": 5,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
 						{
 							"enemy": "slime_king",
 							"count": 3,
 							"interval": 1.0,
-							"delay": 2.0
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 9,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 8,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 46,
+							"interval": 0.45,
+							"delay": 0.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 1,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 36,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 6,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 1,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 38,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 5,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 1,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 41,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 3,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 1,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 44,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 2,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 39,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 2,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 38,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 4,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 2,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 41,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 2,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 43,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime_king",
+							"count": 4,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 15,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 12,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 3,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 40,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 3,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 41,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 3,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 42,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 4,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 35,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 5,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 4,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 37,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 4,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 4,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 41,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 5,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 31,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 7,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 5,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 34,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 5,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 5,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 37,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 3,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime_king",
+							"count": 5,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "golem",
+							"count": 1,
+							"interval": 1.0,
+							"delay": 0.5
+						},
+						{
+							"enemy": "slime",
+							"count": 12,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "bat",
+							"count": 17,
+							"interval": 0.3,
+							"delay": 1.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 6,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 34,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 6,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 33,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 5,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 6,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 36,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 3,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 6,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 39,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 7,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 30,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 6,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 7,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 36,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 7,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 36,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 3,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 7,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 38,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 8,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 30,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 6,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime_king",
+							"count": 6,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "golem",
+							"count": 1,
+							"interval": 1.0,
+							"delay": 0.5
+						},
+						{
+							"enemy": "slime",
+							"count": 26,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "bat",
+							"count": 9,
+							"interval": 0.3,
+							"delay": 1.5
 						}
 					]
 				}
@@ -1343,7 +2245,7 @@
 			],
 			"objective": {
 				"type": "survive_waves",
-				"waves": 4
+				"waves": 50
 			},
 			"waves": [
 				{
@@ -1351,17 +2253,7 @@
 						{
 							"enemy": "slime",
 							"count": 9,
-							"interval": 0.5,
-							"delay": 0.0
-						}
-					]
-				},
-				{
-					"spawns": [
-						{
-							"enemy": "swarm",
-							"count": 15,
-							"interval": 0.3,
+							"interval": 0.45,
 							"delay": 0.0
 						}
 					]
@@ -1370,14 +2262,528 @@
 					"spawns": [
 						{
 							"enemy": "slime",
-							"count": 12,
-							"interval": 0.5,
+							"count": 8,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "swarm",
+							"count": 15,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 10,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "swarm",
+							"count": 18,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 11,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "swarm",
+							"count": 22,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 13,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "swarm",
+							"count": 25,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 23,
+							"interval": 0.45,
+							"delay": 0.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 18,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "swarm",
+							"count": 29,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 21,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "swarm",
+							"count": 27,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 25,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "swarm",
+							"count": 24,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime_king",
+							"count": 2,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 9,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 17,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 37,
+							"interval": 0.45,
+							"delay": 0.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 35,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "swarm",
+							"count": 16,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 39,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "swarm",
+							"count": 13,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 42,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "swarm",
+							"count": 10,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 46,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "swarm",
+							"count": 7,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 50,
+							"interval": 0.45,
+							"delay": 0.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 53,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "swarm",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 1,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 46,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 6,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 1,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 50,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 3,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime_king",
+							"count": 3,
+							"interval": 1.0,
 							"delay": 0.0
 						},
 						{
 							"enemy": "golem",
+							"count": 1,
+							"interval": 1.0,
+							"delay": 0.5
+						},
+						{
+							"enemy": "slime",
+							"count": 16,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "swarm",
+							"count": 28,
+							"interval": 0.3,
+							"delay": 1.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 2,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 48,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 2,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 50,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
 							"count": 3,
 							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 44,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 6,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 3,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 47,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 4,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 3,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 50,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 4,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 46,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 4,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 48,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 5,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 41,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 7,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 5,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 45,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 4,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime_king",
+							"count": 4,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "golem",
+							"count": 2,
+							"interval": 1.0,
+							"delay": 0.5
+						},
+						{
+							"enemy": "slime",
+							"count": 29,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "swarm",
+							"count": 16,
+							"interval": 0.3,
 							"delay": 1.5
 						}
 					]
@@ -1387,20 +2793,426 @@
 						{
 							"enemy": "golem",
 							"count": 6,
-							"interval": 1.2,
+							"interval": 1.0,
 							"delay": 0.0
 						},
 						{
 							"enemy": "slime",
+							"count": 44,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 6,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 46,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 3,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 7,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 39,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 7,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 7,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 43,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 4,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 7,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 46,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 8,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 41,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 8,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 43,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 3,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 8,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 45,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
 							"count": 9,
-							"interval": 0.4,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 41,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 4,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime_king",
+							"count": 5,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "golem",
+							"count": 3,
+							"interval": 1.0,
+							"delay": 0.5
+						},
+						{
+							"enemy": "slime",
+							"count": 41,
+							"interval": 0.45,
 							"delay": 1.0
 						},
 						{
-							"enemy": "slime_king",
-							"count": 3,
+							"enemy": "swarm",
+							"count": 5,
+							"interval": 0.3,
+							"delay": 1.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 10,
 							"interval": 1.0,
-							"delay": 3.0
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 39,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 10,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 41,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 3,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 10,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 43,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 11,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 38,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 5,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 11,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 42,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 12,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 37,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 12,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 39,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 3,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 12,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 41,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 13,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 36,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "swarm",
+							"count": 5,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime_king",
+							"count": 6,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "golem",
+							"count": 5,
+							"interval": 1.0,
+							"delay": 0.5
+						},
+						{
+							"enemy": "slime",
+							"count": 42,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "swarm",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.5
 						}
 					]
 				}
@@ -1894,7 +3706,7 @@
 			],
 			"objective": {
 				"type": "survive_waves",
-				"waves": 5
+				"waves": 50
 			},
 			"waves": [
 				{
@@ -1902,7 +3714,7 @@
 						{
 							"enemy": "slime",
 							"count": 12,
-							"interval": 0.5,
+							"interval": 0.45,
 							"delay": 0.0
 						}
 					]
@@ -1910,10 +3722,16 @@
 				{
 					"spawns": [
 						{
-							"enemy": "moth",
-							"count": 9,
-							"interval": 0.8,
+							"enemy": "slime",
+							"count": 10,
+							"interval": 0.45,
 							"delay": 0.0
+						},
+						{
+							"enemy": "moth",
+							"count": 4,
+							"interval": 0.45,
+							"delay": 0.5
 						}
 					]
 				},
@@ -1922,29 +3740,121 @@
 						{
 							"enemy": "slime",
 							"count": 15,
-							"interval": 0.4,
+							"interval": 0.45,
 							"delay": 0.0
 						},
 						{
-							"enemy": "golem",
+							"enemy": "moth",
 							"count": 3,
-							"interval": 1.0,
-							"delay": 2.0
+							"interval": 0.45,
+							"delay": 0.5
 						}
 					]
 				},
 				{
 					"spawns": [
 						{
-							"enemy": "moth",
-							"count": 9,
-							"interval": 0.7,
+							"enemy": "slime",
+							"count": 16,
+							"interval": 0.45,
 							"delay": 0.0
 						},
 						{
+							"enemy": "moth",
+							"count": 3,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
 							"enemy": "bat",
-							"count": 12,
-							"interval": 0.4,
+							"count": 5,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 17,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "moth",
+							"count": 4,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 6,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 30,
+							"interval": 0.45,
+							"delay": 0.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 23,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "moth",
+							"count": 8,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 30,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "moth",
+							"count": 5,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 27,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "moth",
+							"count": 6,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 9,
+							"interval": 0.3,
 							"delay": 1.0
 						}
 					]
@@ -1958,16 +3868,944 @@
 							"delay": 0.0
 						},
 						{
-							"enemy": "golem",
-							"count": 6,
-							"interval": 1.2,
+							"enemy": "slime",
+							"count": 9,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 2,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "bat",
+							"count": 3,
+							"interval": 0.3,
 							"delay": 1.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 48,
+							"interval": 0.45,
+							"delay": 0.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 35,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "moth",
+							"count": 12,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 44,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "moth",
+							"count": 8,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 47,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "moth",
+							"count": 5,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 7,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime",
+							"count": 58,
+							"interval": 0.45,
+							"delay": 0.0
+						},
+						{
+							"enemy": "moth",
+							"count": 2,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "bat",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 1,
+							"interval": 1.0,
+							"delay": 0.0
 						},
 						{
 							"enemy": "slime",
+							"count": 57,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 1,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 58,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 2,
+							"interval": 0.45,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 2,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 50,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 5,
+							"interval": 0.45,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 2,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 56,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 2,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "bat",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime_king",
+							"count": 4,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "golem",
+							"count": 1,
+							"interval": 1.0,
+							"delay": 0.5
+						},
+						{
+							"enemy": "slime",
+							"count": 18,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "moth",
+							"count": 6,
+							"interval": 0.45,
+							"delay": 1.5
+						},
+						{
+							"enemy": "bat",
+							"count": 9,
+							"interval": 0.3,
+							"delay": 2.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 3,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 59,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 4,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 49,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 4,
+							"interval": 0.45,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 4,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 55,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 2,
+							"interval": 0.45,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 5,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 45,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 4,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "bat",
+							"count": 5,
+							"interval": 0.3,
+							"delay": 1.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 5,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 53,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 2,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "bat",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 6,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 53,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 6,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 54,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 2,
+							"interval": 0.45,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 7,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 47,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 4,
+							"interval": 0.45,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 7,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 52,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 2,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "bat",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime_king",
+							"count": 5,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "golem",
+							"count": 2,
+							"interval": 1.0,
+							"delay": 0.5
+						},
+						{
+							"enemy": "slime",
+							"count": 34,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "moth",
+							"count": 7,
+							"interval": 0.45,
+							"delay": 1.5
+						},
+						{
+							"enemy": "bat",
+							"count": 9,
+							"interval": 0.3,
+							"delay": 2.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 8,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 55,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 9,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 45,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 4,
+							"interval": 0.45,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 9,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 51,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 2,
+							"interval": 0.45,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 10,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 41,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 4,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "bat",
+							"count": 5,
+							"interval": 0.3,
+							"delay": 1.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 10,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 49,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 2,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "bat",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 11,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 48,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 11,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 49,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 2,
+							"interval": 0.45,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
 							"count": 12,
-							"interval": 0.4,
-							"delay": 3.0
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 42,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 4,
+							"interval": 0.45,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 12,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 47,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 2,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "bat",
+							"count": 2,
+							"interval": 0.3,
+							"delay": 1.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime_king",
+							"count": 6,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "golem",
+							"count": 5,
+							"interval": 1.0,
+							"delay": 0.5
+						},
+						{
+							"enemy": "slime",
+							"count": 46,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "moth",
+							"count": 2,
+							"interval": 0.45,
+							"delay": 1.5
+						},
+						{
+							"enemy": "bat",
+							"count": 3,
+							"interval": 0.3,
+							"delay": 2.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 14,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 42,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 14,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 42,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 3,
+							"interval": 0.45,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 15,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 32,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 7,
+							"interval": 0.45,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 15,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 38,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 3,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "bat",
+							"count": 4,
+							"interval": 0.3,
+							"delay": 1.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 16,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 26,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 7,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "bat",
+							"count": 9,
+							"interval": 0.3,
+							"delay": 1.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 16,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 44,
+							"interval": 0.45,
+							"delay": 0.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 17,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 30,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 7,
+							"interval": 0.45,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 17,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 39,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 3,
+							"interval": 0.45,
+							"delay": 1.0
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "golem",
+							"count": 18,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "slime",
+							"count": 24,
+							"interval": 0.45,
+							"delay": 0.5
+						},
+						{
+							"enemy": "moth",
+							"count": 7,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "bat",
+							"count": 9,
+							"interval": 0.3,
+							"delay": 1.5
+						}
+					]
+				},
+				{
+					"spawns": [
+						{
+							"enemy": "slime_king",
+							"count": 7,
+							"interval": 1.0,
+							"delay": 0.0
+						},
+						{
+							"enemy": "golem",
+							"count": 9,
+							"interval": 1.0,
+							"delay": 0.5
+						},
+						{
+							"enemy": "slime",
+							"count": 38,
+							"interval": 0.45,
+							"delay": 1.0
+						},
+						{
+							"enemy": "moth",
+							"count": 3,
+							"interval": 0.45,
+							"delay": 1.5
+						},
+						{
+							"enemy": "bat",
+							"count": 4,
+							"interval": 0.3,
+							"delay": 2.0
 						}
 					]
 				}

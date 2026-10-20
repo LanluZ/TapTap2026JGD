@@ -126,6 +126,10 @@ func _run() -> int:
 
 	print("== T3: 波次完成判定 → 撑过 N 波胜利（清场后才判胜） ==")
 	var w3 := _make_world(config)
+	# 本测只验证「达标后不清场不判胜」的语义，与关卡实际波数（levels.json 可调，当前 50）解耦
+	# 失败线同理解耦：本测不击杀，前 3 波累积数会随关卡难度曲线变化，不能拿真实 cap 判负
+	w3.state.enemy_cap = 999
+	w3.get_system("WaveSystem").objective = WaveSystem.SurviveWavesObjective.new(3)
 	var wave_events: Array = []
 	var won_events: Array = []
 	w3.wave_completed.connect(func(w): wave_events.append(w))

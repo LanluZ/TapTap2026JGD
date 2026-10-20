@@ -1,0 +1,175 @@
+[gd_scene format=3 uid="uid://6sbav8xlg0to"]
+
+[ext_resource type="Script" uid="uid://bonb2c3ihd5mn" path="res://scripts/ui/level_select.gd" id="1_script"]
+[ext_resource type="StyleBox" uid="uid://ju8efmq0xihh" path="res://themes/ui_panel_outer.tres" id="2_outer"]
+[ext_resource type="Texture2D" uid="uid://dhb4ugbrruicb" path="res://art/ui/tinted/frame_thin.png" id="3_frame"]
+[ext_resource type="Script" uid="uid://wjnlxk3gxd2n" path="res://scripts/animated_button.gd" id="4_btn"]
+
+[sub_resource type="StyleBoxTexture" id="SB_card"]
+content_margin_left = 6.0
+content_margin_top = 6.0
+content_margin_right = 6.0
+content_margin_bottom = 6.0
+texture = ExtResource("3_frame")
+texture_margin_left = 12.0
+texture_margin_top = 12.0
+texture_margin_right = 12.0
+texture_margin_bottom = 12.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[node name="LevelSelect" type="Control" unique_id=960617505]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Dim" type="ColorRect" parent="." unique_id=113491527]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.62)
+
+[node name="Center" type="CenterContainer" parent="." unique_id=1074699345]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="Center" unique_id=1305982677]
+self_modulate = Color(1, 1, 1, 0.3254902)
+layout_mode = 2
+theme_override_styles/panel = ExtResource("2_outer")
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel" unique_id=253835904]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="Center/Panel/VBox" unique_id=1173323868]
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "选择地图"
+horizontal_alignment = 1
+
+[node name="Row" type="HBoxContainer" parent="Center/Panel/VBox" unique_id=1451463249]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="ArrowLeft" type="Button" parent="Center/Panel/VBox/Row" unique_id=622402940]
+custom_minimum_size = Vector2(72, 120)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 44
+text = "◀"
+script = ExtResource("4_btn")
+hover_scale = 1.12
+press_scale = 0.9
+
+[node name="Stage" type="Control" parent="Center/Panel/VBox/Row" unique_id=309406365]
+custom_minimum_size = Vector2(1200, 470)
+clip_contents = true
+layout_mode = 2
+
+[node name="CardL" type="PanelContainer" parent="Center/Panel/VBox/Row/Stage" unique_id=244469979]
+layout_mode = 0
+offset_left = -150.0
+offset_top = 96.0
+offset_right = 346.0
+offset_bottom = 375.0
+mouse_default_cursor_shape = 2
+theme_override_styles/panel = SubResource("SB_card")
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/VBox/Row/Stage/CardL" unique_id=1088278719]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Shot" type="TextureRect" parent="Center/Panel/VBox/Row/Stage/CardL/VBox" unique_id=313779444]
+layout_mode = 2
+size_flags_vertical = 3
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Name" type="Label" parent="Center/Panel/VBox/Row/Stage/CardL/VBox" unique_id=654502373]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.847, 0.82, 0.863, 1)
+theme_override_font_sizes/font_size = 18
+text = "地图预览"
+horizontal_alignment = 1
+
+[node name="CardR" type="PanelContainer" parent="Center/Panel/VBox/Row/Stage" unique_id=1151455466]
+layout_mode = 0
+offset_left = 854.0
+offset_top = 96.0
+offset_right = 1350.0
+offset_bottom = 375.0
+mouse_default_cursor_shape = 2
+theme_override_styles/panel = SubResource("SB_card")
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/VBox/Row/Stage/CardR" unique_id=793948029]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Shot" type="TextureRect" parent="Center/Panel/VBox/Row/Stage/CardR/VBox" unique_id=952603659]
+layout_mode = 2
+size_flags_vertical = 3
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Name" type="Label" parent="Center/Panel/VBox/Row/Stage/CardR/VBox" unique_id=529558293]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.847, 0.82, 0.863, 1)
+theme_override_font_sizes/font_size = 18
+text = "地图预览"
+horizontal_alignment = 1
+
+[node name="CardC" type="PanelContainer" parent="Center/Panel/VBox/Row/Stage" unique_id=1810764143]
+layout_mode = 0
+offset_left = 290.0
+offset_top = 60.0
+offset_right = 910.0
+offset_bottom = 409.0
+mouse_default_cursor_shape = 2
+theme_override_styles/panel = SubResource("SB_card")
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/VBox/Row/Stage/CardC" unique_id=79683782]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Shot" type="TextureRect" parent="Center/Panel/VBox/Row/Stage/CardC/VBox" unique_id=1716885923]
+layout_mode = 2
+size_flags_vertical = 3
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Name" type="Label" parent="Center/Panel/VBox/Row/Stage/CardC/VBox" unique_id=343481385]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "地图预览"
+horizontal_alignment = 1
+
+[node name="ArrowRight" type="Button" parent="Center/Panel/VBox/Row" unique_id=1559127390]
+custom_minimum_size = Vector2(72, 120)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 44
+text = "▶"
+script = ExtResource("4_btn")
+hover_scale = 1.12
+press_scale = 0.9
+
+[node name="BackButton" type="Button" parent="Center/Panel/VBox" unique_id=1038532572]
+custom_minimum_size = Vector2(240, 52)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "返回"
+script = ExtResource("4_btn")

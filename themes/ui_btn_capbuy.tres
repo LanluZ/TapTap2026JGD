@@ -1,0 +1,20 @@
+[gd_resource type="Theme" format=3 uid="uid://d3ms6qrxi038"]
+
+[ext_resource type="Texture2D" uid="uid://dhbwbx83vevdb" path="res://art/ui/tinted/pal/button_normal.png" id="1_75qi3"]
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_mohwy"]
+content_margin_left = 12.0
+content_margin_top = 4.0
+content_margin_right = 12.0
+content_margin_bottom = 4.0
+texture = ExtResource("1_75qi3")
+texture_margin_left = 20.0
+texture_margin_top = 20.0
+texture_margin_right = 20.0
+texture_margin_bottom = 20.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+modulate_color = Color(0.72, 0.68, 0.78, 1)
+
+[resource]
+Button/styles/disabled = SubResource("StyleBoxTexture_mohwy")

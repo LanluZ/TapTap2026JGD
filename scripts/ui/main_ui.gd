@@ -26,6 +26,7 @@ signal wave_toggled(running: bool) # 右上角「开始/暂停」按钮
 signal speed_toggled(speed: float) # 右上角速度按钮（1/2 倍速切换）
 signal line_tool_selected(tool: String) # 物流工具选中态变化（"" = 无工具）
 signal line_committed(kind: String, cells: Array, dir: Vector2i) # 拖拽画线松手
+signal enemy_cap_buy_requested() # 右侧栏「敌人上限」按钮（电力购买）
 
 const HudScript = preload("res://scripts/ui/hud.gd")
 const UiStyle = preload("res://scripts/ui/ui_style.gd")
@@ -62,6 +63,7 @@ var _dna_inspector: Control
 var _current_card_id := "" # 右键同一张卡再次点击 = 收起
 var _start_btn: Button
 var _speed_btn: Button
+var _cap_btn: Button # 敌人上限购买（电力）
 var _settings: Control # scenes/ui/settings_panel.tscn 实例（main.tscn 内）
 var _wave_running := false # 与 GameState.waves_running 初值一致（默认暂停）
 var _speed := 1.0
@@ -108,6 +110,7 @@ func _resolve_nodes() -> void:
 		push_warning("[关卡UI] main.tscn 缺少 HUD/TopBar/Row 下的 StartBtn/SpeedBtn")
 	_bind_settings()
 	_build_fusion_bar()
+	_bind_cap_button()
 	_build_dna_popup()
 	_bind_line_tools()
 
@@ -239,6 +242,16 @@ func _build_fusion_bar() -> void:
 	row.add_child(box) # Row 末尾 = 屏幕右上角（SpeedBtn 之后）
 
 
+## 敌人上限购买按钮：节点在 main.tscn（HUD 顶栏「开始」左边，与 StartBtn/SpeedBtn 同动效脚本），
+## 这里只做信号绑定——文案 / 置灰由逻辑层 set_enemy_cap_offer 注入。
+func _bind_cap_button() -> void:
+	_cap_btn = get_node_or_null("HUD/TopBar/Row/EnemyCapBuy") as Button
+	if _cap_btn == null:
+		push_warning("[关卡UI] main.tscn 缺少 HUD/TopBar/Row/EnemyCapBuy，敌人上限按钮不可用")
+		return
+	_cap_btn.pressed.connect(func() -> void: enemy_cap_buy_requested.emit())
+
+
 func _connect_signals() -> void:
 	if not _nodes_ready or _signals_ready:
 		return
@@ -298,6 +311,16 @@ func set_enemy_count(count: int, cap: int) -> void:
 	_external_data = true
 	if _hud != null:
 		_hud.set_enemy_count(count, cap)
+
+
+## 敌人上限购买按钮：文案 = 「上限+2 | N电」，affordable=false 时置灰（点击不产生请求）。
+func set_enemy_cap_offer(price: int, affordable: bool) -> void:
+	_prepare()
+	_external_data = true
+	if _cap_btn == null:
+		return
+	_cap_btn.text = "上限+2 | %d电" % price
+	_cap_btn.disabled = not affordable
 
 
 ## 放置预览：可放格集合（元素 Vector2i；也接受未类型化 Array）

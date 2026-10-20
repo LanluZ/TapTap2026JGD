@@ -10,18 +10,18 @@ config_version=5
 
 [application]
 
-config/name="2026TAPTAP"
+config/name="模因牌"
 run/main_scene="uid://b4dmqggxst63"
 config/features=PackedStringArray("4.7", "Forward Plus")
-config/icon="res://icon.svg"
+config/icon="uid://cyicgt6fdomfh"
 
 [autoload]
 
 CrtOverlay="*res://scripts/ui/crt_overlay.gd"
-_mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
 SceneTransition="*res://scripts/ui/scene_transition.gd"
 Sfx="*res://scripts/ui/sfx.gd"
 Bgm="*res://scripts/ui/bgm.gd"
+_mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
 
 [display]
 

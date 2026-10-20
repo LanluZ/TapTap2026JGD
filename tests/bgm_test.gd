@@ -1,6 +1,6 @@
 extends SceneTree
-## headless 验证全局 BGM（autoload Bgm）：
-## 注册项、单例在场、title.ogg 在播、循环点与文件元数据 LOOPSTART/LOOPLENGTH 一致、
+## headless 验证全局 BGM（autoload Bgm）：注册项、单例在场、初始播 title.ogg、
+## 按曲目切歌（title / battle）后循环点与文件元数据 LOOPSTART/LOOPLENGTH 一致、
 ## beat_count/bpm 反推出的循环终点正确、真流实际回跳（合成 1.0s→2.0s 循环点等回跳）。
 ##
 ## 运行：
@@ -61,36 +61,55 @@ func _static_checks() -> void:
 	var script: GDScript = load("res://scripts/ui/bgm.gd")
 	_ok(script != null and bgm.get_script() == script, "Bgm 挂的是 bgm.gd")
 
-	# 播放器在播、流指向 title.ogg
+	# 播放器在播、初始曲是 title.ogg（菜单/选关）
 	var player := bgm.get_node_or_null("BgmPlayer") as AudioStreamPlayer
 	_ok(player != null, "BgmPlayer 播放器存在")
 	if player == null:
 		_phase = 2
 		return
 	_ok(player.playing, "BGM 正在播放")
-	var stream := player.stream as AudioStreamOggVorbis
-	_ok(stream != null and String(stream.resource_path).ends_with("title.ogg"),
-		"播放流是 res://sounds/title.ogg")
+	_ok(_stream_path(player.stream).ends_with("title.ogg"), "初始播放流是 res://sounds/title.ogg")
 
-	# 循环点配置 = 元数据反推值
+	# 每首曲子：切过去 → 循环点 = 元数据反推值
+	for id in script.TRACKS:
+		_track_checks(bgm, player, script, id)
+	bgm.play_title() # 复位；后续回环探针用独立新流
+
+
+## 单曲断言：切歌后在播的就是它，且循环起终点与 .ogg 元数据标签一致
+func _track_checks(bgm: Node, player: AudioStreamPlayer, script: GDScript, id: StringName) -> void:
+	var cfg: Dictionary = script.TRACKS[id]
+	var path := String(cfg["path"])
+	var start_frame := int(cfg["loop_start"])
+	var end_frame := int(cfg["loop_end"])
+
+	bgm.play(id)
+	var stream := player.stream as AudioStreamOggVorbis
+	_ok(stream != null and _stream_path(stream).ends_with(path.get_file()),
+		"切到 %s 后播放流是 %s" % [id, path])
 	if stream == null:
-		_phase = 2
 		return
-	_ok(stream.loop, "stream.loop=true")
-	_ok(absf(stream.loop_offset - script.LOOP_START_FRAMES / script.RATE) < 0.001,
-		"loop_offset = LOOPSTART(1675826帧) → %.6fs" % stream.loop_offset)
-	_ok(stream.beat_count == script.BEATS_FOR_END, "beat_count = 反推拍数 %d" % script.BEATS_FOR_END)
+	_ok(stream.loop, "%s: stream.loop=true" % id)
+	_ok(absf(stream.loop_offset - start_frame / script.RATE) < 0.001,
+		"%s: loop_offset = LOOPSTART(%d帧) → %.6fs" % [id, start_frame, stream.loop_offset])
+	_ok(stream.beat_count == script.BEATS_FOR_END,
+		"%s: beat_count = 反推拍数 %d" % [id, script.BEATS_FOR_END])
 	var end_sec := stream.beat_count * 60.0 / stream.bpm
-	_ok(absf(end_sec - script.LOOP_END_FRAMES / script.RATE) < 0.001,
-		"beat_count×60/bpm = LOOPEND(5026921帧) → %.6fs" % end_sec)
+	_ok(absf(end_sec - end_frame / script.RATE) < 0.001,
+		"%s: beat_count×60/bpm = LOOPEND(%d帧) → %.6fs" % [id, end_frame, end_sec])
 
 	# 常量与文件元数据一致（防抄错 LOOPSTART/LOOPLENGTH）
-	_ok(String(stream.tags.get("loopstart", "")) == str(script.LOOP_START_FRAMES),
-		"元数据 loopstart 与常量 LOOP_START_FRAMES 一致")
-	_ok(String(stream.tags.get("looplength", "")) == str(script.LOOP_END_FRAMES - script.LOOP_START_FRAMES),
-		"元数据 looplength 与 LOOP_END-LOOP_START 一致")
-	_ok(String(stream.tags.get("loopend", "")) == str(script.LOOP_END_FRAMES),
-		"元数据 loopend 与常量 LOOP_END_FRAMES 一致")
+	_ok(String(stream.tags.get("loopstart", "")) == str(start_frame),
+		"%s: 元数据 loopstart 与常量一致" % id)
+	_ok(String(stream.tags.get("looplength", "")) == str(end_frame - start_frame),
+		"%s: 元数据 looplength 与 LOOPEND-LOOPSTART 一致" % id)
+	if stream.tags.has("loopend"):
+		_ok(String(stream.tags.get("loopend", "")) == str(end_frame),
+			"%s: 元数据 loopend 与常量一致" % id)
+
+
+func _stream_path(stream: AudioStream) -> String:
+	return String(stream.resource_path) if stream != null else ""
 
 
 ## 起回环探针：新实例流上合成 offset=1.0s、终点 2.0s（bpm=60、beat_count=2）
