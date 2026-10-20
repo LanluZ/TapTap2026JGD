@@ -498,7 +498,8 @@ func _on_card_right_clicked(card: Dictionary) -> void:
 	_current_card_id = str(card.get("id", ""))
 	if data.is_empty():
 		data = { "title": str(card.get("name", "")), "bases": [], "locus_names": [],
-			"rules": ["该卡没有 DNA"], "debug": str(card.get("dna", "")) }
+			"rules": ["该卡没有 DNA"], "debug": str(card.get("dna", "")),
+			"art": str(card.get("art", "")) }
 	show_dna(data)
 
 

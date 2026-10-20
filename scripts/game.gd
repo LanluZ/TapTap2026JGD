@@ -424,7 +424,7 @@ func _ui_card_of(cid) -> Dictionary:
 			display_name = GenomeScript.phenotype_name(bp["genome"], config.genes)
 			desc += "\n" + GenomeScript.effect_text(bp["genome"], config.genes, config)
 			dna = GenomeScript.sequence_text(bp["genome"], config.genes)
-			dna_ui = _build_dna_ui(display_name, bp["genome"], dna)
+			dna_ui = _build_dna_ui(display_name, bp["genome"], dna, str(ArtScript.CARD.get(String(cid), "")))
 	else:
 		# 地块卡也有 DNA：地块基因 = 地形规则（减速倍率等，levels.json tile_types）
 		var ttype := StringName(str(eff.get("tile_type", "")))
@@ -433,7 +433,8 @@ func _ui_card_of(cid) -> Dictionary:
 		desc += "\n放置地块: %s（敌人速度×%.1f）" % [ttype, tmult]
 		dna = "1. tile_type: %s（敌人速度×%.1f）" % [ttype, tmult]
 		dna_ui = { "title": display_name, "bases": ["·"], "locus_names": ["地块"],
-			"rules": ["地块基因：%s — 放置后改变地形规则（敌人速度×%.1f）" % [ttype, tmult]], "debug": dna }
+			"rules": ["地块基因：%s — 放置后改变地形规则（敌人速度×%.1f）" % [ttype, tmult]],
+			"debug": dna, "art": str(ArtScript.CARD.get(String(cid), "")) }
 	var icon := ""
 	return {
 		"id": String(cid),
@@ -459,12 +460,12 @@ func _format_cost(cost: Dictionary) -> String:
 
 ## 碱基链 + 染色体编号 → DNA 检视载荷；座名只给染色体序号（01/02…），
 ## 融合规则不进 UI（见 策划案 15.3），工厂卡 rules 留空即隐藏规则区。
-func _build_dna_ui(title: String, genome: Array, debug_text: String) -> Dictionary:
+func _build_dna_ui(title: String, genome: Array, debug_text: String, art_path: String = "") -> Dictionary:
 	var locus_names := []
 	for i in config.genes.get("loci", []).size():
 		locus_names.append("染色体%02d" % (i + 1))
 	return { "title": title, "bases": GenomeScript.base_letters(genome, config.genes),
-		"locus_names": locus_names, "rules": [], "debug": debug_text }
+		"locus_names": locus_names, "rules": [], "debug": debug_text, "art": art_path }
 
 
 func _pool_ui_cards() -> Array:
