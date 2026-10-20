@@ -411,7 +411,7 @@ script = ExtResource("s_btnfx")
 [node name="Remove" type="Button" parent="HUD/TopBar/Row/LineTools" unique_id=1327456112]
 custom_minimum_size = Vector2(72, 0)
 layout_mode = 2
-tooltip_text = "拆除管道/传送带：拖过的格子上的线路全部拆除（无返还）"
+tooltip_text = "拆除管道/传送带：点一格拆一格，按住拖出矩形可整片拆除（无返还）"
 toggle_mode = true
 text = "拆除"
 script = ExtResource("s_btnfx")

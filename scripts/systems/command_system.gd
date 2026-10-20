@@ -95,6 +95,9 @@ func _play_card(world, d: Dictionary) -> void:
 	deck.hand.remove_at(idx)
 	if not String(card_id).begins_with("card_fusion_"):
 		deck.pending_draw += 1 # 0 消耗规则：打出自动抽 1（§12），CardSystem #10 执行
+	# 成功终局才发（与 command_rejected 对称）：上方任一校验失败都已 _reject 过，
+	# 表现层的成功反馈（如打出卡牌成功音）挂在本信号上，不再由 UI 层抢跑。
+	world.command_applied.emit(&"play_card")
 
 
 ## 放置工厂：蓝图校验 → 占用校验（GridSystem）→ 扣蓝图 cost → 按蓝图组件组合创建实体。
@@ -137,8 +140,12 @@ func _place_factory(world, blueprint_id: String, cell) -> bool:
 
 
 ## DNA 融合（规格 2026-10-13-dna-fusion-design §4）：双亲减数分裂 → 子代卡入手。
-## 无消耗无冷却，代价是双亲实体销毁、格子由 GridSystem 清扫释放。
+## 门槛 = 融合机会（GameState.fusion_opportunity，右上角融合条按游戏时间充能）：
+## 未就绪拒收；成功才消耗本次机会。代价是双亲实体销毁、格子由 GridSystem 清扫释放。
 func _fuse(world, a: int, b: int, seed: int) -> void:
+	if not world.state.fusion_opportunity:
+		_reject(world, "融合机会未就绪（右上角融合条充能完成后可用）")
+		return
 	if a == b:
 		_reject(world, "融合需要两个不同的工厂（当前都是实体 %d）" % a)
 		return
@@ -163,6 +170,7 @@ func _fuse(world, a: int, b: int, seed: int) -> void:
 	world.destroy_entity(a)
 	world.destroy_entity(b)
 	_card_system.receive_card(child_card)
+	world.state.fusion_opportunity = false # 成功路径末尾消耗本次机会（失败已在上方 return，机会保留）
 
 
 ## 放置地块（§7）：地块不是实体，写入 GridMapData.cells[cell].tile_type（§4）。

@@ -40,6 +40,8 @@ var _enemy_cap: int = 0
 var _wave_total: int = 0
 var _over := false
 var _fusion_on := false
+var _fusion_interval := 1.0 # 融合充能间隔（游戏秒），来自 cards.json fusion_charge_seconds
+var _last_fusion_key := "" # 融合条推送去重键 "ready|percent"
 var _fusion_sel: Array = [] # 融合已选格（Vector2i，最多 2）
 var _last_fusion_cells: Array = [] # 上次注入的工厂格高亮集合
 var _ghost = null # 放置幽灵（FactoryView，选中工厂卡时装配）；untyped 以保留 preload 解析
@@ -67,6 +69,7 @@ func _ready() -> void:
 		push_error("关卡世界构建失败: " + String(level_id))
 		set_physics_process(false)
 		return
+	_fusion_interval = config.fusion_charge_seconds # 融合条充能间隔（cards.json）
 	world.state.waves_running = false # 开局默认暂停，等 UI「开始」按钮（与 main_ui 初值同步）
 	var layer := get_node_or_null("../EntityLayer")
 	if layer != null and layer.has_method("setup"):
@@ -115,9 +118,29 @@ func _physics_process(delta: float) -> void:
 		return
 	if world.state.is_playing() and not _over:
 		# 暂停时 dt=0：模拟（刷怪/移动/生产）全冻结，但指令队列仍每帧消费，放卡不受影响
-		world.tick(delta * world.state.speed if world.state.waves_running else 0.0)
+		var dt: float = delta * world.state.speed if world.state.waves_running else 0.0
+		world.tick(dt)
+		world.state.charge_fusion(dt, _fusion_interval) # 融合条充能跟模拟同一时间线（暂停冻结/倍速加速）
 	_sync_ui()
 	_sync_ghost()
+
+
+## 右键场上工厂 → 检查 DNA（与右键卡牌同一弹窗，key = "factory:<实体 id>"，再右键同一座收起）。
+## 放置 / 画线 / 融合模式下右键已被各自交互层消费（PlacementOverlay / LineOverlay 的
+## mouse_filter=STOP），到不了这里；本函数只处理「空手」态的场地右键。
+func _unhandled_input(event: InputEvent) -> void:
+	if world == null or config == null or _entity_layer == null or _over:
+		return
+	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT):
+		return
+	if ui.is_placing() or ui.is_fusion_mode() or not str(ui.get_line_tool()).is_empty():
+		return
+	var cell: Vector2i = world.grid.world_to_cell(_entity_layer.get_local_mouse_position())
+	var data := dna_ui_for_cell(cell)
+	if data.is_empty():
+		return
+	ui.toggle_dna(str(data["key"]), data)
+	get_viewport().set_input_as_handled()
 
 
 # ---------------------------------------------------------------- 注入方向：逻辑 → UI
@@ -134,6 +157,7 @@ func _init_ui() -> void:
 	_sync_res()
 	_sync_hand()
 	_sync_hud()
+	_sync_fusion() # 融合条初始态注入（Game 先于 Main._ready，auto_mock 随后让位）
 
 
 ## 场地显示适配：视口减 UI 占位 → 等比放大格子并居中（窗口尺寸变化时重入）。
@@ -184,7 +208,19 @@ func _sync_ui() -> void:
 	_sync_res()
 	_sync_hand()
 	_sync_hud()
+	_sync_fusion()
 	_sync_fusion_preview()
+
+
+## 融合条推送：机会翻转必推；充能进度按 1% 粒度去重（按钮态/进度条由 UI 层收口）。
+func _sync_fusion() -> void:
+	var st = world.state
+	var ratio: float = 1.0 if st.fusion_opportunity else st.fusion_charge / maxf(_fusion_interval, 0.001)
+	var key := "%s|%d" % [str(st.fusion_opportunity), int(round(ratio * 100.0))]
+	if key == _last_fusion_key:
+		return
+	_last_fusion_key = key
+	ui.set_fusion_state(st.fusion_opportunity, ratio)
 
 
 func _sync_res() -> void:
@@ -238,7 +274,8 @@ func _on_card_played(card: Dictionary, cell: Vector2i) -> void:
 	_disarm_ghost()
 	if idx < 0:
 		return # 可能已被打出；不进战报（只留波次预告与击杀掉落）
-	SfxScript.play_if_exists("成功")
+	# 成功音不在此处播：指令下一逻辑帧才结算，此处抢跑会在失败时与失败音双响。
+	# 成功反馈统一接 world.command_applied（见 _on_command_applied）。
 	world.push_command({"type": "play_card", "card_index": idx, "cell": cell})
 
 
@@ -396,7 +433,14 @@ func _connect_world() -> void:
 	world.game_won.connect(_on_game_won)
 	world.game_lost.connect(_on_game_lost)
 	world.command_rejected.connect(func(_reason: String): SfxScript.play_if_exists("操作失败、警告"))
+	world.command_applied.connect(_on_command_applied)
 	get_viewport().size_changed.connect(_fit_field_to_viewport)
+
+
+## 指令成功反馈：只给打出卡牌播成功音——放置线路/地块是高频成功动作，配音会连响。
+func _on_command_applied(type: StringName) -> void:
+	if type == &"play_card":
+		SfxScript.play_if_exists("成功")
 
 
 ## 胜负结算（表现层）：UI 只收展示数据，判定规则全在 WaveSystem。
@@ -488,7 +532,7 @@ func _ui_card_of(cid) -> Dictionary:
 			display_name = GenomeScript.phenotype_name(bp["genome"], config.genes)
 			desc += "\n" + GenomeScript.effect_text(bp["genome"], config.genes, config)
 			dna = GenomeScript.sequence_text(bp["genome"], config.genes)
-			dna_ui = _build_dna_ui(display_name, bp["genome"], dna, str(ArtScript.CARD.get(String(cid), "")))
+			dna_ui = _build_dna_ui(display_name, bp["genome"], dna, str(ArtScript.card_art(String(cid))))
 	else:
 		# 地块卡也有 DNA：地块基因 = 地形规则（减速倍率等，levels.json tile_types）
 		var ttype := StringName(str(eff.get("tile_type", "")))
@@ -498,14 +542,14 @@ func _ui_card_of(cid) -> Dictionary:
 		dna = "1. tile_type: %s（敌人速度×%.1f）" % [ttype, tmult]
 		dna_ui = { "title": display_name, "bases": ["·"], "locus_names": ["地块"],
 			"rules": ["地块基因：%s — 放置后改变地形规则（敌人速度×%.1f）" % [ttype, tmult]],
-			"debug": dna, "art": str(ArtScript.CARD.get(String(cid), "")) }
+			"debug": dna, "art": str(ArtScript.card_art(String(cid))) }
 	var icon := ""
 	return {
 		"id": String(cid),
 		"name": display_name,
 		"kind": kind,
 		"icon": icon,
-		"art": str(ArtScript.CARD.get(String(cid), "")), # 卡面贴图路径（注册表无此项则空 → 纯文字卡面）
+		"art": str(ArtScript.card_art(String(cid))), # 卡面贴图路径（注册表无此项则空 → 纯文字卡面）
 		"desc": desc,
 		"cost": cost_text, # 消耗文案（卡费+蓝图费合计），卡面底部/卡牌库行内显示
 		"dna": dna, # 调试视图原始序列
@@ -530,6 +574,38 @@ func _build_dna_ui(title: String, genome: Array, debug_text: String, art_path: S
 		locus_names.append("染色体%02d" % (i + 1))
 	return { "title": title, "bases": GenomeScript.base_letters(genome, config.genes),
 		"locus_names": locus_names, "rules": [], "debug": debug_text, "art": art_path }
+
+
+## 场上工厂的 DNA 检视载荷：空格 / 非工厂 → {}（调用方据此决定不弹窗）。
+## 与卡牌同一契约（_build_dna_ui）+ 额外 key（toggle_dna 判重用）；基因组取自实体组件，
+## 因此融合子代这类运行时注册的工厂同样适用（其卡面按 card_fusion_* 前缀回落统一素材）。
+func dna_ui_for_cell(cell: Vector2i) -> Dictionary:
+	if world == null or config == null:
+		return {}
+	var c = world.grid.get_cell(cell)
+	var eid: int = c.occupant if c != null else 0
+	if eid == 0 or not world.has_component(eid, &"Factory"):
+		return {}
+	var fac = world.get_component(eid, &"Factory")
+	if fac == null or not (fac.genome is Array) or (fac.genome as Array).is_empty():
+		return {}
+	var genome: Array = fac.genome
+	var title := str(fac.display_name)
+	if title.is_empty():
+		title = GenomeScript.phenotype_name(genome, config.genes)
+	var data := _build_dna_ui(title, genome, GenomeScript.sequence_text(genome, config.genes),
+		ArtScript.card_art(_card_id_for_blueprint(fac.blueprint_id)))
+	data["key"] = "factory:%d" % eid
+	return data
+
+
+## 蓝图 id → 卡牌 id（DNA 弹窗取卡面贴图用）；融合子代在 register_child 里也登记了卡，同样命中。
+func _card_id_for_blueprint(bp_id: StringName) -> String:
+	for cid in config.cards:
+		var eff: Dictionary = (config.cards[cid] as Dictionary).get("effect", {})
+		if StringName(str(eff.get("blueprint_id", ""))) == bp_id:
+			return str(cid)
+	return ""
 
 
 func _pool_ui_cards() -> Array:

@@ -21,6 +21,7 @@ CrtOverlay="*res://scripts/ui/crt_overlay.gd"
 _mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
 SceneTransition="*res://scripts/ui/scene_transition.gd"
 Sfx="*res://scripts/ui/sfx.gd"
+Bgm="*res://scripts/ui/bgm.gd"
 
 [display]
 

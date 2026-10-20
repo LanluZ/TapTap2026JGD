@@ -116,4 +116,22 @@ func _run() -> int:
 	script.play_if_exists("不存在的音效")
 	_ok(not _pool_has(pool, ".ogg"), "未定义音效名不播放（只警告）")
 
+	# 10) 节流：同名音效最小间隔内连播 → 只有第一次发声（快速划过一排按钮防爆音）
+	_reset_pool(sfx)
+	script.play_if_exists("展开")
+	_ok(_pool_has(pool, "展开.ogg"), "首次播放正常")
+	_reset_pool(sfx)
+	script.play_if_exists("展开")
+	_ok(not _pool_has(pool, "展开.ogg"), "同 tick 内同名重播被节流（不发声）")
+
+	# 11) 不同名音效不受节流影响
+	_reset_pool(sfx)
+	script.play_if_exists("收起")
+	_ok(_pool_has(pool, "收起.ogg"), "不同名音效不受节流影响")
+
+	# 12) 启动竞态补扫入口：重扫整棵子树幂等——已挂按钮 meta 挡重、不重复接线
+	sfx._hook_subtree(root)
+	_ok(btn.has_meta(&"_sfx_hooked") and btn.get_signal_connection_list(&"mouse_entered").size() == 1,
+		"补扫重扫整树幂等（已挂按钮不重复接线）")
+
 	return _summary()

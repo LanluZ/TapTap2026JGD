@@ -10,7 +10,7 @@ extends Control
 ## 交互：左键按下记锚点 → 移动更新终点 → 松开提交（单轴直链，见 line_tool.gd）；
 ## 右键 / Esc 取消（不提交）。同格按下+松开 = 单格：方向按按下点→松开点的像素
 ## 相对位移判定（pixel_dir）；纯点击（位移 < deadzone）回退上次拖拽方向（默认向右）。
-## 拆除工具：提交与预览都按 2x2 笔刷扩展（指针格 + 右/下/右下），方便大范围擦除。
+## 拆除工具：拖拽 = 矩形框选（起点格与终点格围出的矩形全拆），单击 = 拆单格。
 
 signal line_committed(kind: String, cells: Array, dir: Vector2i)
 signal cancelled()
@@ -98,7 +98,7 @@ func cell_rect(cell: Vector2i) -> Rect2:
 	return Rect2(_origin + Vector2(cell * _cell_size), Vector2(_cell_size))
 
 
-## 只留网格内的格（2x2 笔刷在右/下边缘会外溢，提交与预览共用此过滤）。
+## 只留网格内的格（提交与预览共用此过滤）。
 func _on_grid(cells: Array[Vector2i]) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	for c in cells:
@@ -165,7 +165,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 ## 松手提交：格集 + 单一方向。拆除不需要方向（ZERO），
-## 且按 2x2 笔刷扩展（指针格 + 右/下/右下），越界格过滤掉。
+## 且按矩形框选取格（起点格 ↔ 终点格围出的矩形，单击即单格）。
 func _commit() -> void:
 	var a := _anchor
 	var b := _cursor
@@ -179,7 +179,7 @@ func _commit() -> void:
 	var dir: Vector2i = LineToolScript.line_dir(a, b)
 	if _kind == KIND_REMOVE:
 		dir = Vector2i.ZERO
-		cells = _on_grid(LineToolScript.brush_2x2(cells))
+		cells = _on_grid(LineToolScript.rect_cells(a, b))
 	elif dir == Vector2i.ZERO:
 		# 同格单格：方向 = 按下点→松开点的像素相对位移；纯点击回退上次方向
 		dir = LineToolScript.pixel_dir(_press_pos, _cursor_pos)
@@ -220,25 +220,29 @@ func _draw() -> void:
 		return
 	var cells: Array = LineToolScript.line_cells(_anchor, _cursor)
 	if _kind == KIND_REMOVE:
-		cells = _on_grid(LineToolScript.brush_2x2(cells)) # 拆除预览 = 2x2 笔刷实际作用域
+		cells = _on_grid(LineToolScript.rect_cells(_anchor, _cursor)) # 拆除预览 = 实际框选作用域
 	var col := _color()
 	for c in cells:
 		var rect := cell_rect(c)
 		draw_rect(rect, Color(col, 0.20), true)
 		draw_rect(rect, Color(col, 0.95), false, 2.0)
+	# 箭头只对放置工具有意义（= 写进 line_dir 的输送方向）；拆除无方向，框选内不画箭头。
+	if _kind == KIND_REMOVE or cells.is_empty():
+		return
 	var dir: Vector2i = LineToolScript.line_dir(_anchor, _cursor)
-	if dir == Vector2i.ZERO and cells.size() == 1:
-		# 同格拖拽预览：与 _commit 的 pixel_dir 判定保持一致（拆除不画方向）
-		dir = Vector2i.ZERO if _kind == KIND_REMOVE else LineToolScript.pixel_dir(_press_pos, _cursor_pos)
-	if dir != Vector2i.ZERO and cells.size() >= 1:
-		# 预览箭头：方向 = 松开后写进整条线的 line_dir（反向拖时箭头跟着翻）
-		var start: Vector2 = cell_rect(cells[0]).get_center()
-		var end: Vector2
-		if cells.size() > 1:
-			end = cell_rect(cells[cells.size() - 1]).get_center()
-		else:
-			end = start + Vector2(dir) * float(_cell_size.x) * 0.5 # 单格：箭头伸出半格
-		draw_line(start, end, Color(col, 0.85), 3.0)
-		var d := Vector2(dir)
-		var side := Vector2(-d.y, d.x) * float(_cell_size.x) * 0.18
-		draw_colored_polygon(PackedVector2Array([end, end - d * 18.0 + side, end - d * 18.0 - side]), col)
+	if dir == Vector2i.ZERO:
+		# 同格拖拽预览：与 _commit 的 pixel_dir 判定保持一致
+		dir = LineToolScript.pixel_dir(_press_pos, _cursor_pos)
+	if dir == Vector2i.ZERO:
+		return
+	# 预览箭头：方向 = 松开后写进整条线的 line_dir（反向拖时箭头跟着翻）
+	var start: Vector2 = cell_rect(cells[0]).get_center()
+	var end: Vector2
+	if cells.size() > 1:
+		end = cell_rect(cells[cells.size() - 1]).get_center()
+	else:
+		end = start + Vector2(dir) * float(_cell_size.x) * 0.5 # 单格：箭头伸出半格
+	draw_line(start, end, Color(col, 0.85), 3.0)
+	var d := Vector2(dir)
+	var side := Vector2(-d.y, d.x) * float(_cell_size.x) * 0.18
+	draw_colored_polygon(PackedVector2Array([end, end - d * 18.0 + side, end - d * 18.0 - side]), col)

@@ -48,15 +48,15 @@ static func pixel_dir(press: Vector2, release: Vector2, deadzone: float = 4.0) -
 	return Vector2i(0, signi(int(delta.y)))
 
 
-## 2x2 拆除笔刷：每格扩展为自身 + 右、下、右下（左上角锚定在指针格），去重保序。
-## 用于拆除工具的大范围擦除；越界格由上层按网格过滤（overlay._on_grid / cells_with_line）。
-static func brush_2x2(cells: Array[Vector2i]) -> Array[Vector2i]:
+## 矩形框选作用域：起点格 + 终点格 → 两角围出的矩形内全部格（含两端，行优先）。
+## 拆除工具对「一片线」的唯一几何来源：单击（a == b）自然退化为单格。
+static func rect_cells(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
-	var seen: Dictionary = {}
-	for c in cells:
-		for off in [Vector2i.ZERO, Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]:
-			var t: Vector2i = c + off
-			if not seen.has(t):
-				seen[t] = true
-				out.append(t)
+	var x0 := mini(a.x, b.x)
+	var x1 := maxi(a.x, b.x)
+	var y0 := mini(a.y, b.y)
+	var y1 := maxi(a.y, b.y)
+	for y in range(y0, y1 + 1):
+		for x in range(x0, x1 + 1):
+			out.append(Vector2i(x, y))
 	return out

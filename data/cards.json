@@ -1,5 +1,6 @@
 {
 	"hand_max": 6,
+	"fusion_charge_seconds": 30,
 	"cards": [
 		{
 			"id": "card_generator",

@@ -843,12 +843,12 @@ func _t25_drag_to_cells() -> void:
 	_ok(LineToolScript.pixel_dir(pc, pc + Vector2(1, 1)) == Vector2i.ZERO,
 		"T25: 位移 < deadzone（纯点击/手抖）→ ZERO（回退上次方向）")
 	_ok(LineToolScript.pixel_dir(pc, pc) == Vector2i.ZERO, "T25: 零位移 → ZERO")
-	# 2x2 拆除笔刷：单格 → 4 格；拖拽链逐格扩展并去重
-	var brush1: Array[Vector2i] = LineToolScript.brush_2x2([Vector2i(2, 5)])
-	_ok(_cells_eq(brush1, [Vector2i(2, 5), Vector2i(3, 5), Vector2i(2, 6), Vector2i(3, 6)]),
-		"T25: brush_2x2 单格 → 右/下/右下 4 格（实际 %s）" % str(brush1))
-	var brush2: Array[Vector2i] = LineToolScript.brush_2x2([Vector2i(2, 5), Vector2i(3, 5)])
-	_ok(brush2.size() == 6, "T25: 相邻两格笔刷去重（2+4 重叠 2 → 6 格，实际 %d）" % brush2.size())
+	# 矩形框选作用域：单击退化为单格；反向斜拖两角围出矩形
+	var box1: Array[Vector2i] = LineToolScript.rect_cells(Vector2i(2, 5), Vector2i(2, 5))
+	_ok(_cells_eq(box1, [Vector2i(2, 5)]), "T25: rect_cells 单击 → 单格（实际 %s）" % str(box1))
+	var box2: Array[Vector2i] = LineToolScript.rect_cells(Vector2i(4, 6), Vector2i(2, 5))
+	_ok(box2.size() == 6 and box2.has(Vector2i(2, 5)) and box2.has(Vector2i(4, 6)),
+		"T25: rect_cells 反向斜拖 → 3x2 矩形 6 格（实际 %s）" % str(box2))
 
 	# ② 指令层落地：拖拽产物按协议原文形态入队
 	var cells: Array = LineToolScript.line_cells(a, b)

@@ -8,6 +8,7 @@ const BootstrapScript = preload("res://scripts/bootstrap.gd")
 const GenomeScript = preload("res://scripts/dna/genome.gd")
 const FactoryViewScript = preload("res://scripts/views/factory_view.gd")
 const GameScript = preload("res://scripts/game.gd")
+const ArtScript = preload("res://scripts/views/art_registry.gd")
 
 var _checks: int = 0
 var _failures: int = 0
@@ -131,9 +132,26 @@ func _run() -> int:
 	w.tick(0.1)
 	var mid := _find_factory(w, &"miner")
 	_ok(mid != 0, "矿机放置成功")
+	# 融合机会 gate：融合条充能未就绪 → fuse 被拒，双亲原样保留
+	w.state.fusion_opportunity = false
+	var rejected0: Array = []
+	w.command_rejected.connect(func(r): rejected0.append(r))
+	w.push_command({ "type": "fuse", "a": tid, "b": mid, "seed": 42 })
+	w.tick(0.1)
+	_ok(rejected0.size() > 0 and w.is_alive(tid) and w.is_alive(mid),
+		"机会未就绪 → fuse 被拒、双亲仍在（不消耗任何东西）")
+	# 充能：游戏时间攒满 interval → 机会就绪；就绪后不再累计
+	w.state.fusion_charge = 0.0
+	w.state.charge_fusion(20.0, 30.0)
+	_ok(not w.state.fusion_opportunity and is_equal_approx(w.state.fusion_charge, 20.0),
+		"充能中途：未就绪、进度保留（20/30）")
+	w.state.charge_fusion(15.0, 30.0)
+	_ok(w.state.fusion_opportunity and is_equal_approx(w.state.fusion_charge, 0.0),
+		"攒满 interval → 机会就绪、进度清零")
 	var pool_before: int = _card_sys(w).deck.pool.size()
 	w.push_command({ "type": "fuse", "a": tid, "b": mid, "seed": 42 })
 	w.tick(0.1)
+	_ok(not w.state.fusion_opportunity, "融合成功 → 消耗本次机会")
 	_ok(not w.is_alive(tid) and not w.is_alive(mid), "双亲实体已销毁")
 	_ok(w.grid.get_cell(Vector2i(2, 2)).occupant == 0 and w.grid.get_cell(Vector2i(3, 2)).occupant == 0,
 		"双亲格子已释放（GridSystem 清扫）")
@@ -152,6 +170,8 @@ func _run() -> int:
 			ok_hanzi = false
 	_ok(ok_hanzi, "子代名字只含汉字")
 	_ok(str(config.cards[child_card]["effect"]["type"]) == "place_factory", "子代卡效果 = place_factory")
+	_ok(ArtScript.card_art(String(child_card)) == ArtScript.FUSION_CARD and ArtScript.tex(ArtScript.FUSION_CARD) != null,
+		"融合子代卡统一卡面（card fusion.png 可加载）")
 
 	print("== T5: 子代卡可正常打出 ==")
 	var hand: Array = _card_sys(w).deck.hand
@@ -177,6 +197,7 @@ func _run() -> int:
 	var g2 := _find_factory(w2, &"generator")
 	var p2 := _find_factory(w2, &"pump")
 	var fused_before: int = _fusion_card_count(config)
+	w2.state.fusion_opportunity = true # 模拟充能完成（T4 已验证充能/gate 逻辑）
 	w2.push_command({ "type": "fuse", "a": g2, "b": p2, "seed": 7 })
 	w2.tick(0.1)
 	_ok(_fusion_card_count(config) == fused_before + 1, "第二次融合注册了新子代卡")
@@ -189,6 +210,7 @@ func _run() -> int:
 	w3.push_command({ "type": "place_factory", "blueprint_id": "frost_beacon", "cell": [3, 2] })
 	w3.tick(0.1)
 	var n3: int = _fusion_card_count(config)
+	w3.state.fusion_opportunity = true # 模拟充能完成
 	w3.push_command({ "type": "fuse", "a": _find_factory(w3, &"gun_turret"), "b": _find_factory(w3, &"frost_beacon"), "seed": 42 })
 	w3.tick(0.1)
 	_ok(_fusion_card_count(config) == n3 + 1, "T7 融合执行")
@@ -209,6 +231,7 @@ func _run() -> int:
 	print("== T8: 非法融合被拒 ==")
 	var rejected := []
 	w3.command_rejected.connect(func(r): rejected.append(r))
+	w3.state.fusion_opportunity = true # 机会就绪，让拒收走实体校验路径（而非 gate）
 	w3.push_command({ "type": "fuse", "a": 999999, "b": 1, "seed": 1 })
 	w3.tick(0.1)
 	_ok(rejected.size() > 0, "不存在的实体融合被拒（command_rejected）")
@@ -281,6 +304,18 @@ func _run() -> int:
 	var names: Array = dui.get("locus_names", [])
 	_ok(names.size() == 9 and str(names[0]) == "染色体01" and str(names[8]) == "染色体09",
 		"座名 = 染色体编号 01…09（不再用 genes.json 座名）")
+	print("== T12b: 场上工厂右键检查 DNA（接线层 dna_ui_for_cell）==")
+	var w_insp := _make_world(config)
+	w_insp.push_command({ "type": "place_factory", "blueprint_id": "gun_turret", "cell": [2, 2] })
+	w_insp.tick(0.1)
+	game.world = w_insp
+	var fi: Dictionary = game.dna_ui_for_cell(Vector2i(2, 2))
+	_ok(str(fi.get("title", "")) == "轻炮" and (fi.get("bases", []) as Array).size() == 9,
+		"场上炮塔 → DNA 载荷（表型标题 + 9 位碱基）")
+	_ok(str(fi.get("key", "")).begins_with("factory:"), "载荷带 key（同一座再右键 = 收起）")
+	_ok(str(fi.get("debug", "")).find("attack_type: shot_light") != -1, "debug 原始序列取自实体基因组")
+	_ok(str(fi.get("art", "")) == str(ArtScript.card_art("card_gun_turret")), "卡面贴图按蓝图回查卡牌 id")
+	_ok(game.dna_ui_for_cell(Vector2i(0, 0)).is_empty(), "空格 → 空载荷（不弹窗）")
 	game.free()
 
 	print("== T13: 字母=数据（bases 即基因型）==")

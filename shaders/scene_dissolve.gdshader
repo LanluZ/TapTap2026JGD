@@ -7,7 +7,7 @@ render_mode blend_mix, unshaded;
 // ColorRect 无贴图，COLOR 输出直接覆盖（顶点色恒白，不依赖 COLOR 输入）。
 
 uniform float progress : hint_range(0.0, 1.0) = 0.0;       // 0 = 全透明，1 = 全覆盖
-uniform float noise_scale : hint_range(1.0, 40.0) = 12.0;  // 噪声密度（越大溶解碎块越细）
+uniform float noise_scale : hint_range(1.0, 40.0) = 24.0;  // 噪声密度（越大溶解碎块越细）
 uniform float edge_width : hint_range(0.005, 0.3) = 0.08;  // 溶解线羽化半宽
 uniform vec4 cover_color : source_color = vec4(0.05, 0.06, 0.11, 1.0); // 覆盖层底色（近黑蓝）
 uniform vec4 burn_color : source_color = vec4(1.0, 0.62, 0.28, 1.0);   // 燃边暖色（与 LOGO 一致）
@@ -15,10 +15,15 @@ uniform float burn_strength : hint_range(0.0, 2.0) = 1.0;  // 燃边亮度
 uniform float drift_speed : hint_range(0.0, 1.0) = 0.08;   // 噪声漂移速度（溶解线蠕动感）
 
 
+// 2D hash 用 Dave Hoskins hash12，不要换回 fract(p * vec2(123.34, 456.21)) 那版 iq hash：
+// 它对整数格坐标 i 等价于 fract(0.34 * i)（y 向 0.21 * i），而 0.34 = 17/50、0.21 = 21/100，
+// 于是 hash 沿 x 每 50 格、沿 y 每 100 格精确重复一次。fbm 第三倍频的格坐标能到 ~190，
+// 跨了好几个周期，同一条纹反复出现 → 溶解线变成规则方格、整屏可见重复块。
+// 这版的常数 0.1031 在实用坐标范围内不产生短周期，noise_scale 调到 40 也不会露周期。
 float hash21(vec2 p) {
-	p = fract(p * vec2(123.34, 456.21));
-	p += dot(p, p + 45.32);
-	return fract(p.x * p.y);
+	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
 }
 
 float vnoise(vec2 p) {

@@ -7,9 +7,11 @@ extends Control
 ##             set_library_cards / set_library_expanded /
 ##             set_receipts / cancel_placement / get_selected_card / is_placing /
 ##             get_placement_hover / get_hand / open_settings / is_settings_open /
-##             load_mock_data / select_line_tool / get_line_tool / show_result
+##             load_mock_data / select_line_tool / get_line_tool / show_result /
+##             set_fusion_state / set_fusion_selection / is_fusion_mode
 ##   信号：card_selected(card)、card_played(card, cell)、placement_cancelled()、
-##         line_tool_selected(tool)、line_committed(kind, cells, dir)
+##         line_tool_selected(tool)、line_committed(kind, cells, dir)、
+##         fusion_toggled(enabled)、fusion_confirmed(seed)、factory_cell_clicked(cell)
 ##
 ## 数据全部由调用方注入；本脚本只做展示与交互状态，不引用
 ## scripts/ecs/、scripts/systems/、scripts/config/ 下任何内容。
@@ -49,10 +51,11 @@ var _nodes_ready := false
 var _signals_ready := false
 var _structure_warned := false
 var _external_data := false
-var _fusion_panel: PanelContainer
-var _fusion_toggle: CheckButton
-var _fusion_seed_edit: LineEdit
-var _fusion_status: Label
+var _fusion_btn: Button # 右上角融合条按钮（状态机见 _on_fusion_btn_pressed）
+var _fusion_bar: ProgressBar # 融合充能进度条（0-100）
+var _fusion_ready := false # 机会就绪（逻辑层注入）
+var _fusion_ratio := 0.0 # 充能进度 0..1
+var _fusion_sel_count := 0 # 融合模式已选工厂数（0-2）
 var _fusion_enabled := false
 var _dna_popup: PanelContainer
 var _dna_inspector: Control
@@ -70,6 +73,10 @@ var _result_data: Dictionary = {}
 
 
 func _ready() -> void:
+	# 根 Control 不接鼠标：场地空白处的右键要能落到 `_unhandled_input`
+	# （接线层 Game 靠它做「右键工厂查 DNA」）。子层 WorldBG / WorldFog 早已是
+	# MOUSE_FILTER_IGNORE，根节点漏了同一个设置就会把整屏点击吞在 GUI 层。
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_prepare()
 	if auto_mock and not _external_data:
 		load_mock_data()
@@ -100,7 +107,7 @@ func _resolve_nodes() -> void:
 	if _start_btn == null or _speed_btn == null:
 		push_warning("[关卡UI] main.tscn 缺少 HUD/TopBar/Row 下的 StartBtn/SpeedBtn")
 	_bind_settings()
-	_build_fusion_panel()
+	_build_fusion_bar()
 	_build_dna_popup()
 	_bind_line_tools()
 
@@ -201,37 +208,35 @@ func hide_dna() -> void:
 		_dna_popup.visible = false
 
 
-## 融合面板（DNA 系统）：程序化构建，不改 main.tscn。顶部居中：开关 / 种子 / 确定 / 已选计数。
-func _build_fusion_panel() -> void:
-	if _fusion_panel != null:
+## 右上角融合条（程序化构建，不改 main.tscn）：TopBar 末尾按钮 + 充能进度条。
+## 交互状态机（按钮点击唯一入口，见 _on_fusion_btn_pressed）：
+##   充能中禁用 → 就绪点击进融合模式 → 选满 2 工厂再点确认（消耗机会由逻辑层裁定）。
+func _build_fusion_bar() -> void:
+	if _fusion_btn != null:
 		return
-	_fusion_panel = PanelContainer.new()
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	_fusion_toggle = CheckButton.new()
-	_fusion_toggle.text = "融合"
-	_fusion_toggle.toggled.connect(_on_fusion_toggled)
-	row.add_child(_fusion_toggle)
-	var seed_label := Label.new()
-	seed_label.text = "种子"
-	row.add_child(seed_label)
-	_fusion_seed_edit = LineEdit.new()
-	_fusion_seed_edit.text = "0"
-	_fusion_seed_edit.custom_minimum_size = Vector2(64, 0)
-	_fusion_seed_edit.tooltip_text = "0 = 每次随机；非 0 = 同种子同双亲必出同子代"
-	row.add_child(_fusion_seed_edit)
-	var confirm := Button.new()
-	confirm.text = "确定"
-	confirm.pressed.connect(_on_fusion_confirm_pressed)
-	row.add_child(confirm)
-	_fusion_status = Label.new()
-	_fusion_status.text = "已选 0 / 2"
-	row.add_child(_fusion_status)
-	_fusion_panel.add_child(row)
-	# Main._ready 期间 add_child 会被 ready_lock 拒绝（busy setting up children），延迟挂载
-	add_child.call_deferred(_fusion_panel)
-	_fusion_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	_fusion_panel.offset_top = 76.0 # TopBar 内容边距调整后高约 66，留 10px 间隙
+	var box := VBoxContainer.new()
+	box.name = "FusionBox"
+	box.add_theme_constant_override("separation", 2)
+	_fusion_btn = Button.new()
+	_fusion_btn.name = "FusionBtn"
+	_fusion_btn.custom_minimum_size = Vector2(170, 0)
+	_fusion_btn.tooltip_text = "融合条充能完成获得一次融合机会：点选两个工厂合成子代卡"
+	_fusion_btn.disabled = true
+	_fusion_btn.pressed.connect(_on_fusion_btn_pressed)
+	box.add_child(_fusion_btn)
+	_fusion_bar = ProgressBar.new()
+	_fusion_bar.name = "FusionBar"
+	_fusion_bar.custom_minimum_size = Vector2(170, 14)
+	_fusion_bar.max_value = 100.0
+	_fusion_bar.show_percentage = false
+	_fusion_bar.add_theme_stylebox_override("background", UiStyle.bar_background())
+	_fusion_bar.add_theme_stylebox_override("fill", UiStyle.bar_fill(UiStyle.COLOR_ACCENT))
+	box.add_child(_fusion_bar)
+	var row := get_node_or_null("HUD/TopBar/Row")
+	if row == null:
+		push_warning("[关卡UI] main.tscn 缺少 HUD/TopBar/Row，融合条无处挂载")
+		return
+	row.add_child(box) # Row 末尾 = 屏幕右上角（SpeedBtn 之后）
 
 
 func _connect_signals() -> void:
@@ -352,11 +357,22 @@ func cancel_placement() -> void:
 		_overlay.deactivate()
 
 
-## 融合选择状态注入：已选工厂数（显示用）
+## 融合选择状态注入：已选工厂数（按钮文案跟随，0-2）
 func set_fusion_selection(count: int) -> void:
 	_prepare()
-	if _fusion_status != null:
-		_fusion_status.text = "已选 %d / 2" % count
+	_fusion_sel_count = clampi(count, 0, 2)
+	_refresh_fusion_btn()
+
+
+## 融合条注入：opportunity = 机会就绪；ratio = 充能进度 0..1（就绪时进度条按满格显示）
+func set_fusion_state(opportunity: bool, ratio: float) -> void:
+	_prepare()
+	_external_data = true
+	_fusion_ready = opportunity
+	_fusion_ratio = clampf(ratio, 0.0, 1.0)
+	if _fusion_bar != null:
+		_fusion_bar.value = _fusion_ratio * 100.0
+	_refresh_fusion_btn()
 
 
 func is_fusion_mode() -> bool:
@@ -401,10 +417,8 @@ func _apply_line_tool(tool: String) -> void:
 		else:
 			_line_overlay.activate(tool)
 	if not tool.is_empty():
-		if _fusion_enabled and _fusion_toggle != null:
-			# 互斥：工具接管格子点击 → 融合必须真正退出。只弹开关不写 _fusion_enabled
-			# 会留下「开关亮着但格子点击没有消费方」的静默失效；走 toggled(false) 一并复位。
-			_fusion_toggle.button_pressed = false
+		if _fusion_enabled:
+			_set_fusion_mode(false) # 互斥：工具接管格子点击 → 融合真正退出（格子点击不能没有消费方）
 		if _overlay != null:
 			_overlay.deactivate()
 		if _hand != null and _hand.get_selected_index() >= 0:
@@ -452,7 +466,22 @@ func load_mock_data() -> void:
 
 # ---------------------------------------------------------------- 内部接线
 
-func _on_fusion_toggled(on: bool) -> void:
+## 融合条点击（状态机唯一入口）：就绪进模式；模式中未选满 = 取消（机会保留），选满 = 确认。
+func _on_fusion_btn_pressed() -> void:
+	if _fusion_enabled:
+		if _fusion_sel_count >= 2:
+			fusion_confirmed.emit(0) # 种子 0 = 随机（原种子输入随融合面板一起隐藏）
+		_set_fusion_mode(false)
+		return
+	if not _fusion_ready:
+		return
+	_set_fusion_mode(true)
+
+
+## 融合模式开关（与物流工具/卡牌选中互斥，仲裁收口同 _apply_line_tool）。
+func _set_fusion_mode(on: bool) -> void:
+	if _fusion_enabled == on:
+		return
 	_fusion_enabled = on
 	if on and not _line_tool.is_empty():
 		_apply_line_tool("") # 互斥：融合点选与物流工具都吃格子点击，同时只能有一个
@@ -467,8 +496,22 @@ func _on_fusion_toggled(on: bool) -> void:
 	fusion_toggled.emit(on)
 
 
-func _on_fusion_confirm_pressed() -> void:
-	fusion_confirmed.emit(_fusion_seed_edit.text.strip_edges().to_int())
+## 融合条按钮文案/可用态：充能中禁用；就绪引导选工厂；选满 2 变确认。
+func _refresh_fusion_btn() -> void:
+	if _fusion_btn == null:
+		return
+	if _fusion_enabled:
+		_fusion_btn.disabled = false
+		if _fusion_sel_count >= 2:
+			_fusion_btn.text = "确定融合（消耗机会）"
+		else:
+			_fusion_btn.text = "选择工厂 %d/2（再点取消）" % _fusion_sel_count
+	elif _fusion_ready:
+		_fusion_btn.disabled = false
+		_fusion_btn.text = "融合就绪｜点选两个工厂"
+	else:
+		_fusion_btn.disabled = true
+		_fusion_btn.text = "融合充能中 %d%%" % int(_fusion_ratio * 100.0)
 
 
 ## 开始/暂停切换：按钮文案与波次开关同步，状态由逻辑层接线落地
@@ -489,7 +532,7 @@ func _on_card_selected(card: Dictionary) -> void:
 	if not _line_tool.is_empty():
 		_apply_line_tool("") # 互斥：选卡 = 退出物流工具，格子点击交回卡牌流程
 	if _fusion_enabled:
-		_fusion_toggle.button_pressed = false # 选卡退出融合模式
+		_set_fusion_mode(false) # 选卡退出融合模式
 	if _overlay != null:
 		_overlay.activate(str(card.get("kind", "")))
 	card_selected.emit(card)
@@ -498,14 +541,23 @@ func _on_card_selected(card: Dictionary) -> void:
 ## 右键卡片 → DNA 检视；再右键同一张或 Esc/关闭按钮收起。
 func _on_card_right_clicked(card: Dictionary) -> void:
 	var data: Dictionary = card.get("dna_ui", {})
-	if _dna_popup != null and _dna_popup.visible and _current_card_id == str(card.get("id", "")):
-		hide_dna()
-		return
-	_current_card_id = str(card.get("id", ""))
 	if data.is_empty():
 		data = { "title": str(card.get("name", "")), "bases": [], "locus_names": [],
 			"rules": ["该卡没有 DNA"], "debug": str(card.get("dna", "")),
 			"art": str(card.get("art", "")) }
+	toggle_dna(str(card.get("id", "")), data)
+
+
+## DNA 检视开关（卡牌与场上工厂共用）：同一 key 再次触发 = 收起。
+## key 由调用方给（卡 = 卡 id，工厂 = "factory:<实体 id>"），本层只按 key 判重。
+func toggle_dna(key: String, data: Dictionary) -> void:
+	_prepare()
+	if data.is_empty():
+		return
+	if _dna_popup != null and _dna_popup.visible and _current_card_id == key:
+		hide_dna()
+		return
+	_current_card_id = key
 	show_dna(data)
 
 
@@ -653,7 +705,7 @@ func _on_selection_cleared() -> void:
 
 func _on_overlay_cancelled() -> void:
 	if _fusion_enabled:
-		_fusion_toggle.button_pressed = false # Esc/右键退出融合模式
+		_set_fusion_mode(false) # Esc/右键退出融合模式（机会保留）
 		return
 	if _hand != null and _hand.get_selected_index() >= 0:
 		_hand.clear_selection(true)   # 走 selection_cleared -> placement_cancelled

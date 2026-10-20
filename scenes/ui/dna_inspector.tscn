@@ -1,8 +1,8 @@
-[gd_scene load_steps=9 format=3 uid="uid://bx3ku4attmqrv"]
+[gd_scene format=3 uid="uid://bx3ku4attmqrv"]
 
 [ext_resource type="Script" uid="uid://yjt3vohkx5q" path="res://scripts/ui/dna_inspector.gd" id="1_dna"]
-[ext_resource type="StyleBox" path="res://themes/ui_panel_outer.tres" id="1_fv4st"]
-[ext_resource type="StyleBox" path="res://themes/ui_panel_section.tres" id="3_8otja"]
+[ext_resource type="StyleBox" uid="uid://ju8efmq0xihh" path="res://themes/ui_panel_outer.tres" id="1_fv4st"]
+[ext_resource type="StyleBox" uid="uid://h7oqt7ykbaij" path="res://themes/ui_panel_section.tres" id="3_8otja"]
 
 [sub_resource type="SystemFont" id="SystemFont_dna"]
 font_names = PackedStringArray("Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC")
@@ -14,8 +14,12 @@ default_font_size = 14
 
 [sub_resource type="StyleBoxFlat" id="SB_accent"]
 bg_color = Color(1, 0.686, 0.8, 1)
-shadow_size = 2
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
 shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 2
 
 [sub_resource type="StyleBoxFlat" id="SB_badge"]
 content_margin_left = 10.0
@@ -28,8 +32,12 @@ border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
 border_color = Color(0.58, 0.482, 0.639, 1)
-shadow_size = 2
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
 shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 2
 
 [sub_resource type="StyleBoxFlat" id="SB_figure"]
 bg_color = Color(0.263, 0.18, 0.31, 1)
@@ -39,7 +47,7 @@ border_width_right = 2
 border_width_bottom = 2
 border_color = Color(0.463, 0.361, 0.518, 1)
 
-[node name="DnaInspector" type="PanelContainer"]
+[node name="DnaInspector" type="PanelContainer" unique_id=1915304498]
 custom_minimum_size = Vector2(560, 0)
 anchors_preset = 15
 anchor_right = 1.0
@@ -50,135 +58,138 @@ theme = SubResource("Theme_dna")
 theme_override_styles/panel = ExtResource("1_fv4st")
 script = ExtResource("1_dna")
 
-[node name="Box" type="VBoxContainer" parent="."]
+[node name="Box" type="VBoxContainer" parent="." unique_id=1945918229]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="Header" type="HBoxContainer" parent="Box"]
+[node name="Header" type="HBoxContainer" parent="Box" unique_id=1133375771]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="AccentBar" type="Panel" parent="Box/Header"]
+[node name="AccentBar" type="Panel" parent="Box/Header" unique_id=1398792068]
 custom_minimum_size = Vector2(4, 34)
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_styles/panel = SubResource("SB_accent")
 
-[node name="TitleBlock" type="VBoxContainer" parent="Box/Header"]
+[node name="TitleBlock" type="VBoxContainer" parent="Box/Header" unique_id=1333791458]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 1
 
-[node name="Title" type="Label" parent="Box/Header/TitleBlock"]
+[node name="Title" type="Label" parent="Box/Header/TitleBlock" unique_id=2038809738]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.686, 0.8, 1)
 theme_override_font_sizes/font_size = 20
 text = "DNA 检视"
 
-[node name="Caption" type="Label" parent="Box/Header/TitleBlock"]
+[node name="Caption" type="Label" parent="Box/Header/TitleBlock" unique_id=513935714]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.62, 0.63, 0.68, 1)
 theme_override_font_sizes/font_size = 11
 text = "碱基互补配对 · A–T / C–G"
 
-[node name="HeadRule" type="ColorRect" parent="Box"]
+[node name="HeadRule" type="ColorRect" parent="Box" unique_id=814226578]
 custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 color = Color(0.184, 0.122, 0.216, 1)
 
-[node name="Main" type="HBoxContainer" parent="Box"]
+[node name="Main" type="HBoxContainer" parent="Box" unique_id=777992652]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="LeftCol" type="VBoxContainer" parent="Box/Main"]
+[node name="LeftCol" type="VBoxContainer" parent="Box/Main" unique_id=1822142589]
 custom_minimum_size = Vector2(110, 0)
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_constants/separation = 4
 
-[node name="ListHead" type="Label" parent="Box/Main/LeftCol"]
+[node name="ListHead" type="Label" parent="Box/Main/LeftCol" unique_id=1671775074]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.62, 0.63, 0.68, 1)
 theme_override_font_sizes/font_size = 12
 text = "碱基链"
 
-[node name="BaseList" type="VBoxContainer" parent="Box/Main/LeftCol"]
+[node name="BaseList" type="VBoxContainer" parent="Box/Main/LeftCol" unique_id=607098590]
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="HelixCol" type="VBoxContainer" parent="Box/Main"]
+[node name="HelixCol" type="VBoxContainer" parent="Box/Main" unique_id=748747266]
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
 theme_override_constants/separation = 8
 
-[node name="HelixHost" type="Control" parent="Box/Main/HelixCol"]
+[node name="HelixHost" type="Control" parent="Box/Main/HelixCol" unique_id=1502322248]
 custom_minimum_size = Vector2(150, 290)
 layout_mode = 2
 size_flags_horizontal = 4
 
-[node name="Badge" type="PanelContainer" parent="Box/Main/HelixCol"]
+[node name="Badge" type="PanelContainer" parent="Box/Main/HelixCol" unique_id=809506871]
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_styles/panel = SubResource("SB_badge")
 
-[node name="Count" type="Label" parent="Box/Main/HelixCol/Badge"]
+[node name="Count" type="Label" parent="Box/Main/HelixCol/Badge" unique_id=1193333047]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.635, 0.824, 1, 1)
 theme_override_font_sizes/font_size = 15
 text = "0 / 0 座"
 horizontal_alignment = 1
 
-[node name="FigurePanel" type="PanelContainer" parent="Box/Main"]
+[node name="FigurePanel" type="PanelContainer" parent="Box/Main" unique_id=1540539380]
 custom_minimum_size = Vector2(220, 290)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("SB_figure")
 
-[node name="FigureHost" type="Control" parent="Box/Main/FigurePanel"]
+[node name="FigureHost" type="Control" parent="Box/Main/FigurePanel" unique_id=190796352]
 layout_mode = 2
 
-[node name="RulesSection" type="PanelContainer" parent="Box"]
+[node name="RulesSection" type="PanelContainer" parent="Box" unique_id=1847659824]
+visible = false
 layout_mode = 2
 theme_override_styles/panel = ExtResource("3_8otja")
 
-[node name="RulesBox" type="VBoxContainer" parent="Box/RulesSection"]
+[node name="RulesBox" type="VBoxContainer" parent="Box/RulesSection" unique_id=359298858]
 layout_mode = 2
 theme_override_constants/separation = 5
 
-[node name="RulesHead" type="Label" parent="Box/RulesSection/RulesBox"]
+[node name="RulesHead" type="Label" parent="Box/RulesSection/RulesBox" unique_id=692987857]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.686, 0.8, 1)
 theme_override_font_sizes/font_size = 11
 text = "融合规则"
 
-[node name="Rules" type="VBoxContainer" parent="Box/RulesSection/RulesBox"]
+[node name="Rules" type="VBoxContainer" parent="Box/RulesSection/RulesBox" unique_id=444205214]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="DebugRow" type="HBoxContainer" parent="Box"]
+[node name="DebugRow" type="HBoxContainer" parent="Box" unique_id=968741389]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="DebugToggle" type="CheckButton" parent="Box/DebugRow"]
+[node name="DebugToggle" type="CheckButton" parent="Box/DebugRow" unique_id=1328735893]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "调试：原始序列"
 
-[node name="Spacer" type="Control" parent="Box/DebugRow"]
+[node name="Spacer" type="Control" parent="Box/DebugRow" unique_id=11219197]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="DebugPanel" type="PanelContainer" parent="Box"]
+[node name="DebugPanel" type="PanelContainer" parent="Box" unique_id=2587915]
 visible = false
 layout_mode = 2
 theme_override_styles/panel = ExtResource("3_8otja")
 
-[node name="DebugText" type="Label" parent="Box/DebugPanel"]
+[node name="DebugText" type="Label" parent="Box/DebugPanel" unique_id=85571722]
+visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.62, 0.68, 1)
 theme_override_font_sizes/font_size = 11

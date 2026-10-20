@@ -87,7 +87,13 @@ var _resolved := false
 
 func _ready() -> void:
 	_resolve()
-	if not _resolved:
+	_build_parts()
+
+
+## 程序化补建（双螺旋 / 卡面贴图），幂等：set_view 可能先于 _ready 到达
+## （弹窗在 main_ui 里是 add_child.call_deferred 挂树的）。
+func _build_parts() -> void:
+	if not _resolved or _helix != null:
 		return
 	_debug_toggle.toggled.connect(_on_debug_toggled)
 	# 双螺旋插画在骨架里只有一个空 Host，程序化补建（不动 .tscn）
@@ -133,6 +139,7 @@ func set_view(data: Dictionary) -> void:
 	_resolve()
 	if not _resolved:
 		return
+	_build_parts()
 	_title.text = str(data.get("title", "DNA 检视"))
 	var bases: Array = data.get("bases", [])
 	_fill_bases(bases, data.get("locus_names", []))

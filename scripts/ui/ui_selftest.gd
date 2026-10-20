@@ -286,6 +286,13 @@ func _run() -> void:
 	_check(hand_count.text == "1 / 6", "跳过非法项后计数 1 / 6（实际 %s）" % hand_count.text)
 
 	# 13) DNA 检视预制体：节点解析 / 碱基列 / 座数徽标 / 双螺旋 / 形象区 / 空态
+	var ui_payload := {"title": "轻炮", "bases": ["A", "—", "C"], "locus_names": ["染色体01", "染色体02", "染色体03"],
+		"rules": [], "debug": "raw", "art": ""}
+	ui.toggle_dna("factory:1", ui_payload)
+	var ui_popup = ui.get("_dna_popup")
+	_check(ui_popup != null and ui_popup.visible, "toggle_dna 打开弹窗（场上工厂右键路径）")
+	ui.toggle_dna("factory:1", ui_payload)
+	_check(ui_popup != null and not ui_popup.visible, "同一 key 再 toggle_dna → 收起")
 	var dna := (load("res://scenes/ui/dna_inspector.tscn") as PackedScene).instantiate()
 	root.add_child(dna)
 	dna.set_view({"title": "测试卡", "bases": ["A", "—", "C"], "locus_names": ["甲", "乙", "丙"],
@@ -376,11 +383,11 @@ func _run() -> void:
 		var release2 := _click_event(MOUSE_BUTTON_LEFT, line_layer.cell_rect(Vector2i(1, 0)).get_center())
 		release2.pressed = false
 		line_layer._gui_input(release2)
-		# 2x2 笔刷：拖过 (0,0)(1,0) → 6 格中只剩网格内的 3 格（本 mock 网格只有 1 行）
+		# 矩形框选：拖过 (0,0)(1,0) → 本 mock 网格只有 1 行，矩形内 2 格
 		_check(line_records.size() == 1 and str(line_records[0]["kind"]) == "remove"
-			and (line_records[0]["cells"] as Array).size() == 3,
-			"拆除拖拽 → 2x2 笔刷（mock 网格内 3 格，实际 %d）" % ((line_records[0]["cells"] as Array).size() if line_records.size() == 1 else -1))
-		# 2 行网格：笔刷完整展开为 2x2 且不含网格外格
+			and (line_records[0]["cells"] as Array).size() == 2,
+			"拆除拖拽 → 矩形框选（mock 网格内 2 格，实际 %d）" % ((line_records[0]["cells"] as Array).size() if line_records.size() == 1 else -1))
+		# 2 行 3 列网格：单击只拆指针格，不再外溢到右/下
 		var two_rows: Array[Vector2i] = []
 		for yy in 2:
 			for xx in 3:
@@ -391,15 +398,15 @@ func _run() -> void:
 		var release3 := _click_event(MOUSE_BUTTON_LEFT, line_layer.cell_rect(Vector2i(1, 0)).get_center())
 		release3.pressed = false
 		line_layer._gui_input(release3)
-		_check(line_records.size() == 1 and _cells_eq(line_records[0]["cells"], [Vector2i(1, 0), Vector2i(2, 0), Vector2i(1, 1), Vector2i(2, 1)]),
-			"拆除单击 → 2x2 四格（实际 %s）" % str(line_records[0]["cells"] if line_records.size() == 1 else "无"))
+		_check(line_records.size() == 1 and _cells_eq(line_records[0]["cells"], [Vector2i(1, 0)]),
+			"拆除单击 → 单格（实际 %s）" % str(line_records[0]["cells"] if line_records.size() == 1 else "无"))
 		line_records.clear()
 		line_layer._gui_input(_click_event(MOUSE_BUTTON_LEFT, line_layer.cell_rect(Vector2i(2, 1)).get_center()))
 		var release4 := _click_event(MOUSE_BUTTON_LEFT, line_layer.cell_rect(Vector2i(2, 1)).get_center())
 		release4.pressed = false
 		line_layer._gui_input(release4)
 		_check(line_records.size() == 1 and _cells_eq(line_records[0]["cells"], [Vector2i(2, 1)]),
-			"拆除右下角单击 → 笔刷外溢格被过滤只剩自身（实际 %s）" % str(line_records[0]["cells"] if line_records.size() == 1 else "无"))
+			"拆除右下角单击 → 单格（实际 %s）" % str(line_records[0]["cells"] if line_records.size() == 1 else "无"))
 		ui.set_grid_geometry(Vector2(20, 30), Vector2i(32, 32), drag_cells)
 		ui.select_line_tool("remove")
 		ui.select_line_tool("remove")
@@ -418,18 +425,40 @@ func _run() -> void:
 		ui.select_line_tool("belt")
 		_check(not ui.is_placing() and ui.get_selected_card().is_empty(), "选工具 → 卡牌选择清空（格子点击归工具）")
 		ui.select_line_tool("")
-		# 工具与融合互斥（融合亮着却被工具接管 → 格子点击无消费方，静默失效）
-		var fusion_toggle = ui._fusion_toggle
-		_check(fusion_toggle != null, "融合开关已构建（互斥断言用）")
-		if fusion_toggle != null:
-			fusion_toggle.button_pressed = true
-			_check(ui.is_fusion_mode(), "开融合 → is_fusion_mode()==true")
+		# 融合条（右上角）：充能禁用 → 就绪进模式 → 选满再点确认；与工具互斥
+		var fusion_btn := ui._fusion_btn as Button
+		var fusion_bar := ui._fusion_bar as ProgressBar
+		_check(fusion_btn != null and fusion_bar != null, "融合条按钮+进度条已构建")
+		if fusion_btn != null and fusion_bar != null:
+			_check(fusion_btn.disabled, "充能中按钮禁用（初始未就绪）")
+			ui.set_fusion_state(true, 1.0)
+			_check(not fusion_btn.disabled and is_equal_approx(fusion_bar.value, 100.0),
+				"机会就绪 → 按钮可用、进度条满（实际 value=%s）" % fusion_bar.value)
+			fusion_btn.pressed.emit()
+			_check(ui.is_fusion_mode(), "点融合条 → 进入融合模式")
+			_check(fusion_btn.text.find("选择工厂 0/2") != -1,
+				"模式中文案引导选工厂（实际 %s）" % fusion_btn.text)
+			ui.set_fusion_selection(2)
+			_check(fusion_btn.text.find("确定融合") != -1,
+				"选满 2 → 文案变确定融合（实际 %s）" % fusion_btn.text)
+			var confirmed_seeds: Array = []
+			ui.fusion_confirmed.connect(func(seed: int): confirmed_seeds.append(seed))
+			fusion_btn.pressed.emit()
+			_check(confirmed_seeds.size() == 1, "选满再点 → 发 fusion_confirmed")
+			_check(not ui.is_fusion_mode(), "确认后退出融合模式")
+			# 互斥：融合模式被工具顶掉（格子点击不能没有消费方）
+			ui.set_fusion_state(true, 1.0)
+			fusion_btn.pressed.emit()
+			_check(ui.is_fusion_mode(), "再点融合条重新进入模式")
 			ui.select_line_tool("pipe")
-			_check(not ui.is_fusion_mode() and not fusion_toggle.button_pressed,
-				"工具激活 → 融合模式退出（is_fusion_mode()==false 且开关弹起）")
+			_check(not ui.is_fusion_mode(),
+				"工具激活 → 融合模式退出（is_fusion_mode()==false）")
 			_check(ui.get_line_tool() == "pipe" and line_layer.visible,
 				"融合被工具顶掉后画线层仍接管格子点击")
 			ui.select_line_tool("")
+			ui.set_fusion_state(false, 0.42)
+			_check(fusion_btn.disabled and fusion_btn.text.find("融合充能中 42%") != -1,
+				"机会重置 → 按钮回充能态显示百分比（实际 %s）" % fusion_btn.text)
 		# 左键松开落在网格外：不提交，且拖拽态/预览复位（否则预览线跟着鼠标）
 		ui.select_line_tool("belt")
 		line_records.clear()

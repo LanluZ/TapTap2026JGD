@@ -75,6 +75,17 @@ const CARD := {
 	"card_frost_beacon": ROOT + "card/card frost beacon.png",
 	"card_slow_tile": ROOT + "card/cared slow tile.png", # 素材文件名原样拼写（cared），按磁盘字面引用
 }
+## 基因融合子代卡（card_fusion_*，运行时由 Genome.register_child 动态注册）统一卡面。
+const FUSION_CARD := ROOT + "card/card fusion.png"
+
+
+## 卡牌 id → 卡面路径：注册表优先，融合子代卡按前缀回落到统一融合卡面，其余返回空（纯文字卡面）。
+static func card_art(cid: String) -> String:
+	if CARD.has(cid):
+		return str(CARD[cid])
+	if cid.begins_with("card_fusion_"):
+		return FUSION_CARD
+	return ""
 
 
 ## 按路径取贴图（load 自带资源缓存）；失败只警告一次并返回 null，调用方自行兜底。

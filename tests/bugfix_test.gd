@@ -5,6 +5,8 @@ extends SceneTree
 ##   ③ 帧动画速度：1 倍/2 倍/暂停（0）随 game_state 同步
 ##   ④ 胜负语义：撑过目标波数不立刻判胜，场上敌人清空才判胜
 ##   ⑤ 结算面板：show_result 建 ResultOverlay、文案正确、幂等
+##   ⑥ 指令成功信号 command_applied：成功打出卡牌才发；失败路径只发 command_rejected
+##      （放置失败音效双响修复：成功音不再由 UI 层抢跑，挂在本信号上）
 ## 运行：godot --headless --path <项目目录> -s res://tests/bugfix_test.gd
 
 const BootstrapScript = preload("res://scripts/bootstrap.gd")
@@ -36,6 +38,7 @@ func _init() -> void:
 	_test_barrel_aim()
 	_test_anim_speed()
 	_test_win_waits_for_clear()
+	_test_command_applied_signal()
 	var packed = load("res://scenes/main.tscn")
 	_ok(packed is PackedScene, "main.tscn 可加载")
 	if packed is PackedScene:
@@ -249,6 +252,35 @@ func _test_win_waits_for_clear() -> void:
 	world.tick(0.1)
 	_ok(int(world.state.waves_survived) == waves_after,
 		"判胜后不再重复计波（waves_survived 仍为 %d）" % int(world.state.waves_survived))
+
+
+# ---------------------------------------------------------------- ⑥ 指令成功信号
+
+func _test_command_applied_signal() -> void:
+	print("== ⑥ 指令成功信号 command_applied（放置失败不双响）==")
+	var config = GameConfig.load_all()
+	var world = BootstrapScript.build_world(config, &"level_1")
+	world.state.waves_running = false
+	for rid in ["parts", "power", "special_material"]:
+		world.state.add(StringName(rid), 200)
+	var applied: Array = []
+	var rejected: Array = []
+	world.command_applied.connect(func(t): applied.append(String(t)))
+	world.command_rejected.connect(func(r): rejected.append(String(r)))
+	var deck = world.get_system("CardSystem").deck
+	# 成功路径：手牌塞炮塔卡 → 打出到可建格 [6,2]
+	deck.hand.push_front(&"card_gun_turret")
+	world.push_command({"type": "play_card", "card_index": 0, "cell": [6, 2]})
+	world.tick(0.1)
+	_ok(applied == ["play_card"], "成功打出卡牌 → command_applied(play_card)（实际 %s）" % str(applied))
+	_ok(rejected.is_empty(), "成功路径不发 command_rejected")
+	# 失败路径：下标越界 → 只发 rejected，不发 applied（UI 成功音不会与失败音双响）
+	applied.clear()
+	rejected.clear()
+	world.push_command({"type": "play_card", "card_index": 99, "cell": [6, 2]})
+	world.tick(0.1)
+	_ok(rejected.size() == 1, "失败打出（下标越界）→ command_rejected（实际 %d 次）" % rejected.size())
+	_ok(applied.is_empty(), "失败路径不发 command_applied")
 
 
 # ---------------------------------------------------------------- ⑤ 结算面板

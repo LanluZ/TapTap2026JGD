@@ -69,6 +69,7 @@ var effects: Dictionary = {} # id -> {stat_id, value, duration}
 var cards: Dictionary = {} # id -> {name, cost, effect}
 var levels: Dictionary = {} # id -> 归一化关卡
 var hand_max: int = 0 # cards.json 顶层手牌上限（§8）
+var fusion_charge_seconds: float = 0.0 # cards.json 顶层：融合条充能间隔（游戏秒，攒满得一次融合机会）
 
 var _errors: PackedStringArray = PackedStringArray()
 
@@ -561,6 +562,9 @@ func _parse_cards(data, src: String) -> void:
 	hand_max = _req_int(root, "hand_max", src)
 	if hand_max <= 0:
 		_err("%s: hand_max 应 > 0" % src)
+	fusion_charge_seconds = _req_num(root, "fusion_charge_seconds", src)
+	if fusion_charge_seconds <= 0.0:
+		_err("%s: fusion_charge_seconds 应 > 0" % src)
 	var arr := _req_list(root.get("cards", null), src + ".cards")
 	var i := 0
 	for e in arr:

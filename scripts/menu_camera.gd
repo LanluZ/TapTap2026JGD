@@ -78,7 +78,8 @@ func _build_picker(config) -> Control:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(title)
 	var ids: Array = config.levels.keys()
-	ids.sort()
+	# StringName 的 < 比较是内部指针序，sort() 排出来是乱序（实测倒序）→ 必须按 id 字符串排。
+	ids.sort_custom(func(a, b): return str(a) < str(b))
 	for i in ids.size():
 		var lid = ids[i]
 		var b := Button.new()

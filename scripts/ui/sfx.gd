@@ -3,6 +3,8 @@ extends Node
 ##
 ## 用法：
 ##   - 按钮音：_ready 里接 node_added，任何 BaseButton 进树即自动挂 悬停/点击，无需逐处接线。
+##     启动时主场景可能先于本单例接线进树（node_added 收不到，实测主菜单三按钮即如此）：
+##     _ready 接线后立即补扫已在树的按钮，首帧 _process 再兜底扫一次，幂等 meta 挡重。
 ##   - 语义音：调用方 preload 本脚本走静态入口（不依赖全局名解析，-s/headless 下也安全）：
 ##       const SfxScript = preload("res://scripts/ui/sfx.gd")
 ##       SfxScript.play_if_exists("成功")
@@ -23,10 +25,15 @@ const SOUNDS := {
 ## 同时发声上限：轮转复用，超出时最老的播放器被顶掉（UI 音效都很短，够用）
 const POOL_SIZE := 6
 
+## 同名音效最小间隔（毫秒）：快速划过一排按钮会逐个触发悬停音，几十次播放重叠爆音；
+## 超出间隔的请求直接丢弃（不同名互不影响）。
+const MIN_INTERVAL_MS := 80
+
 var _streams: Dictionary = {}
 var _players: Array[AudioStreamPlayer] = []
 var _round := 0
 var _missing_warned: Dictionary = {}
+var _last_play_ms: Dictionary = {}
 
 
 func _ready() -> void:
@@ -35,6 +42,21 @@ func _ready() -> void:
 		add_child(p)
 		_players.append(p)
 	get_tree().node_added.connect(_on_node_added)
+	# 竞态补扫：主场景按钮可能在上面这行接线之前就已进树（启动实测即如此），node_added 不会补发
+	_hook_subtree(get_tree().root)
+
+
+## 首帧兜底：覆盖"主场景晚于本 _ready、但早于首帧"的加载顺序；扫完关掉自己（幂等，只跑一次）
+func _process(_dt: float) -> void:
+	_hook_subtree(get_tree().root)
+	set_process(false)
+
+
+## 递归补扫已进树的按钮，逐个走与 node_added 相同的挂接逻辑（meta 挡重，重复扫描无副作用）
+func _hook_subtree(from: Node) -> void:
+	_on_node_added(from)
+	for c in from.get_children():
+		_hook_subtree(c)
 
 
 ## 静态入口：单例在场才播（headless -s 下 autoload 不实例化 → 静默跳过）
@@ -48,6 +70,10 @@ static func play_if_exists(sound: String) -> void:
 
 
 func play(sound: String) -> void:
+	var now := Time.get_ticks_msec()
+	if now - int(_last_play_ms.get(sound, -1000000)) < MIN_INTERVAL_MS:
+		return # 节流：同名音效最小间隔内重播丢弃
+	_last_play_ms[sound] = now
 	var stream := _stream_of(sound)
 	if stream == null:
 		return
