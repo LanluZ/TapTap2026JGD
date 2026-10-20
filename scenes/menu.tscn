@@ -3,12 +3,14 @@
 [ext_resource type="Script" uid="uid://wjnlxk3gxd2n" path="res://scripts/animated_button.gd" id="1_btn"]
 [ext_resource type="Script" uid="uid://by2t35sq2pprw" path="res://scripts/menu_camera.gd" id="2_cam"]
 [ext_resource type="Texture2D" uid="uid://ca0c8cqd6eg81" path="res://art/art/背景/背景（1.png" id="3_13sgg"]
+[ext_resource type="Texture2D" uid="uid://dyr0b3g40dymk" path="res://art/art/背景/ui.png" id="3_70i5f"]
 [ext_resource type="Theme" uid="uid://d01bo340bjnmn" path="res://themes/menu_theme.tres" id="4_4ytvr"]
 [ext_resource type="Texture2D" uid="uid://bcqw338a2cnep" path="res://art/art/背景/背景（2.png" id="4_i6lef"]
 [ext_resource type="Texture2D" uid="uid://cekq4uxobtn4g" path="res://art/art/背景/背景（3.png" id="5_70i5f"]
 [ext_resource type="Texture2D" uid="uid://dh4le6dhod04c" path="res://art/art/背景/logo.png" id="8_i6lef"]
 [ext_resource type="Shader" uid="uid://d23vjojk7l86d" path="res://shaders/logo_gloss_dissolve.gdshader" id="9_gloss"]
 [ext_resource type="Shader" uid="uid://vwhcqle20wmi" path="res://shaders/bg_wave_ripple.gdshader" id="10_ripple"]
+[ext_resource type="Shader" uid="uid://qkx1mr7nksro" path="res://shaders/rain_on_glass.gdshader" id="11_mj5lg"]
 
 [sub_resource type="ShaderMaterial" id="Mat_bg_ripple"]
 shader = ExtResource("10_ripple")
@@ -20,6 +22,11 @@ shader_parameter/ripple_bands = 2.5
 shader_parameter/ripple_wobble = 1.6
 shader_parameter/ripple_edge = 0.03
 shader_parameter/ripple_phase = 0.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ufwb2"]
+shader = ExtResource("11_mj5lg")
+shader_parameter/rain_amount = 0.1200000057
+shader_parameter/blue_amount = 0.0
 
 [sub_resource type="ShaderMaterial" id="Mat_logo"]
 shader = ExtResource("9_gloss")
@@ -45,9 +52,21 @@ layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_right = 1600.0
+offset_bottom = 900.0
 grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("4_4ytvr")
+
+[node name="UIBg" type="TextureRect" parent="UI" unique_id=1416781907]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("3_70i5f")
+expand_mode = 1
+stretch_mode = 6
 
 [node name="背景1" type="Sprite2D" parent="UI" unique_id=2094061284]
 material = SubResource("Mat_bg_ripple")
@@ -65,22 +84,28 @@ position = Vector2(792.0001, 440)
 scale = Vector2(0.9333333, 0.9333333)
 texture = ExtResource("5_70i5f")
 
+[node name="RainGlass" type="ColorRect" parent="UI" unique_id=1400876348]
+material = SubResource("ShaderMaterial_ufwb2")
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
 [node name="Logo" type="Sprite2D" parent="UI" unique_id=2100704228]
 modulate = Color(0.973535, 0.9735351, 0.9735349, 1)
 material = SubResource("Mat_logo")
-position = Vector2(824, 216)
+position = Vector2(824, 288)
 scale = Vector2(0.99999994, 0.99999994)
 texture = ExtResource("8_i6lef")
 
 [node name="CenterContainer" type="CenterContainer" parent="UI" unique_id=240445098]
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
 offset_left = 1064.0
-offset_top = 472.0
+offset_top = 432.0
 offset_right = 1380.0
-offset_bottom = 736.0
+offset_bottom = 696.0
 grow_horizontal = 2
 grow_vertical = 2
 
