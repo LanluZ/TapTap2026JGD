@@ -28,6 +28,7 @@ var entity_id: int = 0
 var _parts: Array = [] # parts_for 输出：[{kind, allele, ...}]
 var _barrel: Barrel = null
 var _attack_range: float = 0.0
+var _preview_range: float = 0.0 # 放置幽灵的射程圈半径（世界单位）；0 = 真实工厂，不画圈
 var _cell: float = 64.0
 var _base_tex: Texture2D = null
 var _chimney_tex: Dictionary = {} # allele -> Texture2D（贴图必须在 setup 里加载：_draw 内 load 渲染成白块）
@@ -60,25 +61,54 @@ func setup(w, eid: int) -> void:
 	if fac == null:
 		push_warning("[工厂视图] 实体 %d 无 Factory 组件" % eid)
 		return
+	_load_parts()
+	_parts = parts_for(fac.genome, w.config.genes)
+	var atk = w.get_component(eid, &"Attack")
+	if atk != null:
+		_attack_range = atk.range
+		_add_barrel(_allele_of("barrel"))
+	queue_redraw()
+
+
+## 放置幽灵（选中工厂卡、尚未落地）：按蓝图基因组装配外形，不查世界组件。
+## preview_range > 0 = 该蓝图有攻击座，_draw 画射程圈（真实工厂恒为 0，行为不变）。
+func setup_blueprint(w, genome: Array, preview_range: float = 0.0) -> void:
+	world = w
+	entity_id = 0 # 幽灵不是实体：_process 的无敌情分支会直接短路
+	if w != null and w.grid != null:
+		_cell = float(w.grid.cell_size)
+	_load_parts()
+	_parts = parts_for(genome, w.config.genes)
+	_preview_range = preview_range
+	if preview_range > 0.0:
+		# 幽灵没有 _process 瞄准：炮口默认朝上（与真实工厂无敌情时一致）
+		_add_barrel(_allele_of("barrel"), true)
+	queue_redraw()
+
+
+## 部件贴图加载（真实工厂与幽灵共用）：_draw 里 load 会渲染成白色矩形，故统一在 setup 阶段取。
+func _load_parts() -> void:
 	_base_tex = Art.tex(str(Art.PARTS["base"]))
-	# 部件贴图统一在此加载（_draw 里 load 会渲染成白色矩形，见上方成员注释）
 	for allele in Art.CHIMNEY:
 		_chimney_tex[str(allele)] = Art.tex(str(Art.CHIMNEY[allele]))
 	_chimney_tex["__fallback"] = Art.tex(str(Art.CHIMNEY_FALLBACK))
 	_crate_tex = Art.tex(str(Art.PARTS["crate"]))
 	_beacon_tex = Art.tex(str(Art.PARTS["beacon"]))
 	_antenna_tex = Art.tex(str(Art.PARTS["antenna"]))
-	_parts = parts_for(fac.genome, w.config.genes)
-	var atk = w.get_component(eid, &"Attack")
-	if atk != null:
-		_attack_range = atk.range
-		_barrel = Barrel.new()
-		var allele := _allele_of("barrel")
-		var heavy := allele == "shot_heavy"
-		_barrel.texture = Art.tex(str(Art.PARTS["barrel_heavy" if heavy else "barrel_light"]))
-		_barrel.size = _cell * (0.5 if heavy else 0.42)
-		add_child(_barrel)
-	queue_redraw()
+
+
+## 炮管子图层：按等位基因取贴图与尺寸（轻炮 0.42 格 / 重炮 0.5 格）。
+## 幽灵会重复装配（换卡重选）：先释放旧炮管，避免子图层累积叠画。
+func _add_barrel(allele: String, face_up := false) -> void:
+	if _barrel != null:
+		_barrel.free()
+	_barrel = Barrel.new()
+	var heavy := allele == "shot_heavy"
+	_barrel.texture = Art.tex(str(Art.PARTS["barrel_heavy" if heavy else "barrel_light"]))
+	_barrel.size = _cell * (0.5 if heavy else 0.42)
+	if face_up:
+		_barrel.rotation = -PI * 0.5
+	add_child(_barrel)
 
 
 ## 基因组 → 部件描述数组（纯函数，可 headless 单测）。
@@ -143,6 +173,12 @@ func _process(_dt: float) -> void:
 
 
 func _draw() -> void:
+	if _preview_range > 0.0:
+		# 射程圈只给放置幽灵（真实工厂 _preview_range 恒 0）。颜色按幽灵 modulate.a=0.6 反预乘：
+		# 叠完透明度落在可放格高亮同款淡蓝（填充 ≈0.15 / 描边 ≈0.54），量级与既有一致。
+		var icy := Color(0.741, 0.878, 0.996)
+		draw_circle(Vector2.ZERO, _preview_range, Color(icy, 0.25))
+		draw_arc(Vector2.ZERO, _preview_range, 0.0, TAU, 96, Color(icy, 0.9), 1.5)
 	var s := _cell * 0.7 # 底座边长（≈占位期 0.7× 缩放的既有观感）
 	if _base_tex != null:
 		draw_texture_rect(_base_tex, Rect2(-s * 0.5, -s * 0.5, s, s), false)

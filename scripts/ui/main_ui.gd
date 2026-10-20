@@ -6,8 +6,8 @@ extends Control
 ##             set_enemy_count / set_placement_preview / set_grid_geometry /
 ##             set_library_cards / set_library_expanded /
 ##             set_receipts / cancel_placement / get_selected_card / is_placing /
-##             get_hand / open_settings / is_settings_open / load_mock_data /
-##             select_line_tool / get_line_tool / show_result
+##             get_placement_hover / get_hand / open_settings / is_settings_open /
+##             load_mock_data / select_line_tool / get_line_tool / show_result
 ##   信号：card_selected(card)、card_played(card, cell)、placement_cancelled()、
 ##         line_tool_selected(tool)、line_committed(kind, cells, dir)
 ##
@@ -311,6 +311,12 @@ func set_grid_geometry(origin: Vector2, cell_size: Vector2i, cells: Array) -> vo
 		_overlay.set_grid_geometry(origin, cell_size, cells)
 	if _line_overlay != null:
 		_line_overlay.set_grid_geometry(origin, cell_size, cells)
+
+
+## 放置预览层当前悬停格（非放置态 → (-1,-1)）：接线层据此把放置幽灵摆到鼠标所在格
+func get_placement_hover() -> Vector2i:
+	_prepare()
+	return _overlay.get_hover() if _overlay != null else Vector2i(-1, -1)
 
 
 ## 卡牌库

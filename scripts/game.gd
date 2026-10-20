@@ -14,6 +14,7 @@ const GenomeScript = preload("res://scripts/dna/genome.gd")
 const FieldLayerScript = preload("res://scripts/views/field_layer.gd")
 const LogisticsLayerScript = preload("res://scripts/views/logistics_layer.gd")
 const ArtScript = preload("res://scripts/views/art_registry.gd")
+const FactoryViewScript = preload("res://scripts/views/factory_view.gd")
 const SfxScript = preload("res://scripts/ui/sfx.gd")
 
 ## 配置 id → UI 资源条 key（零件/特殊材料/电力；水/矿已移出资源板，见 hud.gd）
@@ -41,6 +42,9 @@ var _over := false
 var _fusion_on := false
 var _fusion_sel: Array = [] # 融合已选格（Vector2i，最多 2）
 var _last_fusion_cells: Array = [] # 上次注入的工厂格高亮集合
+var _ghost = null # 放置幽灵（FactoryView，选中工厂卡时装配）；untyped 以保留 preload 解析
+var _ghost_card_id := "" # 当前装配幽灵的卡 id；"" = 未装配
+var _valid_cells: Dictionary = {} # 选中卡的可放格（Vector2i -> true），幽灵只在这些格显示
 
 
 func _ready() -> void:
@@ -78,6 +82,12 @@ func _ready() -> void:
 		logi.name = "LogisticsLayer"
 		_entity_layer.add_child(logi)
 		logi.setup(world)
+		# 放置幽灵（工厂卡预览）：挂 EntityLayer 末位 = 画在实体之上，随场地缩放变换走
+		_ghost = FactoryViewScript.new()
+		_ghost.name = "PlacementGhost"
+		_ghost.visible = false
+		_ghost.modulate = Color(1.0, 1.0, 1.0, 0.6) # 半透明 = 整节点 modulate，含射程圈
+		_entity_layer.add_child(_ghost)
 	_grid_sys = world.get_system("GridSystem")
 	_card_sys = world.get_system("CardSystem")
 	_wave_sys = world.get_system("WaveSystem")
@@ -107,6 +117,7 @@ func _physics_process(delta: float) -> void:
 		# 暂停时 dt=0：模拟（刷怪/移动/生产）全冻结，但指令队列仍每帧消费，放卡不受影响
 		world.tick(delta * world.state.speed if world.state.waves_running else 0.0)
 	_sync_ui()
+	_sync_ghost()
 
 
 # ---------------------------------------------------------------- 注入方向：逻辑 → UI
@@ -211,15 +222,20 @@ func _sync_hud() -> void:
 
 # ---------------------------------------------------------------- 注入方向：UI → 逻辑
 
-## 选中卡牌 → 计算该卡的可放格集合，交给放置预览层高亮
+## 选中卡牌 → 计算该卡的可放格集合，交给放置预览层高亮；工厂卡同时装配放置幽灵
 func _on_card_selected(card: Dictionary) -> void:
 	var valid := _valid_cells_for(str(card.get("id", "")))
+	_valid_cells.clear()
+	for c in valid:
+		_valid_cells[c] = true
 	ui.set_placement_preview(valid)
+	_arm_ghost(card)
 
 
 ## 打出卡牌 → play_card 指令（CommandSystem #1 在下一逻辑帧消费）
 func _on_card_played(card: Dictionary, cell: Vector2i) -> void:
 	var idx := _hand_index_of(str(card.get("id", "")))
+	_disarm_ghost()
 	if idx < 0:
 		return # 可能已被打出；不进战报（只留波次预告与击杀掉落）
 	SfxScript.play_if_exists("成功")
@@ -228,6 +244,54 @@ func _on_card_played(card: Dictionary, cell: Vector2i) -> void:
 
 func _on_placement_cancelled() -> void:
 	ui.set_placement_preview([])
+	_disarm_ghost()
+
+
+## 工厂卡选中 → 按蓝图装配幽灵外形（只装配一次，之后每帧只改位置与显隐）；
+## 非工厂卡（地块/融合等）解除装配，幽灵不出现。
+func _arm_ghost(card: Dictionary) -> void:
+	_ghost_card_id = ""
+	if _ghost == null:
+		return
+	_ghost.visible = false
+	if str(card.get("kind", "")) != "factory":
+		return
+	var cfg: Dictionary = config.get_card(StringName(str(card.get("id", ""))))
+	var eff: Dictionary = cfg.get("effect", {})
+	var bp: Dictionary = config.get_blueprint(StringName(str(eff.get("blueprint_id", ""))))
+	if bp.is_empty() or not bp.has("genome"):
+		return
+	_ghost.setup_blueprint(world, bp["genome"], _attack_range_of(bp["genome"]))
+	_ghost_card_id = str(card.get("id", ""))
+
+
+func _disarm_ghost() -> void:
+	_ghost_card_id = ""
+	_valid_cells.clear()
+	if _ghost != null:
+		_ghost.visible = false
+
+
+## 蓝图射程（世界单位）：与落地后同一来源 GenomeScript.express，无攻击座 → 0（不画圈）
+func _attack_range_of(genome: Array) -> float:
+	var specs: Array = GenomeScript.express(genome, config.genes, "", "")
+	for s in specs:
+		if str(s.get("type", "")) == "Attack":
+			return float(s.get("range", 0.0))
+	return 0.0
+
+
+## 幽灵跟随鼠标（只读表现）：放置态 + 非融合 + 悬停在可放格 → 显示在该格中心
+func _sync_ghost() -> void:
+	if _ghost == null or _ghost_card_id.is_empty() or world == null:
+		return
+	var cell: Vector2i = Vector2i(-1, -1)
+	if ui.is_placing() and not _fusion_on:
+		cell = ui.get_placement_hover()
+	var show := cell != Vector2i(-1, -1) and _valid_cells.has(cell)
+	_ghost.visible = show
+	if show:
+		_ghost.position = world.grid.cell_to_world(cell)
 
 
 ## 拖拽画线松手（UI → 逻辑）：按指令协议原文形态 [[x,y]] / [dx,dy] 入队，下一逻辑帧执行。

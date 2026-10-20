@@ -118,6 +118,11 @@ func cell_at(local_pos: Vector2) -> Vector2i:
 	return Vector2i(x, y)
 
 
+## 当前悬停格（放置态之外 → (-1,-1)）：上层放置幽灵跟随鼠标用，是否可放由调用方判。
+func get_hover() -> Vector2i:
+	return _hover if (_active and _has_hover) else Vector2i(-1, -1)
+
+
 func cell_rect(cell: Vector2i) -> Rect2:
 	return Rect2(_origin + Vector2(cell * _cell_size), Vector2(_cell_size))
 
