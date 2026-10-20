@@ -8,7 +8,9 @@ extends Control
 ## 因此两者 cell_rect 完全一致，画线与卡牌预览不会各算一套。
 ##
 ## 交互：左键按下记锚点 → 移动更新终点 → 松开提交（单轴直链，见 line_tool.gd）；
-## 右键 / Esc 取消（不提交）。单击（未拖动）= 单格，方向沿用上次拖拽方向（默认向右）。
+## 右键 / Esc 取消（不提交）。同格按下+松开 = 单格：方向按按下点→松开点的像素
+## 相对位移判定（pixel_dir）；纯点击（位移 < deadzone）回退上次拖拽方向（默认向右）。
+## 拆除工具：提交与预览都按 2x2 笔刷扩展（指针格 + 右/下/右下），方便大范围擦除。
 
 signal line_committed(kind: String, cells: Array, dir: Vector2i)
 signal cancelled()
@@ -31,7 +33,9 @@ var _kind := ""
 var _dragging := false
 var _anchor := Vector2i(-1, -1)
 var _cursor := Vector2i(-1, -1)
-var _last_dir := Vector2i(1, 0) # 单击时的方向回退
+var _last_dir := Vector2i(1, 0) # 纯点击的方向回退
+var _press_pos := Vector2.ZERO # 按下点（本控件局部像素，单格判向用）
+var _cursor_pos := Vector2.ZERO # 拖拽中/松开时的指针位置（本控件局部像素）
 
 
 func _ready() -> void:
@@ -94,6 +98,15 @@ func cell_rect(cell: Vector2i) -> Rect2:
 	return Rect2(_origin + Vector2(cell * _cell_size), Vector2(_cell_size))
 
 
+## 只留网格内的格（2x2 笔刷在右/下边缘会外溢，提交与预览共用此过滤）。
+func _on_grid(cells: Array[Vector2i]) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for c in cells:
+		if _all_cells.has(c):
+			out.append(c)
+	return out
+
+
 func _gui_input(event: InputEvent) -> void:
 	if not is_active():
 		return
@@ -113,6 +126,8 @@ func _gui_input(event: InputEvent) -> void:
 			_dragging = true
 			_anchor = cell
 			_cursor = cell
+			_press_pos = mb.position
+			_cursor_pos = mb.position
 			queue_redraw()
 			accept_event()
 			return
@@ -128,13 +143,17 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 			return
 		_cursor = cell
+		_cursor_pos = mb.position
 		_commit()
 		accept_event()
 	elif event is InputEventMouseMotion and _dragging:
-		var cell := cell_at((event as InputEventMouseMotion).position)
+		_cursor_pos = (event as InputEventMouseMotion).position
+		var cell := cell_at(_cursor_pos)
 		if _all_cells.has(cell) and cell != _cursor:
 			_cursor = cell
 			queue_redraw()
+		elif cell == _anchor:
+			queue_redraw() # 同格内移动：像素判向的预览箭头要跟手
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -145,7 +164,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## 松手提交：格集 + 单一方向。拆除不需要方向（ZERO）。
+## 松手提交：格集 + 单一方向。拆除不需要方向（ZERO），
+## 且按 2x2 笔刷扩展（指针格 + 右/下/右下），越界格过滤掉。
 func _commit() -> void:
 	var a := _anchor
 	var b := _cursor
@@ -159,8 +179,12 @@ func _commit() -> void:
 	var dir: Vector2i = LineToolScript.line_dir(a, b)
 	if _kind == KIND_REMOVE:
 		dir = Vector2i.ZERO
+		cells = _on_grid(LineToolScript.brush_2x2(cells))
 	elif dir == Vector2i.ZERO:
-		dir = _last_dir # 单击：方向沿用上次拖拽（默认向右），保证协议总有 dir
+		# 同格单格：方向 = 按下点→松开点的像素相对位移；纯点击回退上次方向
+		dir = LineToolScript.pixel_dir(_press_pos, _cursor_pos)
+		if dir == Vector2i.ZERO:
+			dir = _last_dir
 	if dir != Vector2i.ZERO:
 		_last_dir = dir
 	queue_redraw()
@@ -195,16 +219,25 @@ func _draw() -> void:
 	if not (_dragging and _all_cells.has(_anchor) and _all_cells.has(_cursor)):
 		return
 	var cells: Array = LineToolScript.line_cells(_anchor, _cursor)
+	if _kind == KIND_REMOVE:
+		cells = _on_grid(LineToolScript.brush_2x2(cells)) # 拆除预览 = 2x2 笔刷实际作用域
 	var col := _color()
 	for c in cells:
 		var rect := cell_rect(c)
 		draw_rect(rect, Color(col, 0.20), true)
 		draw_rect(rect, Color(col, 0.95), false, 2.0)
 	var dir: Vector2i = LineToolScript.line_dir(_anchor, _cursor)
-	if dir != Vector2i.ZERO and cells.size() > 1:
+	if dir == Vector2i.ZERO and cells.size() == 1:
+		# 同格拖拽预览：与 _commit 的 pixel_dir 判定保持一致（拆除不画方向）
+		dir = Vector2i.ZERO if _kind == KIND_REMOVE else LineToolScript.pixel_dir(_press_pos, _cursor_pos)
+	if dir != Vector2i.ZERO and cells.size() >= 1:
 		# 预览箭头：方向 = 松开后写进整条线的 line_dir（反向拖时箭头跟着翻）
 		var start: Vector2 = cell_rect(cells[0]).get_center()
-		var end: Vector2 = cell_rect(cells[cells.size() - 1]).get_center()
+		var end: Vector2
+		if cells.size() > 1:
+			end = cell_rect(cells[cells.size() - 1]).get_center()
+		else:
+			end = start + Vector2(dir) * float(_cell_size.x) * 0.5 # 单格：箭头伸出半格
 		draw_line(start, end, Color(col, 0.85), 3.0)
 		var d := Vector2(dir)
 		var side := Vector2(-d.y, d.x) * float(_cell_size.x) * 0.18

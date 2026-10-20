@@ -34,3 +34,29 @@ static func line_dir(a: Vector2i, b: Vector2i) -> Vector2i:
 	if absi(dx) >= absi(dy):
 		return Vector2i(signi(dx), 0)
 	return Vector2i(0, signi(dy))
+
+
+## 单格朝向判定：按下点 → 松开点的像素位移取主轴（同格拖拽用，判定规则与
+## line_dir 对格位移的主轴判定一致）。位移小于 deadzone（纯点击/手抖）返回
+## ZERO，上层回退上次拖拽方向。
+static func pixel_dir(press: Vector2, release: Vector2, deadzone: float = 4.0) -> Vector2i:
+	var delta := release - press
+	if absf(delta.x) < deadzone and absf(delta.y) < deadzone:
+		return Vector2i.ZERO
+	if absf(delta.x) >= absf(delta.y):
+		return Vector2i(signi(int(delta.x)), 0)
+	return Vector2i(0, signi(int(delta.y)))
+
+
+## 2x2 拆除笔刷：每格扩展为自身 + 右、下、右下（左上角锚定在指针格），去重保序。
+## 用于拆除工具的大范围擦除；越界格由上层按网格过滤（overlay._on_grid / cells_with_line）。
+static func brush_2x2(cells: Array[Vector2i]) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var seen: Dictionary = {}
+	for c in cells:
+		for off in [Vector2i.ZERO, Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]:
+			var t: Vector2i = c + off
+			if not seen.has(t):
+				seen[t] = true
+				out.append(t)
+	return out

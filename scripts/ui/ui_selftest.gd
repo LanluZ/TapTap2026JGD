@@ -67,6 +67,18 @@ func _check(condition: bool, label: String) -> void:
 		print("FAIL | " + label)
 
 
+## 两个 Vector2i 集合是否相同（顺序敏感，笔刷断言钉住去重后的格序）。
+func _cells_eq(a: Array, b: Array) -> bool:
+	if a.size() != b.size():
+		return false
+	for i in a.size():
+		var va = a[i]
+		var vb = b[i]
+		if Vector2i(va) != Vector2i(vb):
+			return false
+	return true
+
+
 func _on_selected(card: Dictionary) -> void:
 	_selected = card
 
@@ -273,18 +285,25 @@ func _run() -> void:
 	_check(hand.get_child_count() == 6, "跳过非法项后槽位仍为 6（实际 %d）" % hand.get_child_count())
 	_check(hand_count.text == "1 / 6", "跳过非法项后计数 1 / 6（实际 %s）" % hand_count.text)
 
-	# 13) DNA 检视预制体：节点解析 / 碱基链 / 座数徽标 / 空态
+	# 13) DNA 检视预制体：节点解析 / 碱基列 / 座数徽标 / 双螺旋 / 形象区 / 空态
 	var dna := (load("res://scenes/ui/dna_inspector.tscn") as PackedScene).instantiate()
 	root.add_child(dna)
 	dna.set_view({"title": "测试卡", "bases": ["A", "—", "C"], "locus_names": ["甲", "乙", "丙"],
-		"rules": ["规则一"], "debug": "raw"})
-	var dna_chain := dna.get_node("Box/ChainSection/ChainBox/Scroll/Chain")
-	var dna_count := dna.get_node("Box/Header/LociBadge/Count") as Label
-	_check(dna_chain.get_child_count() == 3, "DNA 碱基链 3 格（实际 %d）" % dna_chain.get_child_count())
+		"rules": ["规则一"], "debug": "raw", "art": ""})
+	var dna_chain := dna.get_node("Box/Main/LeftCol/BaseList")
+	var dna_count := dna.get_node("Box/Main/HelixCol/Badge/Count") as Label
+	_check(dna_chain.get_child_count() == 3, "DNA 碱基列 3 格（实际 %d）" % dna_chain.get_child_count())
 	_check(dna_count.text == "2 / 3 座", "DNA 座数徽标（实际 %s）" % dna_count.text)
-	_check(dna_chain.get_child(0).get_child(2).get_child(0).text == "T", "DNA 互补碱基 A→T")
+	_check(dna_chain.get_child(0).text == "A" and dna_chain.get_child(1).text == "—",
+		"DNA 碱基列只写字母（%s/%s）" % [dna_chain.get_child(0).text, dna_chain.get_child(1).text])
+	var dna_helix := dna.get_node("Box/Main/HelixCol/HelixHost/HelixView")
+	_check(dna_helix != null and (dna_helix as Control).size.y > 0, "DNA 双螺旋已构建且有高度")
+	_check(not dna.get_node("Box/Main/FigurePanel").visible, "DNA 无 art 时形象区收起")
+	dna.set_view({"title": "带图", "bases": ["A"], "locus_names": ["甲"],
+		"rules": [], "debug": "", "art": "res://art/art/card/card miner.png"})
+	_check(dna.get_node("Box/Main/FigurePanel").visible, "DNA 有 art 时形象区展开")
 	dna.set_view({"title": "空", "bases": [], "locus_names": [], "rules": [], "debug": ""})
-	_check(not dna.get_node("Box/ChainSection").visible, "DNA 空碱基链整段隐藏")
+	_check(not dna.get_node("Box/Main/LeftCol").visible, "DNA 空碱基列整段隐藏")
 	_check(not dna.get_node("Box/RulesSection").visible, "DNA 空规则整段隐藏")
 	dna.free()
 
@@ -331,6 +350,25 @@ func _run() -> void:
 			_check((rec["cells"] as Array).size() == 3,
 				"拖 0,0→2,0 → 3 格（实际 %d）" % (rec["cells"] as Array).size())
 			_check(rec["dir"] == Vector2i(1, 0), "指令 dir=(1,0)（实际 %s）" % str(rec["dir"]))
+		# 同格拖拽：按下+松开在同一格，方向按按下点→松开点的像素相对位移判定
+		line_records.clear()
+		var cell0: Rect2 = line_layer.cell_rect(Vector2i(0, 0))
+		line_layer._gui_input(_click_event(MOUSE_BUTTON_LEFT, cell0.position + Vector2(4, 16)))
+		line_layer._gui_input(_motion_event(cell0.position + Vector2(28, 18)))
+		var release_same := _click_event(MOUSE_BUTTON_LEFT, cell0.position + Vector2(28, 18))
+		release_same.pressed = false
+		line_layer._gui_input(release_same)
+		_check(line_records.size() == 1 and (line_records[0]["cells"] as Array).size() == 1
+			and line_records[0]["dir"] == Vector2i(1, 0),
+			"同格右拖 → 单格 dir=(1,0)（实际 %s）" % str(line_records[0] if line_records.size() == 1 else "无"))
+		line_records.clear()
+		line_layer._gui_input(_click_event(MOUSE_BUTTON_LEFT, cell0.position + Vector2(16, 4)))
+		line_layer._gui_input(_motion_event(cell0.position + Vector2(18, 28)))
+		var release_down := _click_event(MOUSE_BUTTON_LEFT, cell0.position + Vector2(18, 28))
+		release_down.pressed = false
+		line_layer._gui_input(release_down)
+		_check(line_records.size() == 1 and line_records[0]["dir"] == Vector2i(0, 1),
+			"同格下拖 → 单格 dir=(0,1)（实际 %s）" % str(line_records[0] if line_records.size() == 1 else "无"))
 		ui.select_line_tool("remove")
 		line_records.clear()
 		line_layer._gui_input(_click_event(MOUSE_BUTTON_LEFT, line_layer.cell_rect(Vector2i(0, 0)).get_center()))
@@ -338,8 +376,31 @@ func _run() -> void:
 		var release2 := _click_event(MOUSE_BUTTON_LEFT, line_layer.cell_rect(Vector2i(1, 0)).get_center())
 		release2.pressed = false
 		line_layer._gui_input(release2)
+		# 2x2 笔刷：拖过 (0,0)(1,0) → 6 格中只剩网格内的 3 格（本 mock 网格只有 1 行）
 		_check(line_records.size() == 1 and str(line_records[0]["kind"]) == "remove"
-			and (line_records[0]["cells"] as Array).size() == 2, "拆除拖拽 → kind=remove 两格")
+			and (line_records[0]["cells"] as Array).size() == 3,
+			"拆除拖拽 → 2x2 笔刷（mock 网格内 3 格，实际 %d）" % ((line_records[0]["cells"] as Array).size() if line_records.size() == 1 else -1))
+		# 2 行网格：笔刷完整展开为 2x2 且不含网格外格
+		var two_rows: Array[Vector2i] = []
+		for yy in 2:
+			for xx in 3:
+				two_rows.append(Vector2i(xx, yy))
+		ui.set_grid_geometry(Vector2(20, 30), Vector2i(32, 32), two_rows)
+		line_records.clear()
+		line_layer._gui_input(_click_event(MOUSE_BUTTON_LEFT, line_layer.cell_rect(Vector2i(1, 0)).get_center()))
+		var release3 := _click_event(MOUSE_BUTTON_LEFT, line_layer.cell_rect(Vector2i(1, 0)).get_center())
+		release3.pressed = false
+		line_layer._gui_input(release3)
+		_check(line_records.size() == 1 and _cells_eq(line_records[0]["cells"], [Vector2i(1, 0), Vector2i(2, 0), Vector2i(1, 1), Vector2i(2, 1)]),
+			"拆除单击 → 2x2 四格（实际 %s）" % str(line_records[0]["cells"] if line_records.size() == 1 else "无"))
+		line_records.clear()
+		line_layer._gui_input(_click_event(MOUSE_BUTTON_LEFT, line_layer.cell_rect(Vector2i(2, 1)).get_center()))
+		var release4 := _click_event(MOUSE_BUTTON_LEFT, line_layer.cell_rect(Vector2i(2, 1)).get_center())
+		release4.pressed = false
+		line_layer._gui_input(release4)
+		_check(line_records.size() == 1 and _cells_eq(line_records[0]["cells"], [Vector2i(2, 1)]),
+			"拆除右下角单击 → 笔刷外溢格被过滤只剩自身（实际 %s）" % str(line_records[0]["cells"] if line_records.size() == 1 else "无"))
+		ui.set_grid_geometry(Vector2(20, 30), Vector2i(32, 32), drag_cells)
 		ui.select_line_tool("remove")
 		ui.select_line_tool("remove")
 		_check(ui.get_line_tool() == "remove", "select_line_tool 幂等（显式设置，不是 toggle）")

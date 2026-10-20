@@ -193,21 +193,21 @@ func _place_tile(world, tile_type: String, cell) -> bool:
 
 ## 放置线路（管道/传送带）：GridSystem 校验 → 逐格写 Cell 线字段 → world.line_changed。
 ## 免费：不扣资源、不返还（拆除同理）。校验在写之前完成，任一格不合法则整条不动。
+## 覆盖放置：目标格已有线（pipe/belt 互换或同种改向）时先 remove_line 清旧线字段与
+## belt_items（等价于先拆除再放置），再写入新线。
 func _place_line(world, kind: String, cells, dir_v) -> bool:
 	if _grid_system == null:
 		_reject(world, "GridSystem 未注册")
 		return false
 	var reason: String = _grid_system.can_place_line(world, cells, kind, dir_v)
 	if not reason.is_empty():
-		# 拐弯提示（产品裁定）：一格式一物 ⇒ 拖 L 形时上一段已占拐角格，下一段必然被拒。
-		# 只在「格已有线」这一因上补一句怎么绕过；其余拒绝原因原样透出（不改判定规则）。
-		if reason.begins_with(GridSystem.REASON_HAS_LINE):
-			reason += "——拐角格要留给后一段，从空格续拖"
 		_reject(world, reason)
 		return false
 	var k := StringName(kind)
 	var dir: Vector2i = dir_v
 	for cell in cells:
+		if world.grid.has_line(cell):
+			world.grid.remove_line(cell) # 覆盖 = 先拆除（清旧线字段与块位）
 		world.grid.set_line(cell, k, dir)
 		world.line_changed.emit(cell, k)
 	return true

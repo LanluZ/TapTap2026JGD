@@ -4,10 +4,6 @@ extends System
 ## 可建造性由关卡标注（§6 path_cells/buildable_cells），本系统提供同步校验
 ## API 供 CommandSystem（#1）即时调用；每帧另做占用一致性清扫。
 
-## 拒绝原因前缀：格已有线。CommandSystem 据此在回执里补「拐角格要留给后一段」
-## （产品裁定：拖拐弯时上一段占住拐角格，下一段必须从空格续拖）。
-const REASON_HAS_LINE := "格子已有线路"
-
 ## 工厂放置：格子存在、关卡标注可建造、无占用。
 ## 入参同样是协议形态（Vector2i / Vector2 / [x, y]）——UI 与指令侧可直接抛 [x, y]，
 ## 归一化失败（null）一律拒绝，不做隐式强转（T2-1）。
@@ -33,8 +29,9 @@ func can_place_tile(world, cell) -> bool:
 
 
 ## 线路放置校验（管道/传送带）：返回空串 = 合法，否则为拒绝原因（UI 可直接显示）。
-## 规则（策划案 · 放置规则）：只放 buildable 格、无工厂占用、无已有线；kind 必须是
+## 规则（策划案 · 放置规则）：只放 buildable 格、无工厂占用；kind 必须是
 ## pipe/belt，dir 必须是四向单位向量，cells 不得为空或含重复格。逐格校验，任一失败整条拒绝。
+## 已有线的格允许覆盖放置（覆盖 = 先拆除再放置，指令层负责清旧线字段与块位）。
 ## 入参兼容指令协议原文形态：cells 元素可为 Vector2i / Vector2 / [x, y]，dir 可为
 ## Vector2i / Vector2 / [dx, dy]。UI 拖拽可直接抛协议数据，不必先自行归一化。
 func can_place_line(world, cells, kind, dir_v) -> String:
@@ -81,7 +78,7 @@ func can_remove_line(world, cells) -> String:
 	return ""
 
 
-## 单格线路放置前置条件（存在 ∧ buildable ∧ 无工厂占用 ∧ 无已有线）。
+## 单格线路放置前置条件（存在 ∧ buildable ∧ 无工厂占用；已有线允许覆盖）。
 func _line_cell_reason(world, cell: Vector2i) -> String:
 	var c = world.grid.get_cell(cell)
 	if c == null:
@@ -90,8 +87,6 @@ func _line_cell_reason(world, cell: Vector2i) -> String:
 		return "格子不可建造（非关卡标注的 buildable 格）: %s" % str(cell)
 	if c.occupant != 0:
 		return "格子被工厂占用: %s" % str(cell)
-	if c.has_line():
-		return "%s（%s）: %s" % [REASON_HAS_LINE, String(c.line_kind), str(cell)]
 	return ""
 
 

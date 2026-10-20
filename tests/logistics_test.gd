@@ -224,10 +224,9 @@ func _run() -> int:
 	_ok(_place(w4, "pipe", [[5, 2], [4, 2]], [1, 0]) == 1, "工厂占用格放置线路被拒绝")
 	_ok(w4.grid.get_cell(Vector2i(5, 2)).line_kind == &"", "指令原子失败：同批 [5,2] 未被写入")
 	_ok(_place(w4, "pipe", [[6, 6]], [1, 0]) == 0, "先放一条 pipe 成功")
-	_ok(_place(w4, "belt", [[6, 6]], [0, 1]) == 1, "已有线路的格重复放置被拒绝")
-	_ok(_rejects[-1].find("拐角格要留给后一段") != -1,
-		"已有线路的拒绝回执补拐弯提示（实际 %s）" % _rejects[-1])
-	_ok(w4.grid.get_cell(Vector2i(6, 6)).line_kind == &"pipe", "拒绝后原 pipe 保持不变")
+	_ok(_place(w4, "belt", [[6, 6]], [0, 1]) == 0, "已有线路的格覆盖放置（pipe→belt）成功")
+	var over4 = w4.grid.get_cell(Vector2i(6, 6))
+	_ok(over4.line_kind == &"belt" and over4.line_dir == Vector2i(0, 1), "覆盖后旧 pipe 被替换为 belt (0,1)")
 	_ok(_place(w4, "wire", [[7, 7]], [1, 0]) == 1, "未知 kind 的指令被拒绝")
 	_ok(_place(w4, "pipe", [[7, 7]], [1, 1]) == 1, "对角 dir 的指令被拒绝")
 	_ok(_place(w4, "pipe", [[7, 7]], [0, 0]) == 1, "零向量 dir 的指令被拒绝")
@@ -835,6 +834,21 @@ func _t25_drag_to_cells() -> void:
 	_ok(LineToolScript.line_cells(Vector2i(2, 5), Vector2i(2, 5)).size() == 1, "T25: 原地点击 → 单格")
 	_ok(LineToolScript.line_dir(Vector2i(2, 5), Vector2i(2, 5)) == Vector2i.ZERO,
 		"T25: 原地点击无方向（ZERO，方向回退由 UI 决定）")
+	# 单格朝向：像素相对位移判向（同格按下+拖拽 → 主轴方向）
+	var pc := Vector2(100, 100)
+	_ok(LineToolScript.pixel_dir(pc, pc + Vector2(20, 3)) == Vector2i(1, 0), "T25: 同格右拖 → dir (1,0)")
+	_ok(LineToolScript.pixel_dir(pc, pc + Vector2(-20, 3)) == Vector2i(-1, 0), "T25: 同格左拖 → dir (-1,0)")
+	_ok(LineToolScript.pixel_dir(pc, pc + Vector2(3, -20)) == Vector2i(0, -1), "T25: 同格上拖 → dir (0,-1)")
+	_ok(LineToolScript.pixel_dir(pc, pc + Vector2(2, 20)) == Vector2i(0, 1), "T25: 同格下拖 → dir (0,1)")
+	_ok(LineToolScript.pixel_dir(pc, pc + Vector2(1, 1)) == Vector2i.ZERO,
+		"T25: 位移 < deadzone（纯点击/手抖）→ ZERO（回退上次方向）")
+	_ok(LineToolScript.pixel_dir(pc, pc) == Vector2i.ZERO, "T25: 零位移 → ZERO")
+	# 2x2 拆除笔刷：单格 → 4 格；拖拽链逐格扩展并去重
+	var brush1: Array[Vector2i] = LineToolScript.brush_2x2([Vector2i(2, 5)])
+	_ok(_cells_eq(brush1, [Vector2i(2, 5), Vector2i(3, 5), Vector2i(2, 6), Vector2i(3, 6)]),
+		"T25: brush_2x2 单格 → 右/下/右下 4 格（实际 %s）" % str(brush1))
+	var brush2: Array[Vector2i] = LineToolScript.brush_2x2([Vector2i(2, 5), Vector2i(3, 5)])
+	_ok(brush2.size() == 6, "T25: 相邻两格笔刷去重（2+4 重叠 2 → 6 格，实际 %d）" % brush2.size())
 
 	# ② 指令层落地：拖拽产物按协议原文形态入队
 	var cells: Array = LineToolScript.line_cells(a, b)
@@ -1031,31 +1045,36 @@ func _t27_remove_filter() -> void:
 	_ok(_rejects.is_empty(), "T27b: 过滤后提交无拒绝（实际 %d）" % _rejects.size())
 
 
-## 裁定 ③：拐弯提示——place_line 因「格已有线」被拒时，回执补「拐角格要留给后一段」。
-## 回执文本本身在 T4 断言（同一世界的重复放置）；这里钉住「其余拒绝原因不加这句」。
-func _t27_corner_hint() -> void:
-	print("== T27c: 拐弯提示只加在「格已有线」因上 ==")
+## 覆盖放置（原裁定 ③ 拐弯提示随覆盖语义移除）：起手格已有线不再被拒——
+## place_line 对已有线格先拆除再放置。这里钉住「拐角格续拖 = 覆盖」与「覆盖清块位」。
+func _t27_overwrite() -> void:
+	print("== T27c: 覆盖放置（已有线格先拆后放）==")
 	var w = _new_world()
-	_ok(_place(w, "pipe", [[6, 6]], [1, 0]) == 0, "T27c: 先铺 [6,6]")
+	_ok(_place(w, "pipe", [[6, 6]], [1, 0]) == 0, "T27c: 先铺 [6,6] pipe")
 	var before: int = _rejects.size()
-	w.push_command({"type": "place_line", "kind": "pipe", "cells": [[6, 6], [7, 6]], "dir": [1, 0]})
-	w.tick(DT)
-	_ok(_rejects.size() == before + 1, "T27c: 拐弯（起手格已有线）被拒")
-	if _rejects.size() > before:
-		_ok(_rejects[-1].find(GridSystem.REASON_HAS_LINE) != -1
-			and _rejects[-1].find("拐角格要留给后一段") != -1,
-			"T27c: 回执含原因 + 拐弯提示（实际 %s）" % _rejects[-1])
+	# 旧拐弯场景：起手格已有线的续拖，现在 = 覆盖 [6,6] 并延伸 [7,6]
+	_ok(_place(w, "belt", [[6, 6], [7, 6]], [1, 0]) == 0, "T27c: 拐角格续拖（覆盖放置）成功")
+	_ok(_rejects.size() == before, "T27c: 覆盖放置无拒绝回执（实际 %d）" % (_rejects.size() - before))
+	var c66 = w.grid.get_cell(Vector2i(6, 6))
+	_ok(c66.line_kind == &"belt" and c66.line_dir == Vector2i(1, 0), "T27c: [6,6] 被覆盖为 belt")
+	var c76 = w.grid.get_cell(Vector2i(7, 6))
+	_ok(c76.line_kind == &"belt", "T27c: [7,6] 正常写入 belt")
+	# 覆盖 = 先拆除：旧 belt 上的块位（belt_items）必须被清空，不残留到新线上
+	c66.belt_items.append(0.5)
+	_ok(_place(w, "pipe", [[6, 6]], [0, 1]) == 0, "T27c: belt→pipe 覆盖成功")
+	_ok(c66.line_kind == &"pipe" and c66.belt_items.is_empty(),
+		"T27c: 覆盖后旧块位清空（先拆除再放置，实际 kind=%s items=%d）" % [str(c66.line_kind), c66.belt_items.size()])
+	# 其余拒绝原因不受覆盖影响：路径格照旧被拒
 	before = _rejects.size()
 	w.push_command({"type": "place_line", "kind": "pipe", "cells": [[1, 1]], "dir": [1, 0]})
 	w.tick(DT)
-	_ok(_rejects.size() == before + 1 and _rejects[-1].find("拐角格要留给后一段") == -1,
-		"T27c: 路径格拒绝不加拐弯提示（实际 %s）" % _rejects[-1])
+	_ok(_rejects.size() == before + 1, "T27c: 路径格仍被拒绝（实际 %s）" % (_rejects[-1] if _rejects.size() > before else "无"))
 
 
 func _t27_product_rulings() -> void:
 	_t27_water_hint()
 	_t27_remove_filter()
-	_t27_corner_hint()
+	_t27_overwrite()
 
 
 # ================================================================ T28 拐弯拼接（渲染接线几何）
