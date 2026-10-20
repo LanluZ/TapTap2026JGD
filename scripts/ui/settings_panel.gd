@@ -10,6 +10,8 @@ extends Control
 signal resume_requested()
 signal title_requested()
 
+const SfxScript = preload("res://scripts/ui/sfx.gd")
+
 ## 打开时是否暂停整棵场景树。挂到不需要暂停的场景（如主菜单）时置 false。
 @export var pause_tree_on_open: bool = true
 
@@ -44,6 +46,7 @@ func open() -> void:
 	if visible:
 		return
 	show()
+	SfxScript.play_if_exists("展开")
 	if pause_tree_on_open and not get_tree().paused:
 		get_tree().paused = true
 		_paused_by_me = true
@@ -53,6 +56,7 @@ func open() -> void:
 func close() -> void:
 	if visible:
 		hide()
+		SfxScript.play_if_exists("收起")
 	if _paused_by_me:
 		get_tree().paused = false
 		_paused_by_me = false

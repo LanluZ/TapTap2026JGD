@@ -79,16 +79,11 @@ func _build_picker(config) -> Control:
 	vb.add_child(title)
 	var ids: Array = config.levels.keys()
 	ids.sort()
-	for lid in ids:
-		var lv: Dictionary = config.levels[lid]
-		var cells := (lv["path_cells"] as Array).size()
-		var lap := float(cells) * float(lv["cell_size"]) / LAP_SPEED
+	for i in ids.size():
+		var lid = ids[i]
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(420, 56)
-		b.text = "%s ｜ %d 波 ｜ 每圈 %.1fs ｜ 建造 %d 格" % [
-			String(lv["name"]), (lv["waves"] as Array).size(), lap,
-			(lv["buildable_cells"] as Array).size(),
-		]
+		b.text = str(i)
 		b.pressed.connect(_go.bind(lid))
 		vb.add_child(b)
 	var back := Button.new()
@@ -107,7 +102,7 @@ func _close_picker() -> void:
 
 func _go(level_id: StringName) -> void:
 	get_tree().root.set_meta("pending_level_id", level_id)
-	get_tree().change_scene_to_file("res://scenes/main.tscn")
+	SceneTransition.change_scene("res://scenes/main.tscn")
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()

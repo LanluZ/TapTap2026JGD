@@ -14,6 +14,7 @@ const GenomeScript = preload("res://scripts/dna/genome.gd")
 const FieldLayerScript = preload("res://scripts/views/field_layer.gd")
 const LogisticsLayerScript = preload("res://scripts/views/logistics_layer.gd")
 const ArtScript = preload("res://scripts/views/art_registry.gd")
+const SfxScript = preload("res://scripts/ui/sfx.gd")
 
 ## 配置 id → UI 资源条 key（零件/特殊材料/电力；水/矿已移出资源板，见 hud.gd）
 const UI_RESOURCE_KEYS := {
@@ -221,6 +222,7 @@ func _on_card_played(card: Dictionary, cell: Vector2i) -> void:
 	var idx := _hand_index_of(str(card.get("id", "")))
 	if idx < 0:
 		return # 可能已被打出；不进战报（只留波次预告与击杀掉落）
+	SfxScript.play_if_exists("成功")
 	world.push_command({"type": "play_card", "card_index": idx, "cell": cell})
 
 
@@ -329,12 +331,14 @@ func _connect_world() -> void:
 	world.entity_died.connect(_on_entity_died)
 	world.game_won.connect(_on_game_won)
 	world.game_lost.connect(_on_game_lost)
+	world.command_rejected.connect(func(_reason: String): SfxScript.play_if_exists("操作失败、警告"))
 	get_viewport().size_changed.connect(_fit_field_to_viewport)
 
 
 ## 胜负结算（表现层）：UI 只收展示数据，判定规则全在 WaveSystem。
 func _on_game_won() -> void:
 	_over = true
+	SfxScript.play_if_exists("成功")
 	_show_result(true)
 
 
@@ -365,6 +369,7 @@ func _push_wave_preview() -> void:
 		var def: Dictionary = config.get_enemy(StringName(str(g["enemy"])))
 		parts.append("%s×%d" % [str(def.get("name", g["enemy"])), int(g["count"])])
 	_push_receipt("波", "第 %d 波：%s" % [_wave_sys.current_wave + 1, "、".join(parts)])
+	SfxScript.play_if_exists("通知")
 
 
 ## 击杀掉落：entity_died 同步发出、destroy 尚未执行，组件此刻仍可读。

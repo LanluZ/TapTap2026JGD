@@ -3,6 +3,7 @@ extends PanelContainer
 
 const UiStyle = preload("res://scripts/ui/ui_style.gd")
 const UiCardFace = preload("res://scripts/ui/card_face.gd")
+const SfxScript = preload("res://scripts/ui/sfx.gd")
 
 var _cards: Array = []
 var _expanded := true
@@ -51,6 +52,8 @@ func get_cards() -> Array:
 
 func set_expanded(expanded: bool) -> void:
 	_resolve()
+	if expanded != _expanded:
+		SfxScript.play_if_exists("展开" if expanded else "收起")
 	_expanded = expanded
 	_apply_expanded()
 

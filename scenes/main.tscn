@@ -457,7 +457,7 @@ show_percentage = false
 custom_minimum_size = Vector2(88, 0)
 layout_mode = 2
 tooltip_text = "按下开始/暂停波次（默认暂停）"
-text = "▶ 开始"
+text = "开始"
 script = ExtResource("s_btnfx")
 
 [node name="SpeedBtn" type="Button" parent="HUD/TopBar/Row" unique_id=1398858300]

@@ -110,7 +110,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="MenuPanel" type="PanelContainer" parent="UI/CenterContainer" unique_id=369159146]
-self_modulate = Color(1, 1, 1, 0.5058824)
+self_modulate = Color(1, 1, 1, 0.3372549)
 layout_mode = 2
 
 [node name="VBox" type="VBoxContainer" parent="UI/CenterContainer/MenuPanel" unique_id=333585256]

@@ -468,7 +468,7 @@ func _on_fusion_confirm_pressed() -> void:
 ## 开始/暂停切换：按钮文案与波次开关同步，状态由逻辑层接线落地
 func _on_start_pressed() -> void:
 	_wave_running = not _wave_running
-	_start_btn.text = "⏸ 暂停" if _wave_running else "▶ 开始"
+	_start_btn.text = "暂停" if _wave_running else "开始"
 	wave_toggled.emit(_wave_running)
 
 
@@ -626,16 +626,16 @@ func _on_result_restart() -> void:
 	var lid := str(_result_data.get("level_id", ""))
 	if not lid.is_empty():
 		get_tree().root.set_meta("pending_level_id", lid)
-	get_tree().reload_current_scene()
+	SceneTransition.reload_scene()
 
 
 func _on_result_to_title() -> void:
-	get_tree().change_scene_to_file("res://scenes/menu.tscn")
+	SceneTransition.change_scene("res://scenes/menu.tscn")
 
 
 ## 「返回标题」：面板关闭已解除暂停，这里只负责切场景
 func _on_settings_title_requested() -> void:
-	get_tree().change_scene_to_file("res://scenes/menu.tscn")
+	SceneTransition.change_scene("res://scenes/menu.tscn")
 
 
 func _on_selection_cleared() -> void:

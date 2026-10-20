@@ -30,6 +30,10 @@ var _barrel: Barrel = null
 var _attack_range: float = 0.0
 var _cell: float = 64.0
 var _base_tex: Texture2D = null
+var _chimney_tex: Dictionary = {} # allele -> Texture2D（贴图必须在 setup 里加载：_draw 内 load 渲染成白块）
+var _crate_tex: Texture2D = null
+var _beacon_tex: Texture2D = null
+var _antenna_tex: Texture2D = null
 
 
 ## 炮管子图层：绕自身原点（格心）旋转，朝向目标（FactoryView._process 驱动）。
@@ -57,6 +61,13 @@ func setup(w, eid: int) -> void:
 		push_warning("[工厂视图] 实体 %d 无 Factory 组件" % eid)
 		return
 	_base_tex = Art.tex(str(Art.PARTS["base"]))
+	# 部件贴图统一在此加载（_draw 里 load 会渲染成白色矩形，见上方成员注释）
+	for allele in Art.CHIMNEY:
+		_chimney_tex[str(allele)] = Art.tex(str(Art.CHIMNEY[allele]))
+	_chimney_tex["__fallback"] = Art.tex(str(Art.CHIMNEY_FALLBACK))
+	_crate_tex = Art.tex(str(Art.PARTS["crate"]))
+	_beacon_tex = Art.tex(str(Art.PARTS["beacon"]))
+	_antenna_tex = Art.tex(str(Art.PARTS["antenna"]))
 	_parts = parts_for(fac.genome, w.config.genes)
 	var atk = w.get_component(eid, &"Attack")
 	if atk != null:
@@ -144,29 +155,26 @@ func _draw() -> void:
 		var allele := str(p["allele"])
 		match str(p["kind"]):
 			"chimney": # 生产设施：右上角烟囱（贴图按等位基因取色，见 Art.CHIMNEY）
-				var ctex: Texture2D = Art.tex(str(Art.CHIMNEY.get(allele, Art.CHIMNEY_FALLBACK)))
+				var ctex: Texture2D = _chimney_tex.get(allele, _chimney_tex.get("__fallback", null))
 				if ctex != null:
 					var ps := s * 0.45
 					draw_texture_rect(ctex, Rect2(s * 0.12, -s * 0.72, ps, ps), false)
 			"crate": # 缓冲：左下料箱（s/m/l 档位缩放贴图）
-				var btex: Texture2D = Art.tex(str(Art.PARTS["crate"]))
-				if btex != null:
+				if _crate_tex != null:
 					var cscale: float = { "s": 0.28, "m": 0.36, "l": 0.44 }.get(allele, 0.36)
 					var cs := s * cscale
-					draw_texture_rect(btex, Rect2(-s * 0.5, s * 0.5 - cs, cs, cs), false)
+					draw_texture_rect(_crate_tex, Rect2(-s * 0.5, s * 0.5 - cs, cs, cs), false)
 			"beacon": # 光环装置：顶部信标
-				var etex: Texture2D = Art.tex(str(Art.PARTS["beacon"]))
-				if etex != null:
+				if _beacon_tex != null:
 					var es := s * 0.34
-					draw_texture_rect(etex, Rect2(-es * 0.5, -s * 0.5 - es * 0.6, es, es), false)
+					draw_texture_rect(_beacon_tex, Rect2(-es * 0.5, -s * 0.5 - es * 0.6, es, es), false)
 			"aura_ring": # 光环半径指示（美术需求表 §8，保留矢量弧）
 				draw_arc(Vector2.ZERO, float(p["radius"]), 0.0, TAU, 48, Color(color_of(allele), 0.45), 2.0)
 			"antenna": # 冗余基因天线：沿底座上沿排开
-				var atex: Texture2D = Art.tex(str(Art.PARTS["antenna"]))
-				if atex != null:
+				if _antenna_tex != null:
 					var ax := (-0.3 + 0.2 * antenna_i) * s
 					var asz := s * 0.3
-					draw_texture_rect(atex, Rect2(ax - asz * 0.5, -s * 0.5 - asz, asz, asz), false)
+					draw_texture_rect(_antenna_tex, Rect2(ax - asz * 0.5, -s * 0.5 - asz, asz, asz), false)
 				antenna_i += 1
 
 
