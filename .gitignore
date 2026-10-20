@@ -31,3 +31,6 @@ addons/godot_ai/
 docs/
 
 dist/
+
+# 本机 headless 测试用的 Godot 路径（不入库）
+.godotpath
