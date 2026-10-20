@@ -383,8 +383,6 @@ func _parse_genes(data, src: String) -> void:
 	var mut: Dictionary = mut_raw if mut_raw is Dictionary else {}
 	genes = {
 		"loci": out_loci,
-		"gamete_keep": clampf(_num_or(root.get("gamete_keep", null), 0.5), 0.0, 1.0),
-		"crossover": clampf(_num_or(root.get("crossover", null), 0.5), 0.0, 1.0),
 		"mutation": {
 			"rate": _num_or(mut.get("rate", null), 0.05),
 			"redundant_rate": _num_or(mut.get("redundant_rate", null), 0.2),
@@ -408,7 +406,9 @@ func _parse_param_specs(ctx: String, raw: Dictionary) -> Dictionary:
 	return out
 
 
-## 蓝图基因组校验：座数一致、等位基因已定义、参数键/范围合法。返回归一化基因组或 null。
+## 蓝图基因组校验：座数一致、碱基已声明、参数键/范围合法。返回归一化基因组或 null。
+## bases 支持 1~2 个字母：单字母 = 纯合（归一化为双写），两个不同字母 = 该座两种特性都表达。
+## params 绑第一个字母、alt_params 绑第二个字母；数值座（stats）杂合时必须给 alt_params。
 func _validate_genome(ctx: String, v):
 	var loci: Array = genes.get("loci", [])
 	if loci.is_empty():
@@ -431,59 +431,79 @@ func _validate_genome(ctx: String, v):
 			_err("%s: 空座写 null，有基因写 {allele 或 bases, params}" % lctx)
 			return null
 		var locus: Dictionary = loci[idx]
-		# 输入三档：只有 allele（作者可读格式）/ 只有 bases / 两者（须一致）；输出统一 bases。
+		# 输入三档：只有 allele（作者可读格式）/ 只有 bases / 两者（主字母须一致）；输出统一 bases 对。
 		var allele := str(entry.get("allele", ""))
 		var bases := str(entry.get("bases", ""))
 		if allele.is_empty() and bases.is_empty():
 			_err("%s: 空座写 null，有基因写 {allele 或 bases, params}" % lctx)
 			return null
+		var codes: Array = GenomeScript.base_codes(locus)
 		if not allele.is_empty():
 			var from_allele := GenomeScript.bases_of_allele(locus, allele)
 			if from_allele.is_empty():
-				_err("%s: 等位基因 '%s' 未在座 '%s' 定义（可选 code: %s）" % [lctx, allele, str(locus.get("id", idx)), str(_codes_of(locus))])
+				_err("%s: 等位基因 '%s' 未在座 '%s' 定义（可选 code: %s）" % [lctx, allele, str(locus.get("id", idx)), str(codes)])
 				return null
-			if not bases.is_empty() and bases != from_allele:
-				_err("%s: bases '%s' 与 allele '%s' 不一致（应为 '%s'）" % [lctx, bases, allele, from_allele])
+			if bases.is_empty():
+				bases = from_allele
+			elif bases.substr(0, 1) != from_allele:
+				_err("%s: bases '%s' 与 allele '%s' 不一致（主字母应为 '%s'）" % [lctx, bases, allele, from_allele])
 				return null
-			bases = from_allele
-		var decoded := GenomeScript.allele_of_bases(locus, bases)
-		if decoded.is_empty():
-			_err("%s: bases '%s' 未在座 '%s' 声明（可选 code: %s）" % [lctx, bases, str(locus.get("id", idx)), str(_codes_of(locus))])
+		var ls: Array = GenomeScript.letters({ "bases": bases })
+		if ls.is_empty() or ls.size() > 2:
+			_err("%s: bases '%s' 应为 1~2 个已声明碱基（可选 code: %s）" % [lctx, bases, str(codes)])
 			return null
-		if not allele.is_empty() and allele != decoded:
-			_err("%s: bases '%s' 与 allele '%s' 不一致（应为 '%s'）" % [lctx, bases, allele, decoded])
-			return null
-		allele = decoded
-		var params := {}
-		if entry.has("params"):
-			if not (entry["params"] is Dictionary):
-				_err("%s.params: 应为对象" % lctx)
+		for letter in ls:
+			if not (str(letter) in codes):
+				_err("%s: bases '%s' 含未在座 '%s' 声明的碱基（可选 code: %s）" % [lctx, bases, str(locus.get("id", idx)), str(codes)])
 				return null
-			var declared: Dictionary = locus.get("params", {})
-			for k in entry["params"]:
-				if not declared.has(str(k)):
-					_err("%s.params: 座 '%s' 未定义参数 '%s'" % [lctx, str(locus.get("id", idx)), str(k)])
-					continue
-				var pv = entry["params"][k]
-				if not (pv is int or pv is float):
-					_err("%s.params.%s: 应为数值" % [lctx, str(k)])
-					continue
-				var spec: Dictionary = declared[str(k)]
-				if float(pv) < float(spec["min"]) or float(pv) > float(spec["max"]):
-					_err("%s.params.%s: %s 超出范围 [%s, %s]" % [lctx, str(k), str(pv), str(spec["min"]), str(spec["max"])])
-					continue
-				params[str(k)] = float(pv)
-		out.append({ "bases": GenomeScript.bases_of_allele(locus, allele), "params": params })
+		var pair := str(ls[0])
+		pair = pair + (str(ls[1]) if ls.size() >= 2 else str(ls[0])) # 单字母 → 纯合双写
+		if str(locus.get("kind", "")) == "stats" and pair.substr(0, 1) != pair.substr(1, 1) \
+				and not entry.has("alt_params"):
+			_err("%s: 数值座杂合（%s）必须提供 alt_params（两条攻击通道各自的数值）" % [lctx, pair])
+			return null
+		var params = _validate_params(lctx + ".params", locus, entry.get("params", null))
+		if params == null:
+			return null
+		var alt_params = _validate_params(lctx + ".alt_params", locus, entry.get("alt_params", null))
+		if alt_params == null:
+			return null
+		var norm := { "bases": pair, "params": params }
+		if not alt_params.is_empty():
+			norm["alt_params"] = alt_params
+		out.append(norm)
+	return out
+
+
+## 参数块校验：只收座声明过的键、数值、落在 [min,max] 内；缺省返回 {}，非对象返回 null。
+## 越界的键只记错误并跳过（_errors 非空时 load_all 整体失败，不会带病加载）。
+func _validate_params(ctx: String, locus: Dictionary, raw):
+	if raw == null:
+		return {}
+	if not (raw is Dictionary):
+		_err("%s: 应为对象" % ctx)
+		return null
+	var declared: Dictionary = locus.get("params", {})
+	var out := {}
+	for k in raw:
+		if not declared.has(str(k)):
+			_err("%s: 座 '%s' 未定义参数 '%s'" % [ctx, str(locus.get("id", "")), str(k)])
+			continue
+		var pv = raw[k]
+		if not (pv is int or pv is float):
+			_err("%s.%s: 应为数值" % [ctx, str(k)])
+			continue
+		var spec: Dictionary = declared[str(k)]
+		if float(pv) < float(spec["min"]) or float(pv) > float(spec["max"]):
+			_err("%s.%s: %s 超出范围 [%s, %s]" % [ctx, str(k), str(pv), str(spec["min"]), str(spec["max"])])
+			continue
+		out[str(k)] = float(pv)
 	return out
 
 
 ## 座的全部 code 列表（校验报错提示用）。
 func _codes_of(locus: Dictionary) -> Array:
-	var alleles: Dictionary = locus.get("alleles", {})
-	var out := []
-	for a in alleles:
-		out.append(str((alleles[a] as Dictionary).get("code", "")))
-	return out
+	return GenomeScript.base_codes(locus)
 
 
 ## 等位基因 payload 交叉引用：射弹/配方/效果 id 必须已定义（在 projectiles 解析后调用）。

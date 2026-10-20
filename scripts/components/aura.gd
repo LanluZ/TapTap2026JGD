@@ -6,3 +6,4 @@ extends Component
 var radius: float = 0.0 # 世界单位半径
 var effect_id: StringName = &"" # buffs.json 中的效果 id
 var target_mask: int = 0 # 目标位掩码（GameConfig.MASK_*）
+var alt: Dictionary = {} # 第二光环 {radius, effect_id, target_mask}；空 = 单光环

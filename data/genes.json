@@ -1,6 +1,4 @@
 {
-	"gamete_keep": 0.5,
-	"crossover": 0.5,
 	"mutation": {
 		"rate": 0.05,
 		"redundant_rate": 0.2,
@@ -36,6 +34,8 @@
 			"kind": "stats",
 			"allele_id": "stats",
 			"allele_code": "A",
+			"alt_allele_id": "stats_alt",
+			"alt_code": "T",
 			"params": {
 				"damage": {
 					"default": 6,
