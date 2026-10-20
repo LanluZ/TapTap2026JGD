@@ -291,9 +291,9 @@ func _run() -> int:
 	_ok(GenomeScript.phenotype_name(named, config.genes) == "采矿轻炮", "采矿+轻炮 → 采矿轻炮（策划案15.9示例）")
 	_ok(GenomeScript.phenotype_name([null, null, null, null, null, null, null, null, null], config.genes) == "空机", "空基因组 → 空机")
 	var bl: Array = GenomeScript.base_letters(turret_genome, config.genes)
-	_ok(bl.size() == 9 and String(bl[0]) != "—" and String(bl[2]) == "—" and String(bl[0]).length() == 1,
-		"碱基链 9 位：有基因为单字母、空座为—")
-	_ok(String(bl[4]) == "A", "碱基链第 5 位 = 亲水座（炮塔喜水 A）")
+	_ok(bl.size() == 9 and String(bl[0]) == "AA" and String(bl[2]) == "—" and String(bl[0]).length() == 2,
+		"碱基链 9 位：有基因为一对碱基（2 字母）、空座为—")
+	_ok(String(bl[4]) == "AA", "碱基链第 5 位 = 亲水座（炮塔喜水纯合 AA）")
 	_ok(bl[0] == GenomeScript.base_letters(turret_genome, config.genes)[0], "碱基编码确定性（同基因同碱基）")
 	_ok(GenomeScript.complement("A") == "T" and GenomeScript.complement("C") == "G"
 		and GenomeScript.complement("T") == "A" and GenomeScript.complement("G") == "C"
@@ -329,7 +329,7 @@ func _run() -> int:
 			proj = str(s["projectile"])
 	_ok(proj == "ore_heavy", "改碱基即改武器：射弹 ore_shot → ore_heavy")
 	var bl2: Array = GenomeScript.base_letters(g_edit, config.genes)
-	_ok(bl2[0] == "T", "碱基链跟随基因型（座0 = T）")
+	_ok(bl2[0] == "TT", "碱基链跟随基因型（座0 = TT，单字母按纯合双写）")
 	_ok(GenomeScript.bases_of_allele(config.genes["loci"][0], "shot_light") == "A"
 		and GenomeScript.bases_of_allele(config.genes["loci"][0], "shot_heavy") == "T",
 		"反向查表：等位基因 → 碱基")
@@ -337,9 +337,9 @@ func _run() -> int:
 	print("== T14: 归一化与非法输入校验 ==")
 	var n9: Array = [null, null, null, null, null, null, null, null, null]
 	var only_allele = config._validate_genome("t14", [{ "allele": "shot_light" }] + n9.slice(1))
-	_ok(only_allele is Array and str((only_allele[0] as Dictionary).get("bases", "")) == "A"
+	_ok(only_allele is Array and str((only_allele[0] as Dictionary).get("bases", "")) == "AA"
 		and not (only_allele[0] as Dictionary).has("allele"),
-		"作者格式 allele 归一化为 bases（shot_light→A），不残留 allele 键")
+		"作者格式 allele 归一化为 bases（shot_light→AA 纯合双写），不残留 allele 键")
 	var both_ok = config._validate_genome("t14", [{ "allele": "shot_light", "bases": "A" }] + n9.slice(1))
 	_ok(both_ok is Array, "bases 与 allele 一致 → 通过")
 	var bad_bases = config._validate_genome("t14", [{ "bases": "X" }] + n9.slice(1))
@@ -348,21 +348,177 @@ func _run() -> int:
 	_ok(bad_code == null, "座0 未声明的 code G 拒收（攻击座只定义 A/T）")
 	var bad_conflict = config._validate_genome("t14", [{ "allele": "shot_light", "bases": "T" }] + n9.slice(1))
 	_ok(bad_conflict == null, "bases 与 allele 冲突拒收")
-	var bad_stats = config._validate_genome("t14", [null, { "bases": "T" }, null, null, null, null, null, null, null])
-	_ok(bad_stats == null, "数值座碱基非 allele_code 拒收（座1 只有 A）")
+	var bad_stats = config._validate_genome("t14", [null, { "bases": "G" }, null, null, null, null, null, null, null])
+	_ok(bad_stats == null, "数值座未声明碱基 G 拒收（座1 声明 A/T）")
 	var bad_hydro = config._validate_genome("t14", [null, null, null, null, { "bases": "G" }, null, null, null, null])
 	_ok(bad_hydro == null, "亲水座未声明的 code G 拒收（亲水座只定义 A/T/C）")
 	var hydro_ok = config._validate_genome("t14", [null, null, null, null, { "allele": "hydro_thirsty" }, null, null, null, null])
-	_ok(hydro_ok is Array and str((hydro_ok[4] as Dictionary).get("bases", "")) == "T",
-		"亲水座作者格式 allele 归一化为 bases（hydro_thirsty→T）")
+	_ok(hydro_ok is Array and str((hydro_ok[4] as Dictionary).get("bases", "")) == "TT",
+		"亲水座作者格式 allele 归一化为 bases（hydro_thirsty→TT 纯合双写）")
 	_ok(GenomeScript.price_of(turret_genome, config.genes).get("parts", 0) == 14
 		and GenomeScript.price_of(config.blueprints[&"assembler"]["genome"], config.genes).get("parts", 0) == 12
 		and GenomeScript.price_of(config.blueprints[&"gun_turret_heavy"]["genome"], config.genes).get("parts", 0) == 12
 		and GenomeScript.price_of(config.blueprints[&"generator"]["genome"], config.genes).is_empty(),
 		"亲水价计入蓝图费（炮塔 14 / 装配台 12 / 重炮塔 12 / 发电机 0）")
 
+	_t15_diploid(config)
+
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return 0 if _failures == 0 else _failures
+
+
+# ================================================================ T15 二倍体（一对碱基）
+
+## 二倍体规格（commit dd9ad0c）：每座一对碱基。
+## 杂合（"AT"）= 两个等位基因都表达 → 组件多一条 alt 通道；纯合（"AA"）= 单通道。
+## 遗传：双方都有该座 → 各出 1 碱基凑一对（必然杂合）；一方空 → 整对搬入。
+## 价格：每座只计一次（取第一个字母），杂合不加价。
+func _t15_diploid(config) -> void:
+	print("== T15: 二倍体——杂合表达 / 整对遗传 / 价格每座一次 / 命名拼接 / 序列文本 ==")
+	# 遗传断言用「零突变」基因表，把随机漂移从基因型断言里排除（可复现性另用同种子验证）
+	var genes_nm: Dictionary = _genes_no_mutation(config.genes)
+
+	# —— (a) 杂合解码：手工基因组座0 {"bases":"AT"} → 两个等位基因 + express 输出 alt ——
+	var het0: Array = _genome_of({ 0: { "bases": "AT" } })
+	var al0: Array = GenomeScript.alleles_at(het0[0], 0, config.genes)
+	_ok(al0.size() == 2 and str(al0[0]) == "shot_light" and str(al0[1]) == "shot_heavy",
+		"杂合座 0（AT）解码出两个等位基因 shot_light / shot_heavy（实际 %s）" % str(al0))
+	_ok(GenomeScript.allele_at(het0[0], 0, config.genes) == "shot_light",
+		"主字母解码（allele_at）仍取第一个字母 shot_light")
+	var atk_het: Dictionary = _spec_of(GenomeScript.express(het0, config.genes, "t15", "杂合"), "Attack")
+	_ok(str(atk_het.get("projectile", "")) == "ore_shot"
+		and str((atk_het.get("alt", {}) as Dictionary).get("projectile", "")) == "ore_heavy",
+		"杂合攻击座 → 主通道 ore_shot + alt 通道 ore_heavy（两种特性都表达）")
+	_ok(not (atk_het.get("alt", {}) as Dictionary).has("type"),
+		"alt 是组件内嵌子字典（不带 type，组件仍只有一个实体）")
+	var pure_atk: Dictionary = _spec_of(GenomeScript.express(_genome_of({ 0: { "bases": "A" } }),
+		config.genes, "t15", "纯合"), "Attack")
+	_ok(not pure_atk.has("alt"), "单字母/纯合座 → 无 alt（走单通道原路径）")
+
+	# —— (b) 数值座杂合：params 绑第一个字母、alt_params 绑第二个字母 ——
+	var full_het: Array = _genome_of({
+		0: { "bases": "AT" },
+		1: { "bases": "AT", "params": { "damage": 5.0 }, "alt_params": { "damage": 9.0 } },
+	})
+	var v_het = config._validate_genome("t15", full_het)
+	_ok(v_het is Array and str((v_het[0] as Dictionary).get("bases", "")) == "AT"
+		and str((v_het[1] as Dictionary).get("bases", "")) == "AT",
+		"校验通过且杂合对原样保留（AT 不被拆开、不被单写）")
+	_ok(str(GenomeScript.base_codes(config.genes["loci"][1])) == "[\"A\", \"T\"]",
+		"数值座声明的碱基码 = [allele_code, alt_code]（实际 %s）"
+		% str(GenomeScript.base_codes(config.genes["loci"][1])))
+	var atk_n: Dictionary = _spec_of(GenomeScript.express(full_het, config.genes, "t15n", "数值"), "Attack")
+	_ok(atk_n.has("alt")
+		and is_equal_approx(float(atk_n.get("damage", 0.0)), 5.0)
+		and is_equal_approx(float((atk_n.get("alt", {}) as Dictionary).get("damage", 0.0)), 9.0),
+		"数值座杂合：主通道用 params(5)、alt 通道用 alt_params(9)")
+	_ok(config._validate_genome("t15", _genome_of({ 1: { "bases": "AT" } })) == null,
+		"数值座杂合但缺 alt_params → 拒收（两条通道必须各有数值）")
+
+	# —— (c) 空座整对搬入：亲本 A 有基因、B 空 → 子代该座 = A 的整对（纯合）——
+	var pa: Array = _genome_of({ 0: { "bases": "AA" } })
+	var pb: Array = _genome_of({})
+	var rng_a := RandomNumberGenerator.new()
+	rng_a.seed = 2026
+	var c_a: Array = GenomeScript.breed(pa, pb, genes_nm, rng_a)
+	_ok(c_a.size() == 9 and str((c_a[0] as Dictionary).get("bases", "")) == "AA",
+		"一方空座 → 子代整对搬入（AA 原样搬入，纯合；实际 %s）"
+		% str((c_a[0] as Dictionary).get("bases", "null")))
+	_ok(not _spec_of(GenomeScript.express(c_a, config.genes, "t15c", "搬入"), "Attack").has("alt"),
+		"整对搬入的子代是纯合 → 组件走单通道（无 alt）")
+	var rng_a2 := RandomNumberGenerator.new()
+	rng_a2.seed = 2026
+	_ok(JSON.stringify(c_a) == JSON.stringify(GenomeScript.breed(pa, pb, genes_nm, rng_a2)),
+		"空座搬入 + 同种子 → 同子代（可复现）")
+	# 旧单字母亲本（"A"）搬进空座后仍按纯合语义= 碱基链双写、单通道（功能不丢）
+	var pa_legacy: Array = _genome_of({ 0: { "bases": "A" } })
+	var rng_al := RandomNumberGenerator.new()
+	rng_al.seed = 11
+	var c_al: Array = GenomeScript.breed(pa_legacy, pb, genes_nm, rng_al)
+	_ok(String(GenomeScript.base_letters(c_al, config.genes)[0]) == "AA"
+		and not _spec_of(GenomeScript.express(c_al, config.genes, "t15cl", "旧式"), "Attack").has("alt"),
+		"旧单字母亲本搬入空座 → 碱基链显示 AA、单通道（纯合语义不丢）")
+
+	# —— (d) 双方都有不同基因 → 各出 1 碱基凑一对（必然杂合）→ express 有 alt ——
+	var p_light: Array = _genome_of({ 0: { "bases": "AA" } })
+	var p_heavy: Array = _genome_of({ 0: { "bases": "TT" } })
+	var rng_d := RandomNumberGenerator.new()
+	rng_d.seed = 7
+	var c_d: Array = GenomeScript.breed(p_light, p_heavy, genes_nm, rng_d)
+	_ok(str((c_d[0] as Dictionary).get("bases", "")) == "AT",
+		"双方都有该座 → 各出 1 碱基凑成一对（AA×TT → AT，必然杂合；实际 %s）"
+		% str((c_d[0] as Dictionary).get("bases", "null")))
+	var atk_d: Dictionary = _spec_of(GenomeScript.express(c_d, config.genes, "t15d", "杂合子"), "Attack")
+	_ok(atk_d.has("alt") and str((atk_d["alt"] as Dictionary).get("projectile", "")) == "ore_heavy",
+		"杂合子代表达出 alt 通道（两条攻击特性同时生效）")
+	var empty_ok := true
+	for i in range(1, 9):
+		if c_a[i] != null:
+			empty_ok = false
+	_ok(empty_ok, "双方都空的 8 座仍为空（不凭空造基因）")
+
+	# —— (e) 价格每座只计一次价：杂合不加价 ——
+	var price_pure: Dictionary = GenomeScript.price_of(_genome_of({ 0: { "bases": "AA" } }), config.genes)
+	var price_single: Dictionary = GenomeScript.price_of(_genome_of({ 0: { "bases": "A" } }), config.genes)
+	var price_het: Dictionary = GenomeScript.price_of(_genome_of({ 0: { "bases": "AT" } }), config.genes)
+	_ok(int(price_het.get("parts", 0)) == 10 and price_het == price_pure and price_het == price_single,
+		"同一座 AT / AA / A 同价（parts 10，杂合不加价；实际 %s）" % str(price_het))
+	var price_aura_het: Dictionary = GenomeScript.price_of(_genome_of({ 3: { "bases": "AT" } }), config.genes)
+	_ok(int(price_aura_het.get("parts", 0)) == 5 and not price_aura_het.has("special_material"),
+		"光环座杂合（AT）只按第一个字母计价（parts 5，不叠加 special_material；实际 %s）"
+		% str(price_aura_het))
+
+	# —— (f) 表型命名拼接：光环 AA + 攻击 AT → 两个攻击 label 都拼进名字 ——
+	var named_het: Array = _genome_of({ 3: { "bases": "AA" }, 0: { "bases": "AT" } })
+	var nm_het: String = GenomeScript.phenotype_name(named_het, config.genes)
+	_ok(nm_het == "缓速轻炮重炮" and nm_het.find("轻炮") != -1 and nm_het.find("重炮") != -1,
+		"光环 AA + 攻击 AT → 表型名含两个攻击 label（实际 %s）" % nm_het)
+
+	# —— (g) sequence_text：杂合座同名列两个等位基因 + params/alt_params 并列 ——
+	var seq_genome: Array = _genome_of({
+		0: { "bases": "AT" },
+		1: { "bases": "AT", "params": { "damage": 5.0 }, "alt_params": { "damage": 9.0 } },
+	})
+	var seq_het: String = GenomeScript.sequence_text(seq_genome, config.genes)
+	_ok(seq_het.find("shot_light/shot_heavy") != -1,
+		"序列文本杂合座列出两个等位基因（shot_light/shot_heavy）")
+	_ok(seq_het.find("damage=5") != -1 and seq_het.find("alt_damage=9") != -1,
+		"序列文本同座并列 params 与 alt_params（damage=5 / alt_damage=9）")
+
+	# —— (h) 亲水座杂合 AT = 喜水 + 嗜水两条水基因同时挂上组件 ——
+	var hydro_het: Array = _genome_of({ 0: { "bases": "AA" }, 4: { "bases": "AT" } })
+	var hp: Array = GenomeScript.hydro_pair_of(hydro_het, config.genes)
+	_ok(str(hp[0]) == "hydro_love" and str(hp[1]) == "hydro_thirsty",
+		"亲水座 AT → 两条水基因 [喜水, 嗜水]（实际 %s）" % str(hp))
+	var atk_h: Dictionary = _spec_of(GenomeScript.express(hydro_het, config.genes, "t15h", "双水"), "Attack")
+	_ok(str(atk_h.get("hydro", "")) == "hydro_love" and str(atk_h.get("hydro2", "")) == "hydro_thirsty",
+		"Attack spec 同时带 hydro（喜水）+ hydro2（嗜水）")
+	var atk_comp = GameConfig.make_component("Attack", atk_het)
+	_ok(atk_comp != null and is_equal_approx(float((atk_comp.alt as Dictionary).get("damage", 0.0)), 6.0),
+		"make_component 把 alt 子字典装进 Attack.alt（组件侧可读第二通道）")
+
+
+func _genes_no_mutation(genes: Dictionary) -> Dictionary:
+	var g: Dictionary = genes.duplicate(true)
+	g["mutation"] = { "rate": 0.0, "redundant_rate": 0.0, "drift": 0.15 }
+	return g
+
+
+## 9 座空基因组，按 {座号: entry} 填座。
+func _genome_of(slots: Dictionary) -> Array:
+	var g: Array = []
+	g.resize(9)
+	for i in 9:
+		g[i] = slots.get(i, null)
+	return g
+
+
+func _spec_of(specs: Array, type_name: String) -> Dictionary:
+	for s in specs:
+		if s is Dictionary and str((s as Dictionary).get("type", "")) == type_name:
+			return s
+	return {}
+
 
 
 # ================================================================ 辅助

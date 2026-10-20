@@ -129,6 +129,7 @@ func _run() -> int:
 	_t5_no_pool()
 	_t6_deliver_routing()
 	_t7_no_tick_deliver()
+	_t8_hetero_production()
 
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return _failures
@@ -357,3 +358,95 @@ func _t7_no_tick_deliver() -> void:
 	# 反过来：配方不吃矿的实体（发电机）在同样路径下仍拒收
 	var gen: int = _spawn_without_tick(w, "generator", Vector2i(6, 3))
 	_ok(gen != 0 and not w.deliver_ore(gen), "未跑 tick 的发电机仍拒收（配方无矿堆进料）")
+
+
+# ================================================================ T8 杂合生产座（双配方）
+
+## 二倍体生产座（"AT"/"TC"）在系统层的行为：
+##   ① 两条配方并行推进：各自 active / progress，互不覆盖；
+##   ② 共用同一份 ResourceBuffer / 物流本地缓冲容量（物理产出满 4 → 两路都不开工）。
+func _t8_hetero_production() -> void:
+	print("== T8: 杂合生产座——双配方并行推进各自进度 / 共用本地缓冲容量 ==")
+	# (a) 座2 = AT（发电 + 抽水）：两条配方并行，进度各自推进
+	var w = _new_world()
+	_grant(w)
+	_register_blueprint("t_het_prod", _genome_of({ 2: { "bases": "AT" } }))
+	var id: int = _place_factory_at(w, "t_het_prod", Vector2i(4, 3))
+	_config.blueprints.erase(&"t_het_prod")
+	var prod = w.get_component(id, &"Production")
+	_ok(id != 0 and prod != null and not (prod.alt as Dictionary).is_empty(),
+		"杂合生产座落地 → Production.alt 第二配方存在（%s）" % str(prod.alt))
+	_ok(String(prod.recipe_id) == "generate_power"
+		and str((prod.alt as Dictionary).get("recipe_id", "")) == "pump_water",
+		"座2 = AT → 主通道发电、alt 通道抽水")
+	var lg = _logi(w)
+	# 故意给两条通道不同周期：主 5.0 秒（慢）、alt 1.0 秒（快）——各自进度才看得出来
+	prod.interval = 5.0
+	prod.alt["interval"] = 1.0
+	prod.active = false
+	prod.progress = 0.0
+	prod.alt["active"] = false
+	prod.alt["progress"] = 0.0
+	w.tick(DT)
+	_ok(prod.active and bool(prod.alt.get("active", false)),
+		"两条配方同帧各自开产（active 各自独立，互不覆盖）")
+	# 跑到快通道出产为止（dt=0.1 浮点累加，1.0s 需 11 tick 才 >= 阈值）
+	var alt_out := false
+	for i in 40:
+		w.tick(DT)
+		if lg.buffer_of(id) >= 1:
+			alt_out = true
+			break
+	_ok(alt_out, "快通道（1.0s 抽水）已先出产到本地缓冲（%d）" % lg.buffer_of(id))
+	_ok(float(prod.progress) < 5.0 and prod.active,
+		"慢通道（5.0s）仍在第一周期内（progress %.2f < 5.0）" % float(prod.progress))
+	_ok(float(prod.alt.get("progress", 9.0)) < float(prod.progress),
+		"两通道进度各自独立（快通道跑完一轮已重置：主 %.2f / alt %.2f）"
+		% [float(prod.progress), float(prod.alt.get("progress", -1.0))])
+
+	# (b) 座2 = TC（抽水 + 采矿）：两路都出物理资源 → 挤同一个容量 4 的本地缓冲
+	var w2 = _new_world()
+	_grant(w2)
+	w2.state.resources[&"power"] = 20
+	_register_blueprint("t_het_stall", _genome_of({ 2: { "bases": "TC" } }))
+	var id2: int = _place_factory_at(w2, "t_het_stall", Vector2i(4, 3))
+	_config.blueprints.erase(&"t_het_stall")
+	var prod2 = w2.get_component(id2, &"Production")
+	var lg2 = _logi(w2)
+	_ok(String(prod2.recipe_id) == "pump_water"
+		and str((prod2.alt as Dictionary).get("recipe_id", "")) == "mine_ore",
+		"座2 = TC → 主通道抽水、alt 通道采矿（两路产出都是物理资源）")
+	var both_active := false
+	for i in 100: # 10 秒 ≫ 两条通道周期
+		w2.tick(DT)
+		if prod2.active and bool(prod2.alt.get("active", false)):
+			both_active = true
+	_ok(both_active, "两路曾同帧同时开产（共用一份缓冲仍可并行）")
+	_ok(lg2.buffer_of(id2) == 4, "两路产出一起挤本地缓冲，积满容量 4（实际 %d）" % lg2.buffer_of(id2))
+	_ok(lg2.buffer_full(id2), "buffer_full 判据为真（停产依据）")
+	_ok(not prod2.active and not bool(prod2.alt.get("active", false)),
+		"缓冲满 → 两条配方都不开工（共享容量）")
+	var power_at: int = w2.state.get_amount(&"power")
+	_ticks(w2, 30)
+	_ok(w2.state.get_amount(&"power") == power_at,
+		"缓冲满后两路都不扣电（电力停在 %d）" % w2.state.get_amount(&"power"))
+	_ok(lg2.buffer_of(id2) == 4, "缓冲满后不溢出（仍 %d）" % lg2.buffer_of(id2))
+
+
+## 9 座空基因组（{座号: entry}）。
+func _genome_of(slots: Dictionary) -> Array:
+	var g: Array = []
+	g.resize(9)
+	for i in 9:
+		g[i] = slots.get(i, null)
+	return g
+
+
+## 临时蓝图注册（拷发电机蓝图：有 Production + ResourceBuffer，cost 置空）；用后由调用方 erase。
+func _register_blueprint(bid: String, genome: Array) -> void:
+	var bp: Dictionary = _config.blueprints[&"generator"].duplicate(true)
+	bp["id"] = StringName(bid)
+	bp["name"] = bid
+	bp["cost"] = {}
+	bp["genome"] = genome
+	_config.blueprints[StringName(bid)] = bp

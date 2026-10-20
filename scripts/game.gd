@@ -568,6 +568,8 @@ func _format_cost(cost: Dictionary) -> String:
 
 ## 碱基链 + 染色体编号 → DNA 检视载荷；座名只给染色体序号（01/02…），
 ## 融合规则不进 UI（见 策划案 15.3），工厂卡 rules 留空即隐藏规则区。
+## bases 每项 = 该座一对碱基（Genome.base_letters：杂合 "AT" / 纯合 "AA" / 空座 "—"），
+## 检视预制体按每座一行逐字母上色；座数徽章仍按「有基因的座数/总座数」计。
 func _build_dna_ui(title: String, genome: Array, debug_text: String, art_path: String = "") -> Dictionary:
 	var locus_names := []
 	for i in config.genes.get("loci", []).size():

@@ -25,17 +25,29 @@ func tick(world, dt: float) -> void:
 		var origin = EntityLocator.position(world, aid)
 		if origin == null:
 			continue
-		var def: Dictionary = world.config.get_effect(aura.effect_id)
-		if def.is_empty():
-			continue # get_effect 已报错
-		var stat_id: StringName = def["stat_id"]
-		var value: float = def["value"]
-		var duration: float = def["duration"]
-		var mask: int = aura.target_mask
-		if (mask & GameConfig.MASK_ENEMY) != 0:
-			_apply_to_group(world, aid, origin, aura.radius, &"Enemy", stat_id, value, duration)
-		if (mask & GameConfig.MASK_FACTORY) != 0:
-			_apply_to_group(world, aid, origin, aura.radius, &"Factory", stat_id, value, duration)
+		# 主光环（纯合 = 唯一一圈，路径与改动前一致）
+		_apply_aura(world, aid, origin, aura.radius, aura.effect_id, aura.target_mask)
+		# 第二光环（杂合座）：两圈同时施放，各自半径/效果/掩码
+		if not aura.alt.is_empty():
+			_apply_aura(world, aid, origin,
+				float(aura.alt.get("radius", aura.radius)),
+				StringName(aura.alt.get("effect_id", aura.effect_id)),
+				int(aura.alt.get("target_mask", aura.target_mask)))
+
+
+## 一圈光环：按 target_mask 对敌人/工厂分别施加（_apply_to_group 复用）。
+func _apply_aura(world, aid: int, origin: Vector2, radius: float,
+		effect_id: StringName, mask: int) -> void:
+	var def: Dictionary = world.config.get_effect(effect_id)
+	if def.is_empty():
+		return # get_effect 已报错
+	var stat_id: StringName = def["stat_id"]
+	var value: float = def["value"]
+	var duration: float = def["duration"]
+	if (mask & GameConfig.MASK_ENEMY) != 0:
+		_apply_to_group(world, aid, origin, radius, &"Enemy", stat_id, value, duration)
+	if (mask & GameConfig.MASK_FACTORY) != 0:
+		_apply_to_group(world, aid, origin, radius, &"Factory", stat_id, value, duration)
 
 
 func _apply_to_group(world, source_id: int, origin: Vector2, radius: float,

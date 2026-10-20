@@ -6,6 +6,8 @@ const Art = preload("res://scripts/views/art_registry.gd")
 ## 工厂表现视图（DNA 外形，美术需求表 §2）：按实体基因组拼装部件子图层。
 ## 部件 = 表达出的组件：攻击座→旋转炮管、生产座→烟囱、光环座→信标+半径圈、
 ## 缓冲座→料箱、冗余座→天线（不表达组件但可见，让同源子代长得不一样）。
+## 二倍体：一座一对碱基，杂合（AT）两种特性都表达 → 该座产出两个部件（各自 allele + slot 0/1），
+## 纯合（AA）只产出 1 个，外观与二倍体改动前一致。装置类（信标/料箱）仍只画一个。
 ## 贴图查 art_registry.gd（§2 素材按部件 kind/allele 命名），映射结构不变。
 
 const ALLELE_COLORS := {
@@ -25,8 +27,12 @@ const COLOR_BASE := Color(0.52, 0.58, 0.64)
 
 var world
 var entity_id: int = 0
-var _parts: Array = [] # parts_for 输出：[{kind, allele, ...}]
-var _barrel: Barrel = null
+var _parts: Array = [] # parts_for 输出：[{kind, allele, slot, ...}]
+var _barrels: Array = [] # 炮管子图层数组：杂合攻击座两根（左/右各朝自己锁定的目标）
+## 兼容读口：旧调用点/测试按单根炮管读 _barrel（= 第一根）；只读，装配一律走 _barrels。
+var _barrel: Barrel:
+	get:
+		return _barrels[0] if _barrels.size() > 0 else null
 var _attack_range: float = 0.0
 var _preview_range: float = 0.0 # 放置幽灵的射程圈半径（世界单位）；0 = 真实工厂，不画圈
 var _cell: float = 64.0
@@ -66,7 +72,7 @@ func setup(w, eid: int) -> void:
 	var atk = w.get_component(eid, &"Attack")
 	if atk != null:
 		_attack_range = atk.range
-		_add_barrel(_allele_of("barrel"))
+		_rebuild_barrels()
 	queue_redraw()
 
 
@@ -82,7 +88,7 @@ func setup_blueprint(w, genome: Array, preview_range: float = 0.0) -> void:
 	_preview_range = preview_range
 	if preview_range > 0.0:
 		# 幽灵没有 _process 瞄准：炮口默认朝上（与真实工厂无敌情时一致）
-		_add_barrel(_allele_of("barrel"), true)
+		_rebuild_barrels(true)
 	queue_redraw()
 
 
@@ -97,22 +103,50 @@ func _load_parts() -> void:
 	_antenna_tex = Art.tex(str(Art.PARTS["antenna"]))
 
 
-## 炮管子图层：按等位基因取贴图与尺寸（轻炮 0.42 格 / 重炮 0.5 格）。
+## 炮管子图层装配：部件表里每个 barrel 部件各建一根（杂合攻击座 = 两根，各用自己 projectile 的贴图）。
 ## 幽灵会重复装配（换卡重选）：先释放旧炮管，避免子图层累积叠画。
-func _add_barrel(allele: String, face_up := false) -> void:
-	if _barrel != null:
-		_barrel.free()
-	_barrel = Barrel.new()
-	var heavy := allele == "shot_heavy"
-	_barrel.texture = Art.tex(str(Art.PARTS["barrel_heavy" if heavy else "barrel_light"]))
-	_barrel.size = _cell * (0.5 if heavy else 0.42)
-	if face_up:
-		_barrel.rotation = -PI * 0.5
-	add_child(_barrel)
+## 位置在 _process 里按各自朝向重算（左右错开）；face_up = 无瞄准时朝上。
+func _rebuild_barrels(face_up := false) -> void:
+	for b in _barrels:
+		(b as Node).free()
+	_barrels.clear()
+	var barrel_parts: Array = []
+	for p in _parts:
+		if str(p["kind"]) == "barrel":
+			barrel_parts.append(p)
+	var twin := barrel_parts.size() >= 2
+	var aim := Vector2(0.0, -1.0) # 无敌情默认朝上
+	for i in barrel_parts.size():
+		var p: Dictionary = barrel_parts[i]
+		var b := Barrel.new()
+		var heavy := _is_heavy(str(p["allele"]), str(p.get("projectile", "")))
+		b.texture = Art.tex(str(Art.PARTS["barrel_heavy" if heavy else "barrel_light"]))
+		b.size = _cell * (0.5 if heavy else 0.42)
+		if face_up:
+			b.rotation = -PI * 0.5
+		b.position = aim.orthogonal() * _lateral(i, twin)
+		_barrels.append(b)
+		add_child(b)
+
+
+## 多炮管时的左右错开量（垂直于朝向）：纯合/单炮管恒为 0 → 外观与单炮管时代一致。
+func _lateral(slot: int, twin: bool) -> float:
+	if not twin:
+		return 0.0
+	return _cell * 0.17 * (1.0 if slot == 0 else -1.0)
+
+
+## 轻/重炮判定：优先看弹种（Attack.projectile 同源），弹种缺省时回落等位基因名。
+static func _is_heavy(allele: String, projectile: String) -> bool:
+	if not projectile.is_empty():
+		return projectile.contains("heavy")
+	return allele == "shot_heavy"
 
 
 ## 基因组 → 部件描述数组（纯函数，可 headless 单测）。
 ## kind: barrel / chimney / crate / beacon / aura_ring / antenna。
+## 逐字母产出：杂合座两个字母各出一个部件（slot 0 = 主字母 / 1 = alt），纯合座只出一个。
+## 例外：料箱与信标是「装置」只画一个（slot 0），杂合差异由光环圈/烟囱与检视弹窗体现。
 static func parts_for(genome: Array, genes: Dictionary) -> Array:
 	var loci: Array = genes.get("loci", [])
 	var out: Array = []
@@ -120,25 +154,53 @@ static func parts_for(genome: Array, genes: Dictionary) -> Array:
 		var g = genome[i]
 		if g == null or i >= loci.size():
 			continue
-		var kind := str((loci[i] as Dictionary).get("kind", ""))
-		var allele := GenomeScript.allele_at(g, i, genes)
-		if allele.is_empty():
-			continue
-		match kind:
-			"attack":
-				out.append({ "kind": "barrel", "allele": allele })
-			"production":
-				out.append({ "kind": "chimney", "allele": allele })
-			"aura":
-				out.append({ "kind": "beacon", "allele": allele })
-				var params: Dictionary = (g as Dictionary).get("params", {})
-				out.append({ "kind": "aura_ring", "allele": allele,
-					"radius": float(params.get("radius", 130.0)) })
-			"buffer":
-				out.append({ "kind": "crate", "allele": allele })
-			"redundant":
-				out.append({ "kind": "antenna", "allele": allele })
+		var locus: Dictionary = loci[i]
+		var kind := str(locus.get("kind", ""))
+		var alleles: Array = GenomeScript.alleles_at(g, i, genes)
+		for slot in alleles.size():
+			var allele := str(alleles[slot])
+			if allele.is_empty():
+				continue
+			var params := _slot_params(g, slot)
+			match kind:
+				"attack":
+					out.append({ "kind": "barrel", "allele": allele, "slot": slot,
+						"projectile": str(_payload(locus, allele).get("projectile", "")) })
+				"production":
+					out.append({ "kind": "chimney", "allele": allele, "slot": slot })
+				"aura":
+					if slot == 0:
+						out.append({ "kind": "beacon", "allele": allele, "slot": slot })
+					out.append({ "kind": "aura_ring", "allele": allele, "slot": slot,
+						"radius": float(params.get("radius", _locus_default(locus, "radius", 130.0))) })
+				"buffer":
+					if slot == 0: # 箱子只有一个（缓冲是容量，不是两套装置）
+						out.append({ "kind": "crate", "allele": allele, "slot": slot })
+				"redundant":
+					out.append({ "kind": "antenna", "allele": allele, "slot": slot })
 	return out
+
+
+## 某字母位上的参数：slot 0 读 params、slot 1 读 alt_params；
+## 杂合但没写 alt_params 的基因组回落主值（与 Genome.express 对 stats 的兜底口径一致）。
+static func _slot_params(entry, slot: int) -> Dictionary:
+	if not (entry is Dictionary):
+		return {}
+	var raw = (entry as Dictionary).get("alt_params" if slot > 0 else "params", null)
+	if not (raw is Dictionary) and slot > 0:
+		raw = (entry as Dictionary).get("params", null)
+	return raw if (raw is Dictionary) else {}
+
+
+## 座 + 等位基因 → 该等位基因声明（genes.json alleles 条目）。
+static func _payload(locus: Dictionary, allele: String) -> Dictionary:
+	return (locus.get("alleles", {}) as Dictionary).get(allele, {})
+
+
+## 座参数默认值（genes.json loci[].params[key].default）。
+static func _locus_default(locus: Dictionary, key: String, fallback: float) -> float:
+	var spec: Dictionary = (locus.get("params", {}) as Dictionary).get(key, {})
+	return float(spec.get("default", fallback))
 
 
 ## 等位基因 → 部件颜色（光环圈/兜底用）；未收录的等位基因按名字哈希给稳定色（新等位基因零改动可见）。
@@ -149,7 +211,7 @@ static func color_of(allele: String) -> Color:
 
 
 func _process(_dt: float) -> void:
-	if world == null or _barrel == null or not world.is_alive(entity_id):
+	if world == null or _barrels.is_empty() or not world.is_alive(entity_id):
 		return
 	# 炮管朝向射程内最近敌人；无敌情时默认朝上（规则在 TargetingSystem #7）。
 	# 全程在**逻辑坐标**里算：本节点是 EntityLayer（含缩放/平移）的子节点，global_position
@@ -168,8 +230,15 @@ func _process(_dt: float) -> void:
 			best_d = d
 			best = ep
 	var aim: Vector2 = best - origin
-	if aim.length() > 0.001:
-		_barrel.rotation = aim.angle()
+	if aim.length() <= 0.001:
+		aim = Vector2(0.0, -1.0)
+	# 每根炮管各自算朝向；左右错开量垂直于该根自己的朝向（单炮管错开量为 0，行为不变）
+	var perp := aim.normalized().orthogonal()
+	var twin := _barrels.size() >= 2
+	for i in _barrels.size():
+		var b: Barrel = _barrels[i]
+		b.rotation = aim.angle()
+		b.position = perp * _lateral(i, twin)
 
 
 func _draw() -> void:
@@ -190,11 +259,12 @@ func _draw() -> void:
 	for p in _parts:
 		var allele := str(p["allele"])
 		match str(p["kind"]):
-			"chimney": # 生产设施：右上角烟囱（贴图按等位基因取色，见 Art.CHIMNEY）
+			"chimney": # 生产设施：右上角烟囱（贴图按等位基因取色，见 Art.CHIMNEY）；杂合第二根右移一格宽
 				var ctex: Texture2D = _chimney_tex.get(allele, _chimney_tex.get("__fallback", null))
 				if ctex != null:
 					var ps := s * 0.45
-					draw_texture_rect(ctex, Rect2(s * 0.12, -s * 0.72, ps, ps), false)
+					var cdx: float = ps * 0.62 * float(p.get("slot", 0))
+					draw_texture_rect(ctex, Rect2(s * 0.12 + cdx, -s * 0.72, ps, ps), false)
 			"crate": # 缓冲：左下料箱（s/m/l 档位缩放贴图）
 				if _crate_tex != null:
 					var cscale: float = { "s": 0.28, "m": 0.36, "l": 0.44 }.get(allele, 0.36)
@@ -206,16 +276,9 @@ func _draw() -> void:
 					draw_texture_rect(_beacon_tex, Rect2(-es * 0.5, -s * 0.5 - es * 0.6, es, es), false)
 			"aura_ring": # 光环半径指示（美术需求表 §8，保留矢量弧）
 				draw_arc(Vector2.ZERO, float(p["radius"]), 0.0, TAU, 48, Color(color_of(allele), 0.45), 2.0)
-			"antenna": # 冗余基因天线：沿底座上沿排开
+			"antenna": # 冗余基因天线：沿底座上沿排开（杂合冗余座两根）
 				if _antenna_tex != null:
 					var ax := (-0.3 + 0.2 * antenna_i) * s
 					var asz := s * 0.3
 					draw_texture_rect(_antenna_tex, Rect2(ax - asz * 0.5, -s * 0.5 - asz, asz, asz), false)
 				antenna_i += 1
-
-
-func _allele_of(kind: String) -> String:
-	for p in _parts:
-		if str(p["kind"]) == kind:
-			return str(p["allele"])
-	return ""

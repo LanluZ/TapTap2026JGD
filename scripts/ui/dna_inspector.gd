@@ -1,10 +1,12 @@
 extends Control
 ## DNA 检视预制体（策划案 15.8 玩家视图，河阳式布局）：
-## 左列碱基字母纵列（只显示 A/T/C/G，不展开座名）→ 中央双螺旋插画 + 座数徽章
+## 左列碱基字母纵列（每座一对字母，杂合两个字母各用自己的颜色；不展开座名）→ 中央双螺旋插画 + 座数徽章
 ## → 右侧卡面形象（art 路径，空则整区隐藏）→ 底部融合规则 + 调试行。
 ## 场景预制体 scenes/ui/dna_inspector.tscn 的根脚本，可嵌套进任意容器。
 ## 纯数据注入（set_view），不引用逻辑层任何类型：
 ##   {title, bases, locus_names, rules, debug, art?}（art = 卡面贴图 res:// 路径，可选）
+## bases 每项 = 该座一对碱基（"AT" 杂合 / "AA" 纯合 / "—" 空座 / "·" 地块占位）；
+## 旧单字母载荷（"A"）照旧只显示一个字母，不在表现层补成双写。
 
 const UiStyle = preload("res://scripts/ui/ui_style.gd")
 
@@ -15,10 +17,12 @@ const BASE_COLORS := {
 	"G": Color(0.949, 0.851, 0.451), # #f2d973
 }
 const COLOR_EMPTY := Color(0.42, 0.40, 0.47)
-const EMPTY_BASES := ["—", "·"] # 空座（该座无基因）；"·" 是地块卡占位，算有座
+## 空座占位（"—"）与地块卡占位（"·"）都不是碱基字母：_letters_in 返回 0 个 → 整行灰色、不计入座数。
+const EMPTY_BASES := ["—", "·"]
 
 
 ## 双螺旋插画：两条相位差 π 的正弦链 + 每座一根碱基色横档。
+## 横档按二倍体拆成左右两半：杂合时左半用第一个字母的颜色、右半用第二个字母的颜色。
 ## 颜色表在此类内重复一份：内层类不捕获外层常量， headless 下直接引用会解析失败。
 class HelixView extends Control:
 	const HELIX_COLORS := {
@@ -34,6 +38,16 @@ class HelixView extends Control:
 	func set_bases(b: Array) -> void:
 		bases = b
 		queue_redraw()
+
+	## 该座的一对字母（"AT"/"AA" → 2 个；旧单字母 → 1 个；"—"/"·" → 0 个）。
+	## 与外层 _letters_in 同逻辑：内层类取不到外层常量，故各留一份。
+	static func letters_in(entry: String) -> Array:
+		var out: Array = []
+		for i in entry.length():
+			var ch := entry.substr(i, 1)
+			if HELIX_COLORS.has(ch):
+				out.append(ch)
+		return out
 
 	func _draw() -> void:
 		if size.y <= 1.0:
@@ -54,17 +68,25 @@ class HelixView extends Control:
 		draw_polyline(p2, Color(0.56, 0.56, 0.60), 5.0)
 		if bases.is_empty():
 			return
-		# 横档：每座一条，颜色 = 该座碱基色（互补对同色）
+		# 横档：每座一条，杂合时左右两半各用各的字母色
 		var n := bases.size()
 		for i in n:
 			var y := (float(i) + 0.5) * h / float(n)
 			var ang := (y / h) * TAU * twists
 			var x1 := cx + sin(ang) * amp
 			var x2 := cx + sin(ang + PI) * amp
-			var letter := str(bases[i])
-			var c: Color = HELIX_COLORS.get(letter, HELIX_EMPTY) \
-				if not (letter in ["—", "·"]) else HELIX_EMPTY
-			draw_rect(Rect2(minf(x1, x2), y - 2.0, absf(x1 - x2), 4.0), c)
+			var ls := letters_in(str(bases[i]))
+			var left := minf(x1, x2)
+			var width := absf(x1 - x2)
+			if ls.size() < 2:
+				var c: Color = HELIX_EMPTY
+				if ls.size() == 1:
+					c = HELIX_COLORS.get(str(ls[0]), HELIX_EMPTY)
+				draw_rect(Rect2(left, y - 2.0, width, 4.0), c)
+			else:
+				var mid := left + width * 0.5
+				draw_rect(Rect2(left, y - 2.0, width * 0.5, 4.0), HELIX_COLORS.get(str(ls[0]), HELIX_EMPTY))
+				draw_rect(Rect2(mid, y - 2.0, width * 0.5, 4.0), HELIX_COLORS.get(str(ls[1]), HELIX_EMPTY))
 
 
 var _title: Label
@@ -156,29 +178,61 @@ func set_view(data: Dictionary) -> void:
 	_debug_panel.visible = false
 
 
+## 座数按「有基因的座位数 / 总座位数」计（不按字母数）：杂合座两个字母仍算 1 座。
 func _occupied_count(bases: Array) -> int:
 	var n := 0
 	for b in bases:
-		if not str(b) in EMPTY_BASES:
+		if not _letters_in(str(b)).is_empty():
 			n += 1
 	return n
 
 
-## 左列：碱基字母纵列（只写字母；座名进 tooltip，不占版面）
+## 该座的一对字母（"AT"/"AA" → 2 个；旧单字母 → 1 个；"—"/"·"/空 → 0 个）。
+static func _letters_in(entry: String) -> Array:
+	var out: Array = []
+	if entry in EMPTY_BASES:
+		return out
+	for i in entry.length():
+		var ch := entry.substr(i, 1)
+		if BASE_COLORS.has(ch):
+			out.append(ch)
+	return out
+
+
+## 一对字母 → BBCode（逐字母上色）：杂合时两个字母各用自己的碱基色。
+static func _colored_letters(letters: Array) -> String:
+	var parts: Array = []
+	for l in letters:
+		var c: Color = BASE_COLORS.get(str(l), COLOR_EMPTY)
+		parts.append("[color=#%s]%s[/color]" % [c.to_html(false), str(l)])
+	return "".join(parts)
+
+
+## 左列：碱基字母纵列（每座一行，一行 1~2 个字母；座名进 tooltip，不占版面）
+## 用 RichTextLabel 才能一行里给两个字母上不同的碱基色；单字母/空座仍是纯文本，text 可直接读。
 func _fill_bases(bases: Array, locus_names: Array) -> void:
 	for child in _base_list.get_children():
 		_base_list.remove_child(child)
 		child.free()
 	_left_col.visible = not bases.is_empty()
 	for i in bases.size():
-		var letter := str(bases[i])
-		var occupied := not (letter in EMPTY_BASES)
-		var label := Label.new()
-		label.text = letter
-		label.add_theme_font_size_override("font_size", 20)
-		label.add_theme_color_override("font_color",
-			BASE_COLORS.get(letter, COLOR_EMPTY) if occupied else COLOR_EMPTY)
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var raw := str(bases[i])
+		var letters := _letters_in(raw)
+		var label := RichTextLabel.new()
+		label.bbcode_enabled = true
+		label.fit_content = true
+		label.scroll_active = false
+		label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		label.add_theme_font_size_override("normal_font_size", 20)
+		if letters.size() >= 2:
+			label.text = _colored_letters(letters)
+			label.add_theme_color_override("default_color", BASE_COLORS.get(str(letters[0]), COLOR_EMPTY))
+		else:
+			# 单字母（旧载荷）/ 空座占位：纯文本，颜色整行一种
+			label.text = raw if not raw.is_empty() else "—"
+			label.add_theme_color_override("default_color",
+				BASE_COLORS.get(str(letters[0]), COLOR_EMPTY) if not letters.is_empty() else COLOR_EMPTY)
 		if i < locus_names.size():
 			label.tooltip_text = str(locus_names[i])
 		_base_list.add_child(label)

@@ -189,6 +189,7 @@ func _run() -> int:
 	_t7_production()
 	_t8_reject_edge()
 	_t9_start_ammo()
+	_t10_hetero_attack()
 
 	print("======== 汇总: %d 项检查, %d 失败 ========" % [_checks, _failures])
 	return _failures
@@ -637,3 +638,130 @@ func _t9_start_ammo() -> void:
 	if plain != 0:
 		_ok(int(w.get_component(plain, &"Attack").ammo) == 0,
 			"运行：蓝图无该字段 → ammo=0（向后兼容；实际 %d）" % int(w.get_component(plain, &"Attack").ammo))
+
+
+# ================================================================ T10 杂合攻击座（双通道）
+## 二倍体攻击座（"AT" = 轻炮+重炮）在系统层的行为：
+##   ① 组件带 alt 第二通道（与主通道不同射弹）；
+##   ② 两条通道各自冷却（cooldown_left / alt_cd_left 独立递减、各自重置）；
+##   ③ 共用同一个弹仓（任一路开火都扣同一个 ammo）；
+##   ④ 亲水座 "AT"（喜水+嗜水）→ 供水两路都加速、断水两路都停摆。
+## 注：数值座（座1）目前只支持单字母（见 dna_test T15 的失败项），两条通道的冷却
+## 差异在这里由组件字段给出（atk.alt["cooldown"]），组件字段即契约。
+func _t10_hetero_attack() -> void:
+	print("== T10: 杂合攻击座（AT）——双通道独立冷却 / 共用弹仓 / 喜水+嗜水同时生效 ==")
+	_register_blueprint("t_het_gun", _het_attack_genome("CC"))
+	var s: Dictionary = _turret_world(false, "t_het_gun")
+	_config.blueprints.erase(&"t_het_gun")
+	var w = s["world"]
+	var turret: int = s["turret"]
+	var atk = s["atk"]
+	_ok(turret != 0 and atk != null and not (atk.alt as Dictionary).is_empty(),
+		"杂合攻击座落地 → Attack.alt 第二通道存在（%s）" % str(atk.alt))
+	_ok(str((atk.alt as Dictionary).get("projectile", "")) == "ore_heavy",
+		"alt 通道射弹 = ore_heavy（主通道 ore_shot，两种武器同体）")
+	_ok(String(atk.hydro) == "hydro_none" and String(atk.hydro2) == "",
+		"亲水座纯合 CC → hydro=漠水、hydro2 空（单水基因）")
+	# (b) 冷却各自递减（都不点火：两条通道剩余冷却都 > 1 秒）
+	atk.ammo = 6
+	atk.cooldown = 0.8
+	atk.alt["cooldown"] = 1.2
+	atk.cooldown_left = 5.0
+	atk.alt_cd_left = 3.0
+	_clear_projectiles(w)
+	_ticks(w, 10) # 1.0 秒
+	_ok(_shots(w) == 0, "两条通道都在冷却中 → 零发射（%d 发）" % _shots(w))
+	_ok(is_equal_approx(float(atk.cooldown_left), 4.0) and is_equal_approx(float(atk.alt_cd_left), 2.0),
+		"双通道冷却各自递减（主 5.0→%.2f、alt 3.0→%.2f）" % [float(atk.cooldown_left), float(atk.alt_cd_left)])
+	# (c) 主通道开火：只重置自己的冷却，扣 1 弹
+	atk.ammo = 3
+	atk.cooldown_left = 0.0
+	atk.alt_cd_left = 5.0
+	_clear_projectiles(w)
+	w.tick(DT)
+	_ok(_shots(w) == 1 and int(atk.ammo) == 2,
+		"主通道开火：1 发、ammo 3→%d（共用弹仓）" % int(atk.ammo))
+	_ok(is_equal_approx(float(atk.cooldown_left), 0.8) and float(atk.alt_cd_left) > 4.8,
+		"主通道开火只重置 cooldown_left（alt_cd_left=%.2f 仅走计时）" % float(atk.alt_cd_left))
+	# (d) alt 通道开火：只重置 alt_cd_left，同样扣 1 弹（同一弹仓）
+	atk.cooldown_left = 5.0
+	atk.alt_cd_left = 0.0
+	_clear_projectiles(w)
+	w.tick(DT)
+	_ok(_shots(w) == 1 and int(atk.ammo) == 1,
+		"alt 通道开火：1 发、ammo 2→%d（两路开火都从同一个 ammo 扣）" % int(atk.ammo))
+	_ok(is_equal_approx(float(atk.alt_cd_left), 1.2) and float(atk.cooldown_left) > 4.8,
+		"alt 通道开火只重置 alt_cd_left（主 cooldown_left=%.2f 仅走计时）" % float(atk.cooldown_left))
+	# (e) 断弹：两路共用弹仓，都不产生负弹药（主通道半伤空放）
+	atk.ammo = 0
+	atk.alt_cd_left = 5.0
+	var dry: Dictionary = _fire_once(w, atk)
+	_ok(int(dry["shots"]) == 1 and is_equal_approx(float(dry["damage"]), 3.0) and int(atk.ammo) == 0,
+		"断弹：主通道仍空放（伤害 3.0）、ammo 停在 0（不为负；实际 %d）" % int(atk.ammo))
+
+	# (f) 亲水座 AT（喜水 + 嗜水）：供水两路加速、断水两路停摆
+	_register_blueprint("t_het_wet", _het_attack_genome("AT"))
+	var s2: Dictionary = _turret_world(true, "t_het_wet")
+	_config.blueprints.erase(&"t_het_wet")
+	var w2 = s2["world"]
+	var t2: int = s2["turret"]
+	var atk2 = s2["atk"]
+	_ok(String(atk2.hydro) == "hydro_love" and String(atk2.hydro2) == "hydro_thirsty",
+		"亲水座 AT → hydro=喜水 + hydro2=嗜水（两条水基因同时挂上组件）")
+	_ok(w2.is_watered(t2), "前置：炮塔已接水")
+	atk2.ammo = 6
+	atk2.cooldown = 0.8
+	atk2.alt["cooldown"] = 1.2
+	atk2.alt_cd_left = 5.0
+	var wet: Dictionary = _fire_once(w2, atk2)
+	_ok(is_equal_approx(float(wet["cooldown"]), 0.64),
+		"供水：主通道生效冷却 ×0.8 = 0.64（实际 %.3f）" % float(wet["cooldown"]))
+	atk2.cooldown_left = 5.0
+	atk2.alt_cd_left = 0.0
+	_clear_projectiles(w2)
+	w2.tick(DT)
+	_ok(is_equal_approx(float(atk2.alt_cd_left), 1.2 * 0.8),
+		"供水：alt 通道同样 ×0.8 = 0.96（实际 %.3f）" % float(atk2.alt_cd_left))
+	# 断水（拆掉建筑侧管）→ 两路都停摆
+	w2.push_command({"type": "remove_line", "cells": [[6, 3]]})
+	w2.tick(DT)
+	_ok(not w2.is_watered(t2), "拆管当帧断水")
+	atk2.cooldown_left = 0.0
+	atk2.alt_cd_left = 0.0
+	var shots2 := 0
+	for i in 20: # 2.0 秒 ≫ 两条通道的冷却
+		_clear_projectiles(w2)
+		w2.tick(DT)
+		shots2 += _shots(w2)
+	_ok(shots2 == 0, "断水 2.0 秒两路零发射（嗜水基因生效；实际 %d 发）" % shots2)
+	_ok(atk2.cooldown_left <= 0.0 and atk2.alt_cd_left <= 0.0,
+		"断水停摆不烧两路冷却（主 %.2f / alt %.2f）" % [float(atk2.cooldown_left), float(atk2.alt_cd_left)])
+
+
+## 杂合攻击座基因组：座0 = AT（轻炮+重炮），座1 数值（纯合），座4 亲水（hydro 两字母）。
+func _het_attack_genome(hydro: String) -> Array:
+	return _genome_of({
+		0: { "bases": "AT" },
+		1: { "bases": "AA", "params": { "damage": 6.0, "range": 160.0, "cooldown": 0.8 } },
+		4: { "bases": hydro },
+	})
+
+
+## 9 座空基因组（{座号: entry}）。
+func _genome_of(slots: Dictionary) -> Array:
+	var g: Array = []
+	g.resize(9)
+	for i in 9:
+		g[i] = slots.get(i, null)
+	return g
+
+
+## 临时蓝图注册（拷轻炮塔，cost 置空、去掉 start_ammo 让弹药从 0 起算）；用后由调用方 erase。
+func _register_blueprint(bid: String, genome: Array) -> void:
+	var bp: Dictionary = _config.blueprints[&"gun_turret"].duplicate(true)
+	bp["id"] = StringName(bid)
+	bp["name"] = bid
+	bp["cost"] = {}
+	bp["genome"] = genome
+	bp.erase("start_ammo")
+	_config.blueprints[StringName(bid)] = bp

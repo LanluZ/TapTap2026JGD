@@ -350,6 +350,15 @@ func _parse_genes(data, src: String) -> void:
 			var acode := str(d.get("allele_code", ""))
 			if acode.length() != 1 or not (acode in ["A", "T", "C", "G"]):
 				_err("%s: stats 座缺/非法 allele_code（需 A/T/C/G 单字母）" % ctx)
+			# 第二码：数值座杂合（两条攻击通道各一套数值）时用；与主码成对声明
+			var alt_code := str(d.get("alt_code", ""))
+			if not alt_code.is_empty():
+				if alt_code.length() != 1 or not (alt_code in ["A", "T", "C", "G"]):
+					_err("%s: stats 座 alt_code 需 A/T/C/G 单字母" % ctx)
+				elif alt_code == acode:
+					_err("%s: stats 座 alt_code 不能与 allele_code 相同" % ctx)
+				if str(d.get("alt_allele_id", "")).is_empty():
+					_err("%s: stats 座声明 alt_code 时必须同时给 alt_allele_id" % ctx)
 			if not (d.get("params", null) is Dictionary) or (d["params"] as Dictionary).is_empty():
 				_err("%s: stats 座必须定义非空 params" % ctx)
 		if d.get("params", null) is Dictionary:
@@ -372,10 +381,9 @@ func _parse_genes(data, src: String) -> void:
 		elif kind != "stats":
 			_err("%s: 座必须定义 alleles 对象" % ctx)
 		var locus := { "id": id, "kind": kind, "alleles": alleles, "params": params }
-		if d.has("allele_id"):
-			locus["allele_id"] = str(d["allele_id"])
-		if d.has("allele_code"):
-			locus["allele_code"] = str(d["allele_code"])
+		for k in ["allele_id", "allele_code", "alt_allele_id", "alt_code"]:
+			if d.has(k):
+				locus[k] = str(d[k])
 		out_loci.append(locus)
 	if out_loci.size() != arr.size():
 		return # 有座解析失败，错误已记录，不落表
