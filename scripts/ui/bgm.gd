@@ -20,13 +20,30 @@ const TRACKS := {
 var _player: AudioStreamPlayer
 var _streams := {} # track id -> AudioStreamOggVorbis（循环点已写好的缓存实例）
 var _current: StringName = &""
+var _volume := 1.0 # 线性音量 0..1（菜单设置滑块写这里，不落盘）
 
 
 func _ready() -> void:
 	_player = AudioStreamPlayer.new()
 	_player.name = "BgmPlayer"
 	add_child(_player)
+	_apply_volume()
 	play(&"title")
+
+
+## 音量（0..1 线性）：菜单设置滑块调用，作用于 BGM 这一路。
+func set_volume(linear: float) -> void:
+	_volume = clampf(linear, 0.0, 1.0)
+	_apply_volume()
+
+
+func get_volume() -> float:
+	return _volume
+
+
+func _apply_volume() -> void:
+	if _player != null:
+		_player.volume_db = linear_to_db(maxf(_volume, 0.0001))
 
 
 func play_title() -> void:

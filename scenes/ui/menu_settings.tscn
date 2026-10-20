@@ -1,0 +1,175 @@
+[gd_scene format=3 uid="uid://2to72s4nyy0f"]
+
+[ext_resource type="Script" uid="uid://xcjenw1ut75l" path="res://scripts/ui/menu_settings.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://d01bo340bjnmn" path="res://themes/menu_theme.tres" id="2_theme"]
+[ext_resource type="StyleBox" uid="uid://ju8efmq0xihh" path="res://themes/ui_panel_outer.tres" id="3_outer"]
+[ext_resource type="StyleBox" uid="uid://ybltucvg6p2c" path="res://themes/ui_panel_inner.tres" id="4_inner"]
+[ext_resource type="Script" uid="uid://wjnlxk3gxd2n" path="res://scripts/animated_button.gd" id="5_btnfx"]
+
+[sub_resource type="StyleBoxFlat" id="SB_accent"]
+bg_color = Color(1, 0.686, 0.8, 0.55)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="SB_track"]
+content_margin_top = 3.0
+content_margin_bottom = 3.0
+bg_color = Color(0.184, 0.122, 0.216, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.463, 0.361, 0.518, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="SB_fill"]
+content_margin_top = 3.0
+content_margin_bottom = 3.0
+bg_color = Color(1, 0.686, 0.8, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="MenuSettings" type="Control" unique_id=2039924262]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="Dim" type="ColorRect" parent="." unique_id=1564528950]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.58)
+
+[node name="Center" type="CenterContainer" parent="." unique_id=67301959]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Frame" type="PanelContainer" parent="Center" unique_id=2087567731]
+self_modulate = Color(1, 1, 1, 0.42352942)
+custom_minimum_size = Vector2(720, 0)
+layout_mode = 2
+theme_override_styles/panel = ExtResource("3_outer")
+
+[node name="VBox" type="VBoxContainer" parent="Center/Frame" unique_id=1644489482]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="Center/Frame/VBox" unique_id=690136613]
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "设置"
+horizontal_alignment = 1
+
+[node name="Accent" type="Panel" parent="Center/Frame/VBox" unique_id=1588619391]
+custom_minimum_size = Vector2(0, 3)
+layout_mode = 2
+theme_override_styles/panel = SubResource("SB_accent")
+
+[node name="Subtitle" type="Label" parent="Center/Frame/VBox" unique_id=37651742]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.847, 0.82, 0.863, 1)
+theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1
+
+[node name="BGMRow" type="PanelContainer" parent="Center/Frame/VBox" unique_id=210912240]
+layout_mode = 2
+theme_override_styles/panel = ExtResource("4_inner")
+
+[node name="Box" type="HBoxContainer" parent="Center/Frame/VBox/BGMRow" unique_id=655322947]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Name" type="Label" parent="Center/Frame/VBox/BGMRow/Box" unique_id=1861887970]
+custom_minimum_size = Vector2(110, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "背景音乐"
+vertical_alignment = 1
+
+[node name="Slider" type="HSlider" parent="Center/Frame/VBox/BGMRow/Box" unique_id=642772568]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_styles/slider = SubResource("SB_track")
+theme_override_styles/grabber_area = SubResource("SB_fill")
+theme_override_styles/grabber_area_highlight = SubResource("SB_fill")
+value = 80.0
+
+[node name="Value" type="Label" parent="Center/Frame/VBox/BGMRow/Box" unique_id=1241285835]
+custom_minimum_size = Vector2(64, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "80%"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="SfxRow" type="PanelContainer" parent="Center/Frame/VBox" unique_id=1992132766]
+layout_mode = 2
+theme_override_styles/panel = ExtResource("4_inner")
+
+[node name="Box" type="HBoxContainer" parent="Center/Frame/VBox/SfxRow" unique_id=1269622333]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Name" type="Label" parent="Center/Frame/VBox/SfxRow/Box" unique_id=769687310]
+custom_minimum_size = Vector2(110, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "音效"
+vertical_alignment = 1
+
+[node name="Slider" type="HSlider" parent="Center/Frame/VBox/SfxRow/Box" unique_id=776625498]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_styles/slider = SubResource("SB_track")
+theme_override_styles/grabber_area = SubResource("SB_fill")
+theme_override_styles/grabber_area_highlight = SubResource("SB_fill")
+value = 80.0
+
+[node name="Value" type="Label" parent="Center/Frame/VBox/SfxRow/Box" unique_id=1841318223]
+custom_minimum_size = Vector2(64, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "80%"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Buttons" type="HBoxContainer" parent="Center/Frame/VBox" unique_id=1239246829]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="CloseButton" type="Button" parent="Center/Frame/VBox/Buttons" unique_id=226221071]
+custom_minimum_size = Vector2(200, 50)
+layout_mode = 2
+text = "关闭"
+script = ExtResource("5_btnfx")
+
+[node name="Hint" type="Label" parent="Center/Frame/VBox" unique_id=273222834]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.847, 0.82, 0.863, 0.7)
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1

@@ -11,6 +11,9 @@ const LAP_SPEED := 90.0
 ## 选关界面预制体：轮播预览三张地图（res://art/maps/），选完发 level_chosen。
 const LEVEL_SELECT := preload("res://scenes/ui/level_select.tscn")
 
+## 设置界面预制体：两条音量滑块（背景音乐 / 音效），首次点「设置」时懒加载。
+const MENU_SETTINGS := preload("res://scenes/ui/menu_settings.tscn")
+
 ## Logo 缓慢浮动：上下 10px + 轻微摇摆（±2.5°），两个周期错开，避免看起来像机械升降。
 ## 光泽扫过与破损消融在 shaders/logo_gloss_dissolve.gdshader 里，这里只动位置/角度。
 const LOGO_BOB_PX := 10
@@ -33,10 +36,12 @@ const PARALLAX_LAYERS := [
 @onready var _ui: Control = $UI
 @onready var _logo: Sprite2D = $UI.get_node_or_null("Logo") as Sprite2D
 @onready var _start_btn: Button = $UI/CenterContainer/MenuPanel/VBox/StartButton
+@onready var _settings_btn: Button = $UI/CenterContainer/MenuPanel/VBox/SettingsButton
 @onready var _quit_btn: Button = $UI/CenterContainer/MenuPanel/VBox/QuitButton
 
 var _time := 0.0
 var _picker: Node = null
+var _settings: Control = null
 var _logo_base := Vector2.ZERO
 var _bg_nodes: Array[Sprite2D] = []
 var _bg_base: Array[Vector2] = []
@@ -45,6 +50,7 @@ var _parallax := Vector2.ZERO
 func _ready() -> void:
 	Bgm.play_title() # 菜单/选关用 title 曲（关卡内由 game.gd 切战斗曲）
 	_start_btn.pressed.connect(_on_start_pressed)
+	_settings_btn.pressed.connect(_on_settings_pressed)
 	_quit_btn.pressed.connect(_on_quit_pressed)
 	if _logo != null:
 		_logo_base = _logo.position
@@ -71,6 +77,14 @@ func _close_picker() -> void:
 	if _picker != null:
 		_picker.queue_free()
 		_picker = null
+
+
+## 设置界面：首次点「设置」时实例化到 UI 层（全屏遮罩 + 居中面板），之后复用。
+func _on_settings_pressed() -> void:
+	if _settings == null:
+		_settings = MENU_SETTINGS.instantiate()
+		_ui.add_child(_settings)
+	_settings.open()
 
 
 func _go(level_id: StringName) -> void:

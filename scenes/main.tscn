@@ -20,6 +20,7 @@
 [ext_resource type="Texture2D" uid="uid://dhbwbx83vevdb" path="res://art/ui/tinted/pal/button_normal.png" id="tx_btn_n"]
 [ext_resource type="Texture2D" uid="uid://hmo1egjt5hwq" path="res://art/ui/tinted/pal/button_pressed.png" id="tx_btn_p"]
 [ext_resource type="Texture2D" uid="uid://c62wo47prqb30" path="res://art/ui/tinted/pal/panel_p001_double.png" id="tx_p001d"]
+[ext_resource type="PackedScene" path="res://scenes/ui/tutorial_popup.tscn" id="ps_tutorial"]
 
 [sub_resource type="StyleBoxTexture" id="SBtex_btn_h"]
 content_margin_left = 12.0
@@ -121,6 +122,48 @@ bg_color = Color(0.635, 0.824, 1, 1)
 
 [sub_resource type="StyleBoxFlat" id="SB_bar_enemy_fill"]
 bg_color = Color(1, 0.686, 0.8, 1)
+
+[sub_resource type="StyleBoxFlat" id="SB_round_n"]
+bg_color = Color(0.384, 0.275, 0.447, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.58, 0.482, 0.639, 1)
+corner_radius_top_left = 32
+corner_radius_top_right = 32
+corner_radius_bottom_right = 32
+corner_radius_bottom_left = 32
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 6
+shadow_offset = Vector2(0, 2)
+
+[sub_resource type="StyleBoxFlat" id="SB_round_h"]
+bg_color = Color(0.427, 0.31, 0.49, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.686, 0.8, 1)
+corner_radius_top_left = 32
+corner_radius_top_right = 32
+corner_radius_bottom_right = 32
+corner_radius_bottom_left = 32
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 8
+shadow_offset = Vector2(0, 2)
+
+[sub_resource type="StyleBoxFlat" id="SB_round_p"]
+bg_color = Color(0.447, 0.231, 0.31, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.686, 0.8, 1)
+corner_radius_top_left = 32
+corner_radius_top_right = 32
+corner_radius_bottom_right = 32
+corner_radius_bottom_left = 32
 
 [node name="Main" type="Control" unique_id=1819869611]
 layout_mode = 3
@@ -478,7 +521,31 @@ tooltip_text = "点击切换 1倍速 / 2倍速"
 text = "1倍速"
 script = ExtResource("s_btnfx")
 
+[node name="TutorialButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -92.0
+offset_top = -92.0
+offset_right = -28.0
+offset_bottom = -28.0
+grow_horizontal = 0
+grow_vertical = 0
+tooltip_text = "玩法教程"
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("SB_round_n")
+theme_override_styles/hover = SubResource("SB_round_h")
+theme_override_styles/pressed = SubResource("SB_round_p")
+text = "?"
+script = ExtResource("s_btnfx")
+
 [node name="SettingsPanel" parent="." unique_id=1002040087 instance=ExtResource("ps_settings")]
+layout_mode = 1
+
+[node name="TutorialPopup" parent="." instance=ExtResource("ps_tutorial")]
 layout_mode = 1
 
 [node name="Game" type="Node" parent="." unique_id=18194909]

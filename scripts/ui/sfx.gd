@@ -34,6 +34,7 @@ var _players: Array[AudioStreamPlayer] = []
 var _round := 0
 var _missing_warned: Dictionary = {}
 var _last_play_ms: Dictionary = {}
+var _volume := 1.0 # 线性音量 0..1（菜单设置滑块写这里，不落盘）
 
 
 func _ready() -> void:
@@ -41,9 +42,26 @@ func _ready() -> void:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
 		_players.append(p)
+	_apply_volume()
 	get_tree().node_added.connect(_on_node_added)
 	# 竞态补扫：主场景按钮可能在上面这行接线之前就已进树（启动实测即如此），node_added 不会补发
 	_hook_subtree(get_tree().root)
+
+
+## 音量（0..1 线性）：菜单设置滑块调用，作用于全部 UI 音效。
+func set_volume(linear: float) -> void:
+	_volume = clampf(linear, 0.0, 1.0)
+	_apply_volume()
+
+
+func get_volume() -> float:
+	return _volume
+
+
+func _apply_volume() -> void:
+	var db := linear_to_db(maxf(_volume, 0.0001))
+	for p in _players:
+		p.volume_db = db
 
 
 ## 首帧兜底：覆盖"主场景晚于本 _ready、但早于首帧"的加载顺序；扫完关掉自己（幂等，只跑一次）

@@ -65,6 +65,7 @@ var _start_btn: Button
 var _speed_btn: Button
 var _cap_btn: Button # 敌人上限购买（电力）
 var _settings: Control # scenes/ui/settings_panel.tscn 实例（main.tscn 内）
+var _tutorial: Control # scenes/ui/tutorial_popup.tscn 实例（main.tscn 内）
 var _wave_running := false # 与 GameState.waves_running 初值一致（默认暂停）
 var _speed := 1.0
 var _line_overlay: LineOverlayScript
@@ -109,6 +110,7 @@ func _resolve_nodes() -> void:
 	if _start_btn == null or _speed_btn == null:
 		push_warning("[关卡UI] main.tscn 缺少 HUD/TopBar/Row 下的 StartBtn/SpeedBtn")
 	_bind_settings()
+	_bind_tutorial()
 	_build_fusion_bar()
 	_bind_cap_button()
 	_build_dna_popup()
@@ -124,6 +126,27 @@ func _bind_settings() -> void:
 		return
 	if not _settings.is_connected("title_requested", _on_settings_title_requested):
 		_settings.connect("title_requested", _on_settings_title_requested)
+
+
+## 教程弹窗（main.tscn 内的 TutorialPopup）：右下角问号按钮打开。
+## 打开时暂停由 tutorial_popup.gd 自己做，点任意处/ESC 由它收口。
+func _bind_tutorial() -> void:
+	_tutorial = get_node_or_null("TutorialPopup")
+	var btn := get_node_or_null("TutorialButton") as Button
+	if _tutorial == null or btn == null:
+		push_warning("[关卡UI] main.tscn 缺少 TutorialButton / TutorialPopup（教程入口不可用）")
+		return
+	if not btn.pressed.is_connected(open_tutorial):
+		btn.pressed.connect(open_tutorial)
+
+
+func open_tutorial() -> void:
+	if _tutorial != null:
+		_tutorial.open()
+
+
+func is_tutorial_open() -> bool:
+	return _tutorial != null and _tutorial.visible
 
 
 ## 物流工具（main.tscn 的 HUD/TopBar/Row/LineTools + LineOverlay）：三按钮互斥选中，
