@@ -5,7 +5,7 @@
 			"name": "环谷要塞",
 			"path_id": "loop_main",
 			"cell_size": 64,
-			"enemy_cap": 12,
+			"enemy_cap": 36,
 			"hand_start": 5,
 			"path": [
 				[
@@ -650,7 +650,7 @@
 					"spawns": [
 						{
 							"enemy": "slime",
-							"count": 3,
+							"count": 9,
 							"interval": 0.5,
 							"delay": 0.0
 						}
@@ -660,7 +660,7 @@
 					"spawns": [
 						{
 							"enemy": "bat",
-							"count": 3,
+							"count": 9,
 							"interval": 0.7,
 							"delay": 0.5
 						}
@@ -670,13 +670,13 @@
 					"spawns": [
 						{
 							"enemy": "slime",
-							"count": 2,
+							"count": 6,
 							"interval": 0.6,
 							"delay": 0.0
 						},
 						{
 							"enemy": "slime_king",
-							"count": 1,
+							"count": 3,
 							"interval": 1.0,
 							"delay": 2.0
 						}
@@ -699,7 +699,7 @@
 			"name": "长峡回廊",
 			"path_id": "loop_long",
 			"cell_size": 64,
-			"enemy_cap": 14,
+			"enemy_cap": 42,
 			"hand_start": 5,
 			"path": [
 				[
@@ -1026,7 +1026,7 @@
 					"spawns": [
 						{
 							"enemy": "slime",
-							"count": 3,
+							"count": 9,
 							"interval": 0.5,
 							"delay": 0.0
 						}
@@ -1036,7 +1036,7 @@
 					"spawns": [
 						{
 							"enemy": "swarm",
-							"count": 5,
+							"count": 15,
 							"interval": 0.3,
 							"delay": 0.0
 						}
@@ -1046,13 +1046,13 @@
 					"spawns": [
 						{
 							"enemy": "slime",
-							"count": 4,
+							"count": 12,
 							"interval": 0.5,
 							"delay": 0.0
 						},
 						{
 							"enemy": "golem",
-							"count": 1,
+							"count": 3,
 							"interval": 1.0,
 							"delay": 1.5
 						}
@@ -1062,19 +1062,19 @@
 					"spawns": [
 						{
 							"enemy": "golem",
-							"count": 2,
+							"count": 6,
 							"interval": 1.2,
 							"delay": 0.0
 						},
 						{
 							"enemy": "slime",
-							"count": 3,
+							"count": 9,
 							"interval": 0.4,
 							"delay": 1.0
 						},
 						{
 							"enemy": "slime_king",
-							"count": 1,
+							"count": 3,
 							"interval": 1.0,
 							"delay": 3.0
 						}
@@ -1097,7 +1097,7 @@
 			"name": "折返双廊",
 			"path_id": "loop_double",
 			"cell_size": 64,
-			"enemy_cap": 16,
+			"enemy_cap": 48,
 			"hand_start": 5,
 			"path": [
 				[
@@ -1569,7 +1569,7 @@
 					"spawns": [
 						{
 							"enemy": "slime",
-							"count": 4,
+							"count": 12,
 							"interval": 0.5,
 							"delay": 0.0
 						}
@@ -1579,7 +1579,7 @@
 					"spawns": [
 						{
 							"enemy": "moth",
-							"count": 3,
+							"count": 9,
 							"interval": 0.8,
 							"delay": 0.0
 						}
@@ -1589,13 +1589,13 @@
 					"spawns": [
 						{
 							"enemy": "slime",
-							"count": 5,
+							"count": 15,
 							"interval": 0.4,
 							"delay": 0.0
 						},
 						{
 							"enemy": "golem",
-							"count": 1,
+							"count": 3,
 							"interval": 1.0,
 							"delay": 2.0
 						}
@@ -1605,13 +1605,13 @@
 					"spawns": [
 						{
 							"enemy": "moth",
-							"count": 3,
+							"count": 9,
 							"interval": 0.7,
 							"delay": 0.0
 						},
 						{
 							"enemy": "bat",
-							"count": 4,
+							"count": 12,
 							"interval": 0.4,
 							"delay": 1.0
 						}
@@ -1621,19 +1621,19 @@
 					"spawns": [
 						{
 							"enemy": "slime_king",
-							"count": 1,
+							"count": 3,
 							"interval": 1.0,
 							"delay": 0.0
 						},
 						{
 							"enemy": "golem",
-							"count": 2,
+							"count": 6,
 							"interval": 1.2,
 							"delay": 1.5
 						},
 						{
 							"enemy": "slime",
-							"count": 4,
+							"count": 12,
 							"interval": 0.4,
 							"delay": 3.0
 						}
