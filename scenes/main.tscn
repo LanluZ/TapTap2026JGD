@@ -184,9 +184,36 @@ grow_horizontal = 0
 mouse_filter = 2
 theme_override_constants/separation = 8
 
+[node name="Receipts" type="PanelContainer" parent="RightRail" unique_id=1155051003]
+custom_minimum_size = Vector2(0, 130)
+layout_mode = 2
+theme_override_styles/panel = ExtResource("8_jbj1t")
+script = ExtResource("s_receipts")
+
+[node name="VBox" type="VBoxContainer" parent="RightRail/Receipts" unique_id=2113165387]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="RightRail/Receipts/VBox" unique_id=437972011]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "日志"
+
+[node name="Body" type="ScrollContainer" parent="RightRail/Receipts/VBox" unique_id=1379786491]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="List" type="VBoxContainer" parent="RightRail/Receipts/VBox/Body" unique_id=1152374508]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
 [node name="CardLibrary" type="PanelContainer" parent="RightRail" unique_id=2040035618]
 custom_minimum_size = Vector2(0, 130)
 layout_mode = 2
+size_flags_vertical = 3
 theme_override_styles/panel = ExtResource("8_jbj1t")
 script = ExtResource("s_library")
 
@@ -226,33 +253,6 @@ size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
 [node name="List" type="VBoxContainer" parent="RightRail/CardLibrary/VBox/Body" unique_id=103302910]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 4
-
-[node name="Receipts" type="PanelContainer" parent="RightRail" unique_id=1155051003]
-custom_minimum_size = Vector2(0, 100)
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_styles/panel = ExtResource("8_jbj1t")
-script = ExtResource("s_receipts")
-
-[node name="VBox" type="VBoxContainer" parent="RightRail/Receipts" unique_id=2113165387]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="Title" type="Label" parent="RightRail/Receipts/VBox" unique_id=437972011]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "日志"
-
-[node name="Body" type="ScrollContainer" parent="RightRail/Receipts/VBox" unique_id=1379786491]
-custom_minimum_size = Vector2(0, 60)
-layout_mode = 2
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-
-[node name="List" type="VBoxContainer" parent="RightRail/Receipts/VBox/Body" unique_id=1152374508]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
